@@ -1,5 +1,13 @@
-// API client exports - placeholder for Phase 3 implementation
-export const laravelClient = {};
-export const supabaseClient = {};
+// API client exports
 
+// Laravel API client functions
+export {
+  getCsrfCookie,
+  loginWithEmail,
+  loginWithLark,
+  getCurrentUser,
+  logoutUser,
+} from './laravel-client'
 
+// Supabase client - placeholder for Phase 3 implementation
+export const supabaseClient = {}
