@@ -110,7 +110,7 @@ In-depth technical documentation:
 
 ## 🔄 Document Maintenance
 
-These documents are actively maintained. Last updated: **February 2026**
+These documents are actively maintained. Last updated: **February 11, 2026**
 
 For documentation issues or suggestions, please create an issue or pull request.
 

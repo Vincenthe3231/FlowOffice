@@ -25,7 +25,7 @@
 - **Next.js**: React framework for high-performance SSR, SSG, and unified routing/API handling.
 - **TanStack Query**: Essential library for server state management (Query) and complex data UI (Table).
 - **Zod**: TypeScript-first schema validation for runtime type safety in forms and APIs.
-- **Modernize Template**: A pre-built UI foundation for rapid dashboard and landing page development.
+- **FlowOffice Branding**: Custom branding with Lark icon and FlowOffice text logo
 - **shadcn/ui**: Accessible, customizable component primitives built with Radix UI and Tailwind CSS.
 - **Iconify-icons**: A unified framework providing access to thousands of icons across multiple sets.
 - **lucide-react**: A library of clean, consistent SVG icons designed for modern React interfaces.
@@ -1227,14 +1227,14 @@ public function larkCallback(Request $request)
 
 #### Day 8-10: Next.js Setup
 ```bash
-npx create-next-app@latest belive-frontend --typescript --tailwind --app
-cd belive-frontend
+npx create-next-app@latest belive-fo-client --typescript --tailwind --app
+cd belive-fo-client
 
-npm install @supabase/supabase-js
-npm install @tanstack/react-query zustand
-npm install react-hook-form @hookform/resolvers zod
+pnpm install @supabase/supabase-js
+pnpm install @tanstack/react-query zustand
+pnpm install react-hook-form @hookform/resolvers zod axios
 npx shadcn-ui@latest init
-npx shadcn-ui@latest add button form input
+npx shadcn-ui@latest add button form input label checkbox
 ```
 
 **Success Criteria:**
@@ -1364,13 +1364,13 @@ class AttendanceController extends Controller
 
 **Day 1-3: Next.js Clock-In UI**
 ```typescript
-// app/attendance/page.tsx
+// src/app/(authenticated)/attendance/page.tsx
 'use client'
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/hooks/use-toast'
+import { useToast } from '@/shared/hooks/useToast'
 
 export default function AttendancePage() {
   const [loading, setLoading] = useState(false)
@@ -1427,19 +1427,20 @@ export default function AttendancePage() {
 
 **Day 4-5: Realtime Updates**
 ```typescript
-// hooks/useAttendanceRealtime.ts
+// src/features/attendance/hooks/useAttendanceRealtime.ts
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { createSupabaseClient } from '@/lib/supabase-client'
+import { getSupabaseClient } from '@/shared/lib/supabase/client'
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 export function useAttendanceRealtime(userId: number) {
   const queryClient = useQueryClient()
   
   useEffect(() => {
-    const supabaseToken = localStorage.getItem('supabase_token')
+    const supabaseToken = useAuthStore.getState().supabaseToken
     if (!supabaseToken) return
     
-    const supabase = createSupabaseClient(supabaseToken)
+    const supabase = getSupabaseClient()
     
     const channel = supabase
       .channel('attendance-changes')
@@ -1516,6 +1517,6 @@ export function useAttendanceRealtime(userId: number) {
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** February 6, 2026  
-**Status:** Production Implementation Guide
+**Document Version:** 2.1  
+**Last Updated:** February 11, 2026  
+**Status:** Production Implementation Guide (Updated to reflect current project state)
