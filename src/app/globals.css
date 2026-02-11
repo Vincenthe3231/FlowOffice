@@ -28,6 +28,25 @@
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222.2 47.4% 11.2%;
+  --sidebar-primary: 221.2 83.2% 53.3%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 221.2 83.2% 53.3% / 0.12;
+  --sidebar-accent-foreground: 221.2 83.2% 53.3%;
+  --sidebar-border: 0 0% 89.8%;
+  --sidebar-ring: 0 0% 63.1%;
+  
+  /* Custom color variables for RenoXpert compatibility */
+  --info: 271 81% 56%;
+  --success: 166 76% 37%;
+  --warning: 43 96% 56%;
+  --error: 0 84% 60%;
+  --white: 0 0% 100%;
+  --dark: 222 47% 11%;
+  --link: 222 47% 11%;
+  --darklink: 222 47% 11%;
+  --lightprimary: 221 83% 53% / 0.12;
 }
 
 .dark {
@@ -55,6 +74,25 @@
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
+  --sidebar: 222 32% 16%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 217.2 91.2% 59.8%;
+  --sidebar-primary-foreground: 222 32% 16%;
+  --sidebar-accent: 217.2 91.2% 59.8% / 0.12;
+  --sidebar-accent-foreground: 217.2 91.2% 59.8%;
+  --sidebar-border: 217.2 32.6% 17.5%;
+  --sidebar-ring: 224.3 76.3% 48%;
+  
+  /* Custom color variables for RenoXpert compatibility (dark mode) */
+  --info: 271 81% 56%;
+  --success: 166 76% 37%;
+  --warning: 43 96% 56%;
+  --error: 0 84% 60%;
+  --white: 0 0% 100%;
+  --dark: 222 32% 16%;
+  --link: 217.2 32.6% 17.5%;
+  --darklink: 210 40% 98%;
+  --lightprimary: 217.2 91.2% 59.8% / 0.12;
 }
 
 @layer base {
@@ -63,5 +101,23 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-ld {
+    color: hsl(var(--dark));
+  }
+  
+  .dark .text-ld {
+    color: hsl(0 0% 100% / 0.7);
+  }
+  
+  .bg-lightprimary {
+    background-color: hsl(var(--lightprimary));
+  }
+  
+  .text-darklink {
+    color: hsl(var(--darklink));
   }
 }

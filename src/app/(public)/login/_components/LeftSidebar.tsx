@@ -12,6 +12,7 @@ const LeftSidebar = () => {
             alt='bg-img'
             width={461}
             height={450}
+            className="object-contain"
           />
         </div>
       </div>
@@ -20,4 +21,3 @@ const LeftSidebar = () => {
 }
 
 export default LeftSidebar
-

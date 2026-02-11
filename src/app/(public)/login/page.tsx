@@ -14,25 +14,22 @@ export const metadata: Metadata = {
 const Login = () => {
   return (
     <>
-      <div className='p-5 lg:bg-transparent lg:dark:bg-transparent bg-primary/10 lg:fixed top-0 z-50 w-full'>
+      <div className='p-5 lg:bg-transparent lg:dark:bg-transparent bg-lightprimary dark:bg-lightprimary lg:fixed top-0 z-50 w-full'>
         <FullLogo />
       </div>
       <div className='relative overflow-hidden h-screen'>
-        <div className='grid grid-cols-12 gap-3 h-screen bg-white dark:bg-[#1c2536]'>
-          <div className='xl:col-span-8 lg:col-span-7 col-span-12 bg-primary/10 dark:bg-primary/10 lg:block hidden relative overflow-hidden'>
+        <div className='grid grid-cols-12 gap-3 h-screen bg-white dark:bg-dark'>
+          <div className='xl:col-span-8 lg:col-span-7 col-span-12 bg-lightprimary dark:bg-lightprimary lg:block hidden relative overflow-hidden'>
             <LeftSidebar />
           </div>
           <div className='xl:col-span-4 lg:col-span-5 col-span-12 sm:px-12 p-5'>
             <div className='flex h-screen items-center px-3 lg:justify-start justify-center'>
               <div className='max-w-[420px] w-full mx-auto'>
-                <h3 className='text-2xl font-bold'>Welcome to FlowOffice</h3>
-                <p className='text-muted-foreground text-sm font-medium'>
-                  Your Admin Dashboard
-                </p>
+                <h3 className='text-2xl font-bold text-black'>Welcome to FlowOffice</h3>
                 <SocialButtons title='or sign in with' />
                 <AuthLogin />
-                <div className='flex gap-2 text-base text-muted-foreground font-medium mt-6 items-center justify-center'>
-                  <p>New to FlowOffice?</p>
+                <div className='flex gap-2 text-base text-ld dark:text-ld font-medium mt-6 items-center justify-center'>
+                  <p className='text-black'>New to FlowOffice?</p>
                   <Link
                     href={'/register'}
                     className='text-primary text-sm font-medium'>
