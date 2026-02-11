@@ -1,8 +1,8 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useState, type ReactNode } from 'react'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 /**
  * TanStack Query Provider
@@ -32,7 +32,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       {/* React Query Devtools - only shows in development */}
-      <ReactQueryDevtools initialIsOpen={false} />
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
     </QueryClientProvider>
   )
 }
