@@ -1,13 +1,23 @@
-'use client'
+import Link from 'next/link'
+import Image from 'next/image'
+import React from 'react'
 
-export default function FullLogo() {
+const FullLogo = () => {
   return (
-    <div className="inline-flex items-center gap-3">
-      {/* Colorful gradient icon */}
-      <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-500 rounded-lg"></div>
-      {/* Modernize text */}
-      <span className="text-white dark:text-white text-2xl font-bold">Modernize</span>
-    </div>
+    <Link href='/' className='flex items-center gap-3'>
+      {/* Lark icon */}
+      <Image
+        src="/images/logos/Lark.png"
+        alt="FlowOffice"
+        width={40}
+        height={40}
+        className="rounded-lg"
+      />
+      {/* FlowOffice text */}
+      <span className='text-2xl font-bold text-primary'>FlowOffice</span>
+    </Link>
   )
 }
+
+export default FullLogo
 
