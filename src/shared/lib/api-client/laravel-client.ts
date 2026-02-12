@@ -5,6 +5,9 @@
  * Supports session-based authentication with CSRF protection
  */
 
+import { z } from 'zod'
+import { ZodError } from 'zod'
+
 const LARAVEL_API_URL = process.env.NEXT_PUBLIC_LARAVEL_API_URL || 'http://localhost:8000'
 
 /**
@@ -117,13 +120,91 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 /**
+ * Safe Fetch with Zod Validation
+ * 
+ * Wraps apiFetch with runtime validation using Zod schemas.
+ * Ensures API responses match expected structure and catches
+ * API contract violations at runtime.
+ * 
+ * @param endpoint - API endpoint path
+ * @param schema - Zod schema to validate response against
+ * @param options - Fetch options (method, headers, body, etc.)
+ * @returns Validated and typed response data
+ * @throws ZodError if response doesn't match schema
+ * 
+ * @example
+ * ```ts
+ * const user = await safeFetch('/api/user', userSchema)
+ * // user is now typed and validated
+ * ```
+ */
+export async function safeFetch<T>(
+  endpoint: string,
+  schema: z.ZodType<T>,
+  options?: RequestInit
+): Promise<T> {
+  try {
+    const response = await apiFetch(endpoint, options)
+    
+    // Validate response against schema
+    const validated = schema.parse(response)
+    
+    // Log successful validation in development
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[safeFetch] Validated response from ${endpoint}`)
+    }
+    
+    return validated
+  } catch (error) {
+    // If it's a Zod validation error, provide better error message
+    if (error instanceof ZodError) {
+      const validationError = new Error(
+        `API response validation failed for ${endpoint}: ${error.message}`
+      ) as any
+      validationError.status = 422 // Unprocessable Entity
+      validationError.zodError = error
+      validationError.errors = error.errors
+      
+      // Log validation errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[safeFetch] Validation error:', {
+          endpoint,
+          errors: error.errors,
+          response: error,
+        })
+      }
+      
+      throw validationError
+    }
+    
+    // Re-throw other errors (network, API errors, etc.)
+    throw error
+  }
+}
+
+/**
  * Get CSRF cookie from Laravel Sanctum
  * Must be called before any POST/PUT/DELETE requests
+ * 
+ * This function ensures the CSRF cookie is properly set and available
  */
 export async function getCsrfCookie(): Promise<void> {
-  await apiFetch('/sanctum/csrf-cookie', {
-    method: 'GET',
-  })
+  try {
+    const response = await apiFetch('/sanctum/csrf-cookie', {
+      method: 'GET',
+    })
+    
+    // Wait for cookie to be set in browser
+    // This is critical for the cookie to be available in subsequent requests
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    return response
+  } catch (error) {
+    // If CSRF cookie fetch fails, log but don't throw
+    // This allows the calling code to handle the error appropriately
+    console.error('Failed to get CSRF cookie:', error)
+    throw error
+  }
 }
 
 /**
@@ -174,15 +255,22 @@ export async function logoutUser(): Promise<void> {
 /**
  * Login with Lark OAuth code
  * Returns tokens and user object
+ * 
+ * IMPORTANT: This function must be called within a TanStack Query mutation
+ * to be properly tracked and cached. Use useLarkLoginMutation hook instead.
  */
 export async function loginWithLark(code: string) {
   // Step 1: Get CSRF cookie (required for POST requests)
-  await getCsrfCookie()
-
-  // Wait a tiny bit for cookie to be set (browser needs time to process Set-Cookie header)
-  await new Promise(resolve => setTimeout(resolve, 100))
+  // Only fetch once - don't retry if it fails
+  try {
+    await getCsrfCookie()
+  } catch (error) {
+    // If CSRF cookie fetch fails, throw immediately to prevent infinite retries
+    throw new Error('Failed to initialize CSRF token. Please refresh the page and try again.')
+  }
 
   // Step 2: Exchange code for tokens (CSRF token will be automatically extracted from cookie)
+  // The apiFetch function will automatically include the CSRF token from the cookie
   const response = await apiFetch('/api/auth/lark/callback', {
     method: 'POST',
     headers: {

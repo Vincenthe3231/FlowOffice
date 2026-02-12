@@ -18,18 +18,18 @@ const Login = () => {
         <FullLogo />
       </div>
       <div className='relative overflow-hidden h-screen'>
-        <div className='grid grid-cols-12 gap-3 h-screen bg-white dark:bg-dark'>
+        <div className='grid grid-cols-12 gap-3 h-screen bg-background'>
           <div className='xl:col-span-8 lg:col-span-7 col-span-12 bg-lightprimary dark:bg-lightprimary lg:block hidden relative overflow-hidden'>
             <LeftSidebar />
           </div>
           <div className='xl:col-span-4 lg:col-span-5 col-span-12 sm:px-12 p-5'>
             <div className='flex h-screen items-center px-3 lg:justify-start justify-center'>
               <div className='max-w-[420px] w-full mx-auto'>
-                <h3 className='text-2xl font-bold text-black'>Welcome to FlowOffice</h3>
+                <h3 className='text-2xl font-bold text-foreground'>Welcome to FlowOffice</h3>
                 <SocialButtons title='or sign in with' />
                 <AuthLogin />
                 <div className='flex gap-2 text-base text-ld dark:text-ld font-medium mt-6 items-center justify-center'>
-                  <p className='text-black'>New to FlowOffice?</p>
+                  <p className='text-foreground'>New to FlowOffice?</p>
                   <Link
                     href={'/register'}
                     className='text-primary text-sm font-medium'>

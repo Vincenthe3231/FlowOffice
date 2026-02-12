@@ -233,19 +233,70 @@ Belive-FO-Client/
 ### 3.3 Build Laravel API Client
 
 - ✅ Created `src/shared/lib/api-client/` directory
-- ✅ Created `src/shared/lib/api-client/laravel-client.ts` with Axios-based client
-- ✅ Created `src/shared/lib/api-client/axios-instance.ts` and `interceptors.ts`
-- ✅ Implement `get`, `post`, `put`, `delete` methods
-- ✅ Automatically attach `Authorization` header from auth store
-- ✅ Handle common error responses (401, 403, 500)
+- ⏳ Create `src/shared/lib/transform.ts` with `keysToCamel` and `keysToSnake` functions (planned)
+  - Recursive object key transformation for nested objects and arrays
+  - Preserve FormData and special types (Date, File, etc.)
+  - Handle edge cases (null, undefined, primitives)
+- ⏳ Create `src/shared/lib/api-client/axios-instance.ts` with two Axios instances (planned)
+  - `laravelApi`: For versioned endpoints (`/api/v1/*`)
+    - Base URL: `${LARAVEL_API_URL}/api/v1`
+    - Configured with `withCredentials: true` for session cookies
+    - Accept header: `application/json`
+  - `laravelRootApi`: For root endpoints (`/sanctum/csrf-cookie`, health checks)
+    - Base URL: `${LARAVEL_API_URL}`
+    - Same credentials and headers configuration
+- ⏳ Create `src/shared/lib/api-client/interceptors.ts` with request/response interceptors (planned)
+  - **Request Interceptors:**
+    - Transform request data: camelCase → snake_case (skip FormData)
+    - Extract CSRF token from `XSRF-TOKEN` cookie and add as `X-XSRF-TOKEN` header
+  - **Response Interceptors:**
+    - Transform response data: snake_case → camelCase
+    - Handle 419 CSRF errors: Automatically fetch new CSRF cookie and retry request
+- ⏳ Update `src/shared/lib/api-client/laravel-client.ts` to use Axios instances (planned)
+  - Replace native fetch with `laravelApi` and `laravelRootApi`
+  - Update `loginWithEmail`, `loginWithLark`, `getCurrentUser`, `logoutUser` to use Axios
+  - Maintain existing function signatures for backward compatibility
+- ⏳ Export both Axios instances from `src/shared/lib/api-client/index.ts` (planned)
+  - Export `laravelApi` and `laravelRootApi` for direct use in feature modules
+  - Export existing API functions for convenience
 - ✅ Export from `src/shared/index.ts`
+
+**Architecture Notes:**
+- Two Axios instances allow separation of versioned API calls from root endpoints
+- Automatic transformations eliminate manual conversion between camelCase and snake_case
+- CSRF handling is transparent to calling code - interceptors handle token extraction and retry logic
+- All API calls go through React Query hooks for caching and state management (see Phase 3.4)
 
 ### 3.4 Configure TanStack Query
 
-- ⏳ Create `src/shared/lib/api-client/query-client.ts` with sensible defaults (planned)
-- ⏳ Set `staleTime` for caching strategy
-- ⏳ Configure global error handler for 401 redirects
-- ⏳ Use in `src/app/layout.tsx` to wrap app with `QueryClientProvider`
+- ✅ Created `src/components/providers/query-provider.tsx` with QueryClient configuration
+- ✅ Configured QueryClient with sensible defaults:
+  - `staleTime`: 60 seconds (1 minute) - data considered fresh
+  - `gcTime`: 10 minutes - garbage collection time for unused queries
+  - `refetchOnWindowFocus`: false - don't refetch on tab focus
+  - `refetchOnReconnect`: true - refetch when network reconnects
+  - `refetchOnMount`: true - refetch if data is stale on mount
+- ✅ Implemented smart retry logic:
+  - Queries: No retry on 401 (unauthorized), 419 (CSRF), or 4xx errors
+  - Queries: Retry up to 2 times for 5xx server errors and network errors
+  - Mutations: No retry on 401, 419, or any 4xx errors
+  - Mutations: Retry once for 5xx server errors and network errors
+  - Exponential backoff: `Math.min(1000 * 2 ** attemptIndex, 30000)`
+- ✅ Added React Query DevTools in development mode
+  - Position: bottom-right
+  - Initial state: closed
+  - Provides visibility into query cache, mutations, and network requests
+- ✅ Integrated in `src/app/layout.tsx` via `QueryProvider` component
+- ✅ Added development logging for query and mutation tracking
+  - Logs query/mutation lifecycle events (added, updated, removed, error)
+  - Periodic cache state logging every 10 seconds
+  - Exposes `queryClient` to `window.__REACT_QUERY_CLIENT__` for debugging
+
+**Architecture Notes:**
+- QueryClient uses singleton pattern with `useState` to ensure one instance per component tree
+- All API calls should use React Query hooks (`useQuery`, `useMutation`) instead of calling API functions directly
+- Global error handling can be added via `queryCache` and `mutationCache` subscribers if needed
+- The configuration balances freshness with performance - adjust `staleTime` per feature as needed
 
 ### 3.5 Create Supabase Client Factory
 
@@ -289,8 +340,214 @@ Belive-FO-Client/
 - ✅ UI store persists preferences without hydration errors
 - ✅ Supabase client factory created
 - ⏳ Event bus correctly publishes and subscribes to events (placeholder exists)
-- ⏳ TanStack Query caches and refetches data correctly (planned)
+- ✅ TanStack Query caches and refetches data correctly (configured)
 - ⏳ Supabase Realtime subscriptions receive updates (planned)
+
+---
+
+## React Query & Axios Setup Architecture
+
+This section documents the established patterns for API communication and state management using TanStack React Query v5 and Axios.
+
+### Architecture Overview
+
+The project uses a layered architecture for API communication:
+
+1. **Axios Instances** - Configured HTTP clients with interceptors
+2. **API Functions** - Pure functions that call endpoints and validate responses
+3. **React Query Hooks** - Hooks that wrap API functions with caching and state management
+4. **Components** - Use hooks, never call API functions directly
+
+### 1. Axios Instances
+
+Two Axios instances are configured for different endpoint types:
+
+- **`laravelApi`**: For versioned API endpoints (`/api/v1/*`)
+  - Base URL: `${LARAVEL_API_URL}/api/v1`
+  - Automatic camelCase ↔ snake_case transformation
+  - CSRF token handling with automatic retry on 419 errors
+  
+- **`laravelRootApi`**: For root endpoints (`/sanctum/csrf-cookie`, health checks)
+  - Base URL: `${LARAVEL_API_URL}`
+  - Same transformation and CSRF handling
+
+Both instances:
+- Include credentials (`withCredentials: true`) for session cookies
+- Set `Accept: application/json` header
+- Transform request data: camelCase → snake_case
+- Transform response data: snake_case → camelCase
+- Automatically extract CSRF token from `XSRF-TOKEN` cookie
+- Retry requests on 419 CSRF errors after fetching new token
+
+### 2. Transform Utilities
+
+Located in `src/shared/lib/transform.ts`:
+- `keysToCamel(obj)`: Recursively converts snake_case keys to camelCase
+- `keysToSnake(obj)`: Recursively converts camelCase keys to snake_case
+- Handles nested objects, arrays, and preserves special types (FormData, Date, etc.)
+
+### 3. API Layer Pattern
+
+Each feature module follows this structure:
+
+```
+src/features/<feature>/
+  ├── api/              # API functions (pure functions, no hooks)
+  │   └── <feature>.ts  # getUsers, createUser, etc.
+  ├── hooks/            # React Query hooks
+  │   └── use<Feature>.ts
+  ├── types/            # TypeScript types and Zod schemas
+  │   └── index.ts
+  ├── constants.ts      # Query keys and configuration
+  └── index.ts          # Public API exports
+```
+
+**API Functions:**
+- Pure functions that return promises
+- Use `laravelApi` or `laravelRootApi` for HTTP calls
+- Validate inputs with Zod schemas
+- Validate outputs with Zod schemas
+- Throw errors for invalid responses
+
+**Example:**
+```typescript
+export async function getUsers(): Promise<User[]> {
+  const { data: response } = await laravelApi.get('/users')
+  return UsersListSchema.parse(response.data)
+}
+```
+
+### 4. Query Keys Pattern
+
+Centralized query keys with proper TypeScript typing:
+
+```typescript
+export const AUTH_QUERY_KEYS = {
+  ME: ['auth', 'me'] as const,
+  USERS: ['users'] as const,
+  USER: (uuid: string) => ['user', uuid] as const,
+} as const
+```
+
+**Best Practices:**
+- Use arrays for query keys (not strings)
+- Use `as const` for type safety
+- Include parameters in keys for parameterized queries
+- Keep keys flat and predictable for easy invalidation
+
+### 5. Query Options Pattern
+
+Use `queryOptions` factory for reusable query configurations:
+
+```typescript
+export const authQueryOptions = queryOptions({
+  queryKey: AUTH_QUERY_KEYS.ME,
+  queryFn: getMe,
+  staleTime: AUTH_CONFIG.STALE_TIME,
+  retry: AUTH_CONFIG.RETRY,
+})
+```
+
+**Benefits:**
+- Reusable across components
+- Type-safe with TypeScript inference
+- Can be used with `useQuery` or `queryClient.fetchQuery`
+
+### 6. Hook Pattern
+
+**Query Hooks:**
+```typescript
+export function useAuth() {
+  return useQuery(authQueryOptions)
+}
+```
+
+**Mutation Hooks:**
+```typescript
+export function useLogin() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: login,
+    onSuccess: (user) => {
+      // Update cache
+      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, user)
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.USERS })
+    },
+  })
+}
+```
+
+### 7. Cache Management
+
+**After Mutations:**
+- Use `setQueryData` for instant UI updates (optimistic updates)
+- Use `invalidateQueries` to refetch related data
+- Use `refetchQueries` for append-only data (like activity logs)
+
+**Query Invalidation:**
+```typescript
+// Invalidate all user-related queries
+queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
+
+// Invalidate specific query
+queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+```
+
+### 8. Environment Variables
+
+**Current Setup:**
+- `NEXT_PUBLIC_LARAVEL_API_URL`: Exposed to client (required for client-side auth)
+- Used in Axios instance configuration
+
+**Note:** The setup guide uses `LARAVEL_API_URL` (server-side only), but this project uses `NEXT_PUBLIC_LARAVEL_API_URL` because:
+- Client-side authentication with Lark OAuth
+- Direct API calls from browser
+- BFF pattern may be adopted later for enhanced security
+
+### 9. Common Patterns
+
+**Query with Parameters:**
+```typescript
+export function usersQueryOptions(params?: GetUsersParams) {
+  return queryOptions({
+    queryKey: [...AUTH_QUERY_KEYS.USERS, params],
+    queryFn: () => getUsers(params),
+    enabled: params !== undefined,
+    staleTime: USER_QUERY_CONFIG.STALE_TIME,
+  })
+}
+```
+
+**Mutation with Cache Updates:**
+```typescript
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: updateUser,
+    onSuccess: (updatedUser) => {
+      // Update specific cache entry
+      queryClient.setQueryData(AUTH_QUERY_KEYS.USER(updatedUser.uuid), updatedUser)
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['users'], exact: false })
+    },
+  })
+}
+```
+
+### 10. Important Rules
+
+1. **Always use React Query hooks** - Never call API functions directly in components
+2. **Use stable query keys** - Avoid object references in keys (use primitives or stringify)
+3. **Handle cache invalidation** - Update or invalidate related queries after mutations
+4. **Use `placeholderData: keepPreviousData`** - For lists to prevent flickering during refetches
+5. **Prefer `refetchQueries` over `invalidateQueries`** - For append-only data (like activity logs)
+
+### Reference
+
+For complete setup details, see the **React Query & Axios Setup Guide** provided in the project documentation.
 
 ---
 
@@ -303,8 +560,10 @@ Belive-FO-Client/
 ### 4.1 Create Root Layout
 
 - ✅ Implemented `src/app/layout.tsx` with HTML structure
+- ✅ Wrapped children with `QueryProvider` from `@/components/providers/query-provider`
+  - Provides React Query context to entire app
+  - Includes React Query DevTools in development
 - ⏳ Include Lark JS SDK script in head (planned)
-- ⏳ Wrap children with `QueryClientProvider` from `@/shared` (planned)
 - ✅ Set up font loading with `next/font` (Geist fonts)
 - ✅ Configure metadata for SEO
 
@@ -377,17 +636,131 @@ Create `src/features/attendance/` with:
 
 ### 5.3 Implement Feature API Layer
 
-- ⏳ Create `src/features/attendance/api/attendance-api.ts` with `attendanceApi` object
-- ⏳ Methods: `clockIn`, `clockOut`, `getList`, `getStats`
-- ⏳ Use Laravel API client from `@/shared/lib/api-client`
-- ⏳ Export from `src/features/attendance/index.ts`
+- ⏳ Create `src/features/attendance/api/attendance.ts` with API functions (planned)
+  - Use `laravelApi` from `@/shared/lib/api-client` for versioned endpoints
+  - Validate responses with Zod schemas
+  - Throw errors for invalid responses
+
+**Example implementation:**
+
+```typescript
+// src/features/attendance/api/attendance.ts
+import { laravelApi } from '@/shared/lib/api-client'
+import { AttendanceSchema, ClockInInputSchema, AttendanceListSchema } from '../types'
+
+export async function clockIn(data: ClockInInput): Promise<Attendance> {
+  ClockInInputSchema.parse(data) // Validate input
+  const { data: response } = await laravelApi.post('/attendance/clock-in', data)
+  const result = AttendanceSchema.safeParse(response.data)
+  if (!result.success) {
+    throw new Error(`Invalid response: ${result.error.message}`)
+  }
+  return result.data
+}
+
+export async function clockOut(): Promise<Attendance> {
+  const { data: response } = await laravelApi.post('/attendance/clock-out')
+  return AttendanceSchema.parse(response.data)
+}
+
+export async function getAttendanceList(params?: GetAttendanceListParams): Promise<AttendanceList> {
+  const { data: response } = await laravelApi.get('/attendance', { params })
+  return AttendanceListSchema.parse(response.data)
+}
+
+export async function getAttendanceStats(): Promise<AttendanceStats> {
+  const { data: response } = await laravelApi.get('/attendance/stats')
+  return AttendanceStatsSchema.parse(response.data)
+}
+```
+
+- ⏳ Export API functions from `src/features/attendance/index.ts`
 
 ### 5.4 Build TanStack Query Hooks
 
-- ⏳ Create `src/features/attendance/hooks/useAttendanceList.ts` - Fetch attendance records
-- ⏳ Create `src/features/attendance/hooks/useClockIn.ts` - Mutation for clocking in (integrates Lark SDK for GPS)
-- ⏳ Create `src/features/attendance/hooks/useClockOut.ts` - Mutation for clocking out
-- ⏳ Implement optimistic updates for better UX
+- ⏳ Create `src/features/attendance/constants.ts` with query keys and config (planned)
+
+**Example implementation:**
+
+```typescript
+// src/features/attendance/constants.ts
+export const ATTENDANCE_QUERY_KEYS = {
+  LIST: ['attendance', 'list'] as const,
+  STATS: ['attendance', 'stats'] as const,
+  RECORD: (id: string) => ['attendance', 'record', id] as const,
+} as const
+
+export const ATTENDANCE_CONFIG = {
+  STALE_TIME: 60 * 1000, // 1 minute
+  GC_TIME: 10 * 60 * 1000, // 10 minutes
+} as const
+```
+
+- ⏳ Create `src/features/attendance/hooks/useAttendance.ts` with query hooks (planned)
+  - Use `queryOptions` factory pattern for reusability
+  - Implement cache invalidation on mutations
+  - Add optimistic updates for better UX
+
+**Example implementation:**
+
+```typescript
+// src/features/attendance/hooks/useAttendance.ts
+import { useQuery, useMutation, useQueryClient, queryOptions } from '@tanstack/react-query'
+import { clockIn, clockOut, getAttendanceList, getAttendanceStats } from '../api/attendance'
+import { ATTENDANCE_QUERY_KEYS, ATTENDANCE_CONFIG } from '../constants'
+
+// Query options factory
+export const attendanceListOptions = (params?: GetAttendanceListParams) => queryOptions({
+  queryKey: [...ATTENDANCE_QUERY_KEYS.LIST, params],
+  queryFn: () => getAttendanceList(params),
+  staleTime: ATTENDANCE_CONFIG.STALE_TIME,
+  gcTime: ATTENDANCE_CONFIG.GC_TIME,
+})
+
+export const attendanceStatsOptions = queryOptions({
+  queryKey: ATTENDANCE_QUERY_KEYS.STATS,
+  queryFn: getAttendanceStats,
+  staleTime: ATTENDANCE_CONFIG.STALE_TIME,
+})
+
+// Query hooks
+export function useAttendanceList(params?: GetAttendanceListParams) {
+  return useQuery(attendanceListOptions(params))
+}
+
+export function useAttendanceStats() {
+  return useQuery(attendanceStatsOptions)
+}
+
+// Mutation hooks
+export function useClockIn() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: clockIn,
+    onSuccess: (newAttendance) => {
+      // Invalidate and refetch related queries
+      queryClient.invalidateQueries({ queryKey: ATTENDANCE_QUERY_KEYS.LIST })
+      queryClient.invalidateQueries({ queryKey: ATTENDANCE_QUERY_KEYS.STATS })
+      // Optionally update cache directly for instant UI update
+      queryClient.setQueryData(ATTENDANCE_QUERY_KEYS.RECORD(newAttendance.id), newAttendance)
+    },
+  })
+}
+
+export function useClockOut() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: clockOut,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ATTENDANCE_QUERY_KEYS.LIST })
+      queryClient.invalidateQueries({ queryKey: ATTENDANCE_QUERY_KEYS.STATS })
+    },
+  })
+}
+```
+
 - ⏳ Export all hooks from `src/features/attendance/index.ts`
 
 ### 5.5 Create Realtime Subscription Hook
@@ -495,14 +868,16 @@ Create `src/features/claims/` following same structure:
 
 ### 7.1 Error Handling and Edge Cases
 
-- Implement proper error boundaries at package level
-- Handle Lark SDK unavailability (desktop browser fallback) in `@belive/lark-sdk` package
+- Implement proper error boundaries at feature module level
+- Handle Lark SDK unavailability (desktop browser fallback) in `@/features/lark-sdk`
 - Handle offline scenarios gracefully
-- Add retry logic for failed API calls in `@belive/shared` API client
+- ✅ Retry logic configured in QueryProvider (smart retry for 5xx errors, no retry for 4xx)
+- ✅ CSRF retry logic configured in Axios interceptors (automatic retry on 419 errors)
+- Verify comprehensive error handling across all API calls
 
 ### 7.2 Performance Optimization
 
-- Implement code splitting per package using dynamic imports: `dynamic(() => import('@belive/attendance'))`
+- Implement code splitting per feature module using dynamic imports: `dynamic(() => import('@/features/attendance'))`
 - Optimize images with `next/image`
 - Configure caching headers for static assets in Next.js config
 - Analyze bundle size and reduce where possible
@@ -518,13 +893,13 @@ Create `src/features/claims/` following same structure:
 ### 7.4 Testing Setup
 
 - Configure Jest and React Testing Library at root level
-- Write unit tests for critical hooks in each package
-- Write integration tests for package flows
-- Test package boundaries through package.json dependencies (no need for ESLint boundary enforcement)
+- Write unit tests for critical hooks in each feature module
+- Write integration tests for feature flows
+- Test feature boundaries through import paths (features use `@/shared`, not direct imports between features)
 
 ### 7.5 Production Configuration
 
-- Configure environment variables for production in `apps/belive-fo/.env.production`
+- Configure environment variables for production in `.env.production`
 - Set up proper CSP headers in Next.js config
 - Configure CORS handling for API calls
 - Set up monitoring and error tracking (optional: Sentry)
@@ -532,10 +907,10 @@ Create `src/features/claims/` following same structure:
 
 ### 7.6 Documentation
 
-- Document package public APIs in each package's README
-- Create developer setup guide for monorepo
+- Document feature module public APIs in each feature's README or index.ts
+- Create developer setup guide
 - Document environment variable requirements
-- Document package development workflow and feature branch strategy
+- Document feature development workflow and feature branch strategy
 - Add inline comments for complex logic
 
 **Success Criteria:**
@@ -558,11 +933,11 @@ gantt
     section Phase2
     Auth Infrastructure     :p2, after p1, 4d
     section Phase3
-    Shared Package         :p3, after p2, 5d
+    Shared Infrastructure :p3, after p2, 5d
     section Phase4
     App Router Structure   :p4, after p3, 3d
     section Phase5
-    Attendance Package     :p5, after p4, 5d
+    Attendance Feature     :p5, after p4, 5d
     section Phase6
     Leave and Claim       :p6, after p5, 7d
     section Phase7

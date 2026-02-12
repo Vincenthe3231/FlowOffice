@@ -77,12 +77,12 @@ const AuthLogin = () => {
         <Input
           id="email"
           type="email"
-          className="bg-white dark:bg-dark"
+          className="bg-background text-foreground"
           placeholder="Enter your email"
           {...register('email')}
         />
         {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
         )}
       </div>
 
@@ -93,7 +93,7 @@ const AuthLogin = () => {
             id="password"
             type={showPassword ? 'text' : 'password'}
             placeholder="Enter your password"
-            className="pr-10 bg-white dark:bg-dark"
+            className="pr-10 bg-background text-foreground"
             {...register('password')}
           />
           <button
@@ -110,14 +110,14 @@ const AuthLogin = () => {
           </button>
         </div>
         {errors.password && (
-          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
         )}
       </div>
 
       <div className="flex justify-between my-5">
         <div className="flex items-center gap-2">
           <Checkbox id="remember" />
-          <Label htmlFor="remember" className="text-black">
+          <Label htmlFor="remember" className="text-foreground">
             Remember this device
           </Label>
         </div>

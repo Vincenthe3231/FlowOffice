@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { loginWithLark } from '@/shared/lib/api-client/laravel-client'
 import { useAuthStore } from '@/shared/stores/auth-store'
+import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
 import { Loader2 } from 'lucide-react'
 
 function CallbackContent() {
@@ -11,15 +11,24 @@ function CallbackContent() {
   const [message, setMessage] = useState('')
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { setTokens, setUser } = useAuthStore()
+  const { setUser } = useAuthStore()
+  const larkLoginMutation = useLarkLoginMutation()
+  const hasProcessed = useRef(false) // Prevent multiple executions
+  const code = searchParams.get('code')
+  const error = searchParams.get('error')
+  const errorDescription = searchParams.get('error_description')
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        const code = searchParams.get('code')
-        const error = searchParams.get('error')
-        const errorDescription = searchParams.get('error_description')
+    // Prevent multiple executions
+    if (hasProcessed.current) {
+      return
+    }
 
+    const handleCallback = async () => {
+      // Mark as processed immediately to prevent re-execution
+      hasProcessed.current = true
+
+      try {
         // Check for OAuth errors
         if (error) {
           throw new Error(errorDescription || `OAuth error: ${error}`)
@@ -30,49 +39,8 @@ function CallbackContent() {
           throw new Error('Missing authorization code. Please try logging in again.')
         }
 
-        // Exchange code for tokens
-        let response
-        try {
-          response = await loginWithLark(code)
-        } catch (apiError: any) {
-          // Log full error details for debugging
-          console.error('loginWithLark API error (full):', {
-            error: apiError,
-            status: apiError?.status,
-            message: apiError?.message,
-            errorField: apiError?.error,
-            errors: apiError?.errors,
-            data: apiError?.data,
-            networkError: apiError?.networkError,
-            parseError: apiError?.parseError,
-            stringified: JSON.stringify(apiError, Object.getOwnPropertyNames(apiError), 2),
-          })
-          
-          // Extract meaningful error message with status code
-          let errorMessage = 'Failed to authenticate with Lark. Please try again.'
-          
-          // Handle Error instances
-          if (apiError instanceof Error) {
-            errorMessage = apiError.message
-          } else if (apiError?.status === 500) {
-            // Backend returned 500 - check for error field or message
-            errorMessage = apiError?.error || apiError?.message || 'Server error during authentication. Please check backend logs.'
-          } else if (apiError?.status === 401) {
-            errorMessage = apiError?.error || apiError?.message || 'Authentication failed. Invalid authorization code or Lark credentials.'
-          } else if (apiError?.status === 0) {
-            errorMessage = apiError?.message || 'Network error: Unable to connect to server. Please check your connection.'
-          } else if (apiError?.error) {
-            errorMessage = apiError.error
-          } else if (apiError?.message) {
-            errorMessage = apiError.message
-          } else if (apiError?.errors?.message) {
-            errorMessage = apiError.errors.message
-          } else if (typeof apiError === 'string') {
-            errorMessage = apiError
-          }
-          
-          throw new Error(errorMessage)
-        }
+        // Use TanStack Query mutation for proper caching and tracking
+        const response = await larkLoginMutation.mutateAsync(code)
 
         // Handle response structure - backend uses session-based auth
         // Expected: { user, message } or { data: { user, message } }
@@ -85,8 +53,7 @@ function CallbackContent() {
 
         // Backend uses session-based auth (Sanctum SPA mode)
         // Session cookies are automatically set by the API call
-        // Just store the user in the auth store
-        setUser(user)
+        // User is already stored in auth store via mutation's onSuccess
 
         setStatus('success')
         setMessage('Login successful! Redirecting to dashboard...')
@@ -100,11 +67,17 @@ function CallbackContent() {
         
         // Extract error message with better handling
         let errorMessage = 'Authentication failed. Please try again.'
+        
         if (error instanceof Error) {
           errorMessage = error.message
         } else if (typeof error === 'object' && error !== null) {
           const err = error as any
-          errorMessage = err.message || err.error || JSON.stringify(error)
+          // Check for CSRF token mismatch specifically
+          if (err.message?.includes('CSRF') || err.message?.includes('419') || err.status === 419) {
+            errorMessage = 'CSRF token mismatch. Please refresh the page and try logging in again.'
+          } else {
+            errorMessage = err.message || err.error || JSON.stringify(error)
+          }
         } else if (typeof error === 'string') {
           errorMessage = error
         }
@@ -115,7 +88,9 @@ function CallbackContent() {
     }
 
     handleCallback()
-  }, [searchParams, router, setTokens, setUser])
+    // Only depend on the actual values we need, not the mutation object
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, error, errorDescription]) // Only re-run if these values change
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">

@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CustomizerContextProvider } from "@/app/context/CustomizerContext";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { QueryErrorBoundary } from "@/components/providers/query-error-boundary";
+import { StoreHydrationProvider } from "@/components/providers/store-hydration-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,16 +33,20 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <CustomizerContextProvider>
-              {children}
-            </CustomizerContextProvider>
-          </ThemeProvider>
+          <QueryErrorBoundary>
+            <StoreHydrationProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <CustomizerContextProvider>
+                  {children}
+                </CustomizerContextProvider>
+              </ThemeProvider>
+            </StoreHydrationProvider>
+          </QueryErrorBoundary>
         </QueryProvider>
       </body>
     </html>

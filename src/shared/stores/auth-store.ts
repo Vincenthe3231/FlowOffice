@@ -104,6 +104,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Skip hydration on server-side to prevent mismatches
+      skipHydration: typeof window === 'undefined',
       // Persist everything to localStorage
       partialize: (state) => ({
         user: state.user,
@@ -111,6 +113,15 @@ export const useAuthStore = create<AuthState>()(
         apiToken: state.apiToken,
         supabaseToken: state.supabaseToken,
       }),
+      // Callback when rehydration completes
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('Error rehydrating auth store:', error)
+        } else if (state) {
+          // Store has been successfully rehydrated
+          // You can add any post-rehydration logic here
+        }
+      },
     }
   )
 )
