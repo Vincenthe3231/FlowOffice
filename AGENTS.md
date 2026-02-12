@@ -57,3 +57,4 @@ When updating architecture/login/auth/shared paths, update:
 - Linting passes via `npm run lint`.
 - No new environment variables added without updating `.env.example`.
 - All `docs/` files listed in "Docs policy" are updated if paths changed.
+- Call `next-devtools-mcp` for in-depth error verification and validation and able to resolve.

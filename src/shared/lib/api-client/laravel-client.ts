@@ -17,12 +17,12 @@ function getCsrfTokenFromCookie(): string | null {
   }
 
   const name = 'XSRF-TOKEN='
-  const decodedCookie = decodeURIComponent(document.cookie)
+  const decodedCookie = decodeURIComponent(document.cookie || '')
   const cookieArray = decodedCookie.split(';')
   
   for (let i = 0; i < cookieArray.length; i++) {
-    let cookie = cookieArray[i].trim()
-    if (cookie.indexOf(name) === 0) {
+    const cookie = cookieArray[i]?.trim()
+    if (cookie && cookie.indexOf(name) === 0) {
       return cookie.substring(name.length, cookie.length)
     }
   }
@@ -56,22 +56,61 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
     },
   }
 
-  const response = await fetch(url, config)
+  let response: Response
+  try {
+    response = await fetch(url, config)
+  } catch (networkError) {
+    // Network error (CORS, connection refused, etc.)
+    const error = new Error('Network error: Failed to connect to server') as any
+    error.status = 0
+    error.networkError = networkError
+    error.message = networkError instanceof Error ? networkError.message : 'Network error'
+    throw error
+  }
   
   // Handle non-JSON responses (like CSRF cookie endpoint)
   const contentType = response.headers.get('content-type')
   if (!contentType || !contentType.includes('application/json')) {
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}: ${response.statusText}`) as any
+      error.status = response.status
+      error.message = `HTTP ${response.status}: ${response.statusText}`
+      throw error
+    }
     return { ok: response.ok, status: response.status }
   }
 
-  const data = await response.json()
+  let data: any
+  try {
+    const text = await response.text()
+    if (!text) {
+      // Empty response
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status}: Empty response`) as any
+        error.status = response.status
+        error.message = `HTTP ${response.status}: Empty response`
+        throw error
+      }
+      return {}
+    }
+    data = JSON.parse(text)
+  } catch (parseError) {
+    // JSON parse error
+    const error = new Error('Invalid JSON response from server') as any
+    error.status = response.status
+    error.parseError = parseError
+    error.message = 'Invalid JSON response from server'
+    throw error
+  }
   
   if (!response.ok) {
-    throw {
-      status: response.status,
-      message: data.message || 'Request failed',
-      errors: data.errors || null,
-    }
+    const error = new Error(data.message || data.error || `HTTP ${response.status}: Request failed`) as any
+    error.status = response.status
+    error.message = data.message || data.error || `HTTP ${response.status}: Request failed`
+    error.error = data.error || null
+    error.errors = data.errors || null
+    error.data = data // Include full response for debugging
+    throw error
   }
 
   return data
@@ -137,6 +176,13 @@ export async function logoutUser(): Promise<void> {
  * Returns tokens and user object
  */
 export async function loginWithLark(code: string) {
+  // Step 1: Get CSRF cookie (required for POST requests)
+  await getCsrfCookie()
+
+  // Wait a tiny bit for cookie to be set (browser needs time to process Set-Cookie header)
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // Step 2: Exchange code for tokens (CSRF token will be automatically extracted from cookie)
   const response = await apiFetch('/api/auth/lark/callback', {
     method: 'POST',
     headers: {
