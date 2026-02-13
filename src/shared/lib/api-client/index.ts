@@ -6,7 +6,6 @@ export {
   loginWithEmail,
   loginWithLark,
   getCurrentUser,
-  logoutUser,
 } from './laravel-client'
 
 // Supabase client - placeholder for Phase 3 implementation

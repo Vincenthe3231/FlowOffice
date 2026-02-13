@@ -242,15 +242,6 @@ export async function getCurrentUser() {
   return response
 }
 
-/**
- * Logout current user
- * Destroys session on backend
- */
-export async function logoutUser(): Promise<void> {
-  await apiFetch('/api/auth/logout', {
-    method: 'POST',
-  })
-}
 
 /**
  * Login with Lark OAuth code

@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Calendar,
   FileText,
@@ -51,19 +50,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   // Keep auth query active in authenticated routes
-  // This ensures the query stays in TanStack Query cache and is visible in devtools
-  // The query will automatically fetch user data when enabled (after login)
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-
-  // Client-side fallback for expired/stale sessions (middleware checks cookie only)
-  useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthLoading, isAuthenticated, router]);
 
   return (
     <SidebarProvider>

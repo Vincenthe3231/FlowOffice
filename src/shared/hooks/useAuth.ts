@@ -48,7 +48,7 @@ export const authQueryOptions = queryOptions({
  * 
  * @example
  * ```tsx
- * const { user, isLoading, isAuthenticated, logout } = useAuth()
+ * const { user, isLoading, isAuthenticated } = useAuth()
  * 
  * if (isLoading) return <Loading />
  * if (!isAuthenticated) return <Login />
@@ -87,29 +87,6 @@ export function useAuth() {
     }
   }, [query.data, storedUser, setUser, queryClient])
 
-  // Handle logout - clear both query cache and store
-  const logout = async () => {
-    // Clear query cache using queryClient
-    queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
-    // Clear store
-    storeLogout()
-    // Optionally call logout API endpoint
-    try {
-      const { logoutUser } = await import('@/shared/lib/api-client/laravel-client')
-      await logoutUser()
-      // Invalidate auth queries after logout to ensure fresh state
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
-    } catch (error) {
-      // Log but don't fail logout if API call fails
-      // This ensures logout always succeeds even if API is unavailable
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Logout API call failed:', error)
-      }
-      // Still invalidate queries even if API call fails
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
-    }
-  }
-
   return {
     // Use query data if available, fallback to stored user
     user: query.data ?? storedUser,
@@ -119,8 +96,6 @@ export function useAuth() {
     isAuthenticated: !!(query.data ?? storedUser),
     // Error state
     error: query.error,
-    // Logout function
-    logout,
     // Refetch function
     refetch: query.refetch,
   }
