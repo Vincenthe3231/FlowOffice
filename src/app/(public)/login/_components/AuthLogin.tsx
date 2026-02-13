@@ -28,7 +28,8 @@ const AuthLogin = () => {
     },
   })
 
-  // TanStack Query mutation
+  // TanStack Query mutation for login
+  // Mutation handles cache updates automatically via onSuccess
   const loginMutation = useLoginMutation()
 
   /**
@@ -37,6 +38,12 @@ const AuthLogin = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await loginMutation.mutateAsync(data)
+      
+      // Mutation's onSuccess already:
+      // 1. Sets query cache (['auth', 'me'])
+      // 2. Updates Zustand store
+      // 3. Invalidates query to trigger refetch
+      // useAuth in authenticated layout will pick up the cached data automatically
       
       // Redirect to dashboard on success
       window.location.href = '/dashboard'

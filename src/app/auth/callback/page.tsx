@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useAuthStore } from '@/shared/stores/auth-store'
 import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
 import { Loader2 } from 'lucide-react'
 
@@ -11,8 +10,11 @@ function CallbackContent() {
   const [message, setMessage] = useState('')
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { setUser } = useAuthStore()
   const larkLoginMutation = useLarkLoginMutation()
+  
+  // Mutation handles cache updates automatically via onSuccess
+  // useAuth in authenticated layout will pick up the cached data automatically
+  
   const hasProcessed = useRef(false) // Prevent multiple executions
   const code = searchParams.get('code')
   const error = searchParams.get('error')
@@ -53,7 +55,11 @@ function CallbackContent() {
 
         // Backend uses session-based auth (Sanctum SPA mode)
         // Session cookies are automatically set by the API call
-        // User is already stored in auth store via mutation's onSuccess
+        // Mutation's onSuccess already:
+        // 1. Sets query cache (['auth', 'me'])
+        // 2. Updates Zustand store
+        // 3. Invalidates query to trigger refetch
+        // useAuth in authenticated layout will pick up the cached data automatically
 
         setStatus('success')
         setMessage('Login successful! Redirecting to dashboard...')

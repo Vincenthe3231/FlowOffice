@@ -1,9 +1,36 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import { useHydration } from './useHydration'
 import { getCurrentUser } from '@/shared/lib/api-client/laravel-client'
 import { userSchema, authResponseSchema } from '@/shared/lib/validation/api.schemas'
+import { AUTH_QUERY_KEYS, AUTH_CONFIG } from '@/shared/lib/api-client/auth-constants'
+
+/**
+ * Query options factory for auth/me endpoint
+ * 
+ * Uses queryOptions pattern (TanStack Query v5 best practice)
+ * Query is always registered, ensuring visibility in devtools
+ */
+export const authQueryOptions = queryOptions({
+  queryKey: AUTH_QUERY_KEYS.ME,
+  queryFn: async () => {
+    // Use safeFetch with validation
+    const response = await getCurrentUser()
+    
+    // Validate response structure
+    // The API might return { user } or just user directly
+    if (response?.user) {
+      const validated = authResponseSchema.parse(response)
+      return validated.user
+    } else {
+      // If response is user directly
+      return userSchema.parse(response)
+    }
+  },
+  retry: AUTH_CONFIG.RETRY,
+  staleTime: AUTH_CONFIG.STALE_TIME,
+})
 
 /**
  * useAuth Hook
@@ -13,6 +40,9 @@ import { userSchema, authResponseSchema } from '@/shared/lib/validation/api.sche
  * - Syncs with Zustand store for persistence
  * - Handles hydration to prevent mismatches
  * - Provides loading and error states
+ * 
+ * Query is always registered (not conditionally enabled) to ensure
+ * visibility in TanStack Query Devtools and proper cache management.
  * 
  * @returns Auth state and actions
  * 
@@ -27,71 +57,56 @@ import { userSchema, authResponseSchema } from '@/shared/lib/validation/api.sche
  */
 export function useAuth() {
   const isHydrated = useHydration()
-  const { user: storedUser, setUser, logout: storeLogout, isAuthenticated: storeIsAuthenticated } = useAuthStore()
+  const queryClient = useQueryClient()
+  const { user: storedUser, setUser, logout: storeLogout } = useAuthStore()
 
-  // Fetch current user from API if we have a stored user (session-based auth)
-  // Only fetch if hydrated and we have a stored user (indicates potential session)
-  const query = useQuery({
-    queryKey: ['auth', 'user'],
-    queryFn: async () => {
-      // Use safeFetch with validation
-      const response = await getCurrentUser()
-      
-      // Validate response structure
-      // The API might return { user } or just user directly
-      if (response?.user) {
-        const validated = authResponseSchema.parse(response)
-        return validated.user
-      } else {
-        // If response is user directly
-        return userSchema.parse(response)
+  // Query is always active (no conditional enabling)
+  // This ensures it's always registered in the cache and visible in devtools
+  // API will return 401 if not authenticated, which we handle gracefully
+  const query = useQuery(authQueryOptions)
+
+  // Handle 401: clear store but don't treat as error
+  // This allows the query to remain visible in devtools even when not authenticated
+  useEffect(() => {
+    if (query.error) {
+      const status = (query.error as any)?.status || (query.error as any)?.response?.status
+      if (status === 401) {
+        // User is not authenticated - clear store
+        // Don't treat this as an error state, just clear the stored user
+        storeLogout()
       }
-    },
-    // Only fetch if hydrated and we think we're authenticated
-    enabled: isHydrated && storeIsAuthenticated(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: any) => {
-      const status = error?.status || error?.response?.status
-      // Don't retry on 401 (unauthorized) or 419 (CSRF) - user is not authenticated or session expired
-      if (status === 401 || status === 419) {
-        // Clear stored user if API says we're not authenticated
-        if (status === 401) {
-          storeLogout()
-        }
-        return false
-      }
-      // Don't retry on other client errors (4xx)
-      if (status >= 400 && status < 500) {
-        return false
-      }
-      // Only retry once on server errors (5xx) or network errors
-      return failureCount < 1
-    },
-  })
+    }
+  }, [query.error, storeLogout])
 
   // Sync query data with store when it updates
   useEffect(() => {
     if (query.data && query.data !== storedUser) {
       setUser(query.data)
+      // Also update query cache to keep it in sync
+      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, query.data)
     }
-  }, [query.data, storedUser, setUser])
+  }, [query.data, storedUser, setUser, queryClient])
 
   // Handle logout - clear both query cache and store
   const logout = async () => {
-    // Clear query cache
-    query.remove()
+    // Clear query cache using queryClient
+    queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     // Clear store
     storeLogout()
     // Optionally call logout API endpoint
     try {
       const { logoutUser } = await import('@/shared/lib/api-client/laravel-client')
       await logoutUser()
+      // Invalidate auth queries after logout to ensure fresh state
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     } catch (error) {
       // Log but don't fail logout if API call fails
       // This ensures logout always succeeds even if API is unavailable
       if (process.env.NODE_ENV === 'development') {
         console.error('Logout API call failed:', error)
       }
+      // Still invalidate queries even if API call fails
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     }
   }
 

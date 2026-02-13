@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import FullLogo from "@/components/shared/FullLogo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
+import { useAuth } from "@/shared/hooks/useAuth";
 
 const menuItems = [
   {
@@ -49,6 +50,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  
+  // Keep auth query active in authenticated routes
+  // This ensures the query stays in TanStack Query cache and is visible in devtools
+  // The query will automatically fetch user data when enabled (after login)
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   return (
     <SidebarProvider>

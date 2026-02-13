@@ -1,6 +1,7 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { loginWithLark } from '@/shared/lib/api-client/laravel-client'
 import { useAuthStore } from '@/shared/stores/auth-store'
+import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
 
 /**
  * Lark Login Mutation Hook
@@ -8,14 +9,16 @@ import { useAuthStore } from '@/shared/stores/auth-store'
  * Uses TanStack Query for Lark OAuth callback API call
  * Handles loading states, errors, and success automatically
  * Properly caches the mutation for debugging
+ * Updates query cache and Zustand store on success
  * 
  * IMPORTANT: This mutation does NOT retry on CSRF errors (419) to prevent infinite loops
  */
 export function useLarkLoginMutation() {
+  const queryClient = useQueryClient()
   const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
-    mutationKey: ['auth', 'lark', 'login'],
+    mutationKey: AUTH_QUERY_KEYS.LARK_LOGIN,
     mutationFn: async (code: string) => {
       // Call Laravel backend to exchange code for user session
       const response = await loginWithLark(code)
@@ -25,7 +28,12 @@ export function useLarkLoginMutation() {
       // Store user in auth store (session-based auth)
       const user = data?.data?.user || data?.user
       if (user) {
+        // Set query cache to avoid refetch
+        queryClient.setQueryData(AUTH_QUERY_KEYS.ME, user)
+        // Store in Zustand for persistence
         setUser(user)
+        // Invalidate to trigger refetch if needed
+        queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
       }
     },
     onError: (error: any) => {

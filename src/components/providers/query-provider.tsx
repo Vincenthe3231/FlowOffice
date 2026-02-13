@@ -73,88 +73,26 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             gcTime: 10 * 60 * 1000, // Keep mutation results in cache for 10 minutes
           },
         },
-        // Global error handler
-        mutationCache: undefined, // Will be set if needed
-        queryCache: undefined, // Will be set if needed
       })
   )
 
-  // Add comprehensive logging in development to track ALL queries and mutations
+  // Track mutation errors in development for debugging
   if (process.env.NODE_ENV === 'development') {
-    // Track all mutation events (added, updated, removed, error, success)
     queryClient.getMutationCache().subscribe((event) => {
-      const mutation = event?.mutation
-      if (mutation) {
-        const mutationKey = mutation.options.mutationKey || 'unknown'
-        switch (event?.type) {
-          case 'added':
-            console.log('[TanStack Query] Mutation added:', mutationKey, mutation.state)
-            break
-          case 'updated':
-            console.log('[TanStack Query] Mutation updated:', mutationKey, {
-              status: mutation.state.status,
-              error: mutation.state.error,
-              data: mutation.state.data,
-            })
-            break
-          case 'removed':
-            console.log('[TanStack Query] Mutation removed:', mutationKey)
-            break
-          case 'error':
-            console.error('[TanStack Query] Mutation error:', mutationKey, event.error)
-            break
-        }
+      if (event?.type === 'error') {
+        const mutation = event?.mutation
+        const mutationKey = mutation?.options.mutationKey || 'unknown'
+        console.error('[TanStack Query] Mutation error:', mutationKey, event.error)
       }
     })
 
-    // Track all query events (added, updated, removed, error, success)
     queryClient.getQueryCache().subscribe((event) => {
-      const query = event?.query
-      if (query) {
-        const queryKey = query.queryKey || 'unknown'
-        switch (event?.type) {
-          case 'added':
-            console.log('[TanStack Query] Query added:', queryKey, {
-              enabled: query.options.enabled,
-              staleTime: query.options.staleTime,
-            })
-            break
-          case 'updated':
-            console.log('[TanStack Query] Query updated:', queryKey, {
-              status: query.state.status,
-              fetchStatus: query.state.fetchStatus,
-              dataUpdatedAt: query.state.dataUpdatedAt,
-              error: query.state.error,
-            })
-            break
-          case 'removed':
-            console.log('[TanStack Query] Query removed:', queryKey)
-            break
-          case 'error':
-            console.error('[TanStack Query] Query error:', queryKey, event.error)
-            break
-        }
+      if (event?.type === 'error') {
+        const query = event?.query
+        const queryKey = query?.queryKey || 'unknown'
+        console.error('[TanStack Query] Query error:', queryKey, event.error)
       }
     })
-
-    // Log cache state periodically for debugging
-    setInterval(() => {
-      const queries = queryClient.getQueryCache().getAll()
-      const mutations = queryClient.getMutationCache().getAll()
-      if (queries.length > 0 || mutations.length > 0) {
-        console.log('[TanStack Query] Cache state:', {
-          queries: queries.length,
-          mutations: mutations.length,
-          queryKeys: queries.map(q => q.queryKey),
-          mutationKeys: mutations.map(m => m.options.mutationKey),
-        })
-      }
-    }, 10000) // Log every 10 seconds
-  }
-
-  // Expose queryClient to window for debugging in development
-  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    ;(window as any).__REACT_QUERY_CLIENT__ = queryClient
   }
 
   return (
