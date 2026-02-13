@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import SocialButtons from './_components/SocialButtons'
 import AuthLogin from './_components/AuthLogin'
 import LeftSidebar from './_components/LeftSidebar'
@@ -26,8 +26,20 @@ const Login = () => {
             <div className='flex h-screen items-center px-3 lg:justify-start justify-center'>
               <div className='max-w-[420px] w-full mx-auto'>
                 <h3 className='text-2xl font-bold text-foreground'>Welcome to FlowOffice</h3>
-                <SocialButtons title='or sign in with' />
-                <AuthLogin />
+                <Suspense
+                  fallback={
+                    <div className="space-y-4 animate-pulse">
+                      <div className="h-10 rounded bg-muted" />
+                      <div className="flex gap-2">
+                        <div className="h-4 flex-1 rounded bg-muted" />
+                        <div className="h-4 flex-1 rounded bg-muted" />
+                      </div>
+                    </div>
+                  }
+                >
+                  <SocialButtons title='or sign in with' />
+                  <AuthLogin />
+                </Suspense>
                 <div className='flex gap-2 text-base text-ld dark:text-ld font-medium mt-6 items-center justify-center'>
                   <p className='text-foreground'>New to FlowOffice?</p>
                   <Link

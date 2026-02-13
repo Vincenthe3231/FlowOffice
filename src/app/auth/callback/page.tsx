@@ -19,6 +19,7 @@ function CallbackContent() {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
+  const stateParam = searchParams.get('state')
 
   useEffect(() => {
     // Prevent multiple executions
@@ -62,11 +63,27 @@ function CallbackContent() {
         // useAuth in authenticated layout will pick up the cached data automatically
 
         setStatus('success')
-        setMessage('Login successful! Redirecting to dashboard...')
+        setMessage('Login successful! Redirecting...')
 
-        // Redirect to dashboard after short delay
+        // Parse redirect target from OAuth state (relative path only to prevent open redirect)
+        let redirectTo = '/dashboard'
+        if (stateParam) {
+          try {
+            const parsed = JSON.parse(decodeURIComponent(stateParam))
+            if (
+              parsed?.from &&
+              typeof parsed.from === 'string' &&
+              parsed.from.startsWith('/')
+            ) {
+              redirectTo = parsed.from
+            }
+          } catch {
+            /* ignore invalid state */
+          }
+        }
+
         setTimeout(() => {
-          router.push('/dashboard')
+          router.push(redirectTo)
         }, 1000)
       } catch (error) {
         console.error('Lark OAuth callback error:', error)

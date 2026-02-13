@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,8 @@ import { useLoginMutation } from '@/shared/hooks/useLoginMutation'
 
 const AuthLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from') || '/dashboard'
 
   // React Hook Form with Zod validation
   const {
@@ -45,8 +48,8 @@ const AuthLogin = () => {
       // 3. Invalidates query to trigger refetch
       // useAuth in authenticated layout will pick up the cached data automatically
       
-      // Redirect to dashboard on success
-      window.location.href = '/dashboard'
+      // Redirect to original destination or dashboard
+      window.location.href = from
     } catch (error) {
       // Error is handled by mutation and displayed below
       console.error('Login error:', error)
