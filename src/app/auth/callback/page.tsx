@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import axios from 'axios'
 import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
 import { Loader2 } from 'lucide-react'
 
@@ -90,17 +91,20 @@ function CallbackContent() {
         
         // Extract error message with better handling
         let errorMessage = 'Authentication failed. Please try again.'
-        
-        if (error instanceof Error) {
-          errorMessage = error.message
-        } else if (typeof error === 'object' && error !== null) {
-          const err = error as any
-          // Check for CSRF token mismatch specifically
-          if (err.message?.includes('CSRF') || err.message?.includes('419') || err.status === 419) {
+
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status
+          if (status === 419) {
             errorMessage = 'CSRF token mismatch. Please refresh the page and try logging in again.'
           } else {
-            errorMessage = err.message || err.error || JSON.stringify(error)
+            const data = error.response?.data as Record<string, unknown> | undefined
+            errorMessage =
+              (data?.message as string) ??
+              error.message ??
+              'Request failed'
           }
+        } else if (error instanceof Error) {
+          errorMessage = error.message
         } else if (typeof error === 'string') {
           errorMessage = error
         }

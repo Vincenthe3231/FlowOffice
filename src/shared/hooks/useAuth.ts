@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import axios from 'axios'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import { useHydration } from './useHydration'
 import { getCurrentUser } from '@/shared/lib/api-client/laravel-client'
@@ -15,7 +16,6 @@ import { AUTH_QUERY_KEYS, AUTH_CONFIG } from '@/shared/lib/api-client/auth-const
 export const authQueryOptions = queryOptions({
   queryKey: AUTH_QUERY_KEYS.ME,
   queryFn: async () => {
-    // Use safeFetch with validation
     const response = await getCurrentUser()
     
     // Validate response structure
@@ -69,10 +69,10 @@ export function useAuth() {
   // This allows the query to remain visible in devtools even when not authenticated
   useEffect(() => {
     if (query.error) {
-      const status = (query.error as any)?.status || (query.error as any)?.response?.status
+      const status = axios.isAxiosError(query.error)
+        ? query.error.response?.status
+        : undefined
       if (status === 401) {
-        // User is not authenticated - clear store
-        // Don't treat this as an error state, just clear the stored user
         storeLogout()
       }
     }

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
 import React, { useState } from 'react'
+import axios from 'axios'
 import { Eye, EyeOff } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -62,16 +63,14 @@ const AuthLogin = () => {
   const getErrorMessage = () => {
     if (!loginMutation.isError) return null
 
-    const error = loginMutation.error as any
+    const error = loginMutation.error
 
-    // Laravel returned 401 (invalid credentials)
-    if (error?.status === 401) {
-      return 'Email or password is incorrect'
-    }
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const data = error.response?.data as Record<string, unknown> | undefined
 
-    // Laravel returned 422 (validation errors)
-    if (error?.status === 422) {
-      return error.message || 'Invalid input'
+      if (status === 401) return 'Email or password is incorrect'
+      if (status === 422) return (data?.message as string) || 'Invalid input'
     }
 
     // Network or connection error

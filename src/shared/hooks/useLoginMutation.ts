@@ -34,7 +34,7 @@ export function useLoginMutation() {
         queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // Error is handled by the component
       console.error('Login mutation error:', error)
     },
