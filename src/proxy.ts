@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-const SESSION_COOKIE_NAME =
-  process.env.NEXT_PUBLIC_LARAVEL_SESSION_COOKIE || 'laravel-session'
+import { AUTH_COOKIE_NAME } from '@/shared/lib/auth-cookie'
 
 const PROTECTED_PREFIXES = ['/dashboard']
 
@@ -21,8 +19,8 @@ function isProtectedPath(pathname: string): boolean {
   )
 }
 
-function hasSessionCookie(request: NextRequest): boolean {
-  return request.cookies.has(SESSION_COOKIE_NAME)
+function hasAuthCookie(request: NextRequest): boolean {
+  return request.cookies.has(AUTH_COOKIE_NAME)
 }
 
 export function proxy(request: NextRequest) {
@@ -32,7 +30,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const isAuthenticated = hasSessionCookie(request)
+  const isAuthenticated = hasAuthCookie(request)
 
   if (isProtectedPath(pathname) && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url)

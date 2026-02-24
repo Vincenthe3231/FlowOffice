@@ -35,6 +35,7 @@ Operational guide for coding agents working in this repository.
 - Large refactors unrelated to user request.
 
 ## Authentication and integrations
+- Auth: Laravel Sanctum Bearer token stored in httpOnly cookie; Next.js proxy sends `Authorization: Bearer` to Laravel. No client-side token; no CSRF for API. Env: `NEXT_PUBLIC_LARAVEL_API_URL` (server-only), `AUTH_COOKIE_NAME` (optional).
 - Treat event bus as placeholder until fully implemented.
 - If building auth flow pieces, align with current env names and existing login UX.
 - Use existing env variable naming conventions already in repo.

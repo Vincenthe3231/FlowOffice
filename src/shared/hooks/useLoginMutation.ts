@@ -8,11 +8,10 @@ import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
 
 /**
  * Login Mutation Hook.
- * Backend returns { data: { user, token } }; we store both and send Bearer on subsequent requests.
+ * Next.js auth route sets httpOnly cookie and returns user only; we store user for UI.
  */
 export function useLoginMutation() {
   const queryClient = useQueryClient()
-  const setUserAndToken = useAuthStore((state) => state.setUserAndToken)
   const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
@@ -22,19 +21,14 @@ export function useLoginMutation() {
       return body
     },
     onSuccess: (body) => {
-      const { user, token } = parseAuthSuccess(body)
+      const { user } = parseAuthSuccess(body)
       if (!user) return
       const validated = userSchema.parse(user)
-      if (token) {
-        setUserAndToken(validated, token)
-      } else {
-        setUser(validated)
-      }
+      setUser(validated, 'email')
       queryClient.setQueryData(AUTH_QUERY_KEYS.ME, validated)
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     },
     onError: (error: unknown) => {
-      // Error is handled by the component
       console.error('Login mutation error:', error)
     },
   })

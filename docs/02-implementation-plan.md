@@ -144,7 +144,7 @@ Belive-FO-Client/
 
 ## Phase 2: Authentication Infrastructure
 
-**Goal:** Implement Lark OAuth flow and token management following Next.js patterns.
+**Goal:** Implement Lark OAuth flow; token in httpOnly cookie, user in store for UI.
 
 **Status:** 🟡 Partially Completed (Login page UI done, OAuth callback pending)
 
@@ -159,27 +159,26 @@ Belive-FO-Client/
 
 - ✅ Created `src/shared/stores/auth-store.ts`
 - ✅ Store `apiToken`, `supabaseToken`, and `user` object
-- ✅ Use `persist` middleware with `partialize` to only persist tokens
+- ✅ Use `persist` middleware with `partialize` to persist user (and authMethod) only; no token in store
 - ✅ Implement `setTokens`, `logout`, and `isAuthenticated` methods
 - ✅ Export from `src/shared/index.ts` for use in app and other features
 
 ### 2.3 Build Lark OAuth Flow
 
 - Create `src/lib/auth/lark-auth.ts` with `loginWithLark(code)` function (planned)
-- Exchange Lark authorization code with Laravel backend
-- Parse response containing both `api_token` and `supabase_token`
-- Use auth store from `@/shared` to store tokens
+- Send code to Next.js `/api/auth/lark/callback`; Next.js calls Laravel, sets httpOnly cookie, returns user
+- Use auth store from `@/shared` to store user for UI
 
 ### 2.4 Create Auth Callback Page
 
 - Implement `src/app/auth/callback/page.tsx` as a Client Component (planned)
 - Extract `code` from URL search params
-- Call `loginWithLark`, store tokens using auth store from `@/shared`, and redirect to dashboard
+- Call `loginWithLark` (hits Next.js); store user via auth store; redirect to dashboard
 
 ### 2.5 Implement Next.js Middleware for Route Protection
 
 - Create `src/middleware.ts` at app root (planned)
-- Check for auth token in cookies/localStorage
+- Check for httpOnly auth cookie (e.g. `belive_auth_token`) presence
 - Redirect unauthenticated users to `/login`
 - Configure matcher to exclude public routes (`/login`, `/auth/*`, `/_next/*`)
 
@@ -237,34 +236,17 @@ Belive-FO-Client/
   - Recursive object key transformation for nested objects and arrays
   - Preserve FormData and special types (Date, File, etc.)
   - Handle edge cases (null, undefined, primitives)
-- ⏳ Create `src/shared/lib/api-client/axios-instance.ts` with two Axios instances (planned)
-  - `laravelApi`: For versioned endpoints (`/api/v1/*`)
-    - Base URL: `${LARAVEL_API_URL}/api/v1`
-    - Configured with `withCredentials: true` for session cookies
-    - Accept header: `application/json`
-  - `laravelRootApi`: For root endpoints (`/sanctum/csrf-cookie`, health checks)
-    - Base URL: `${LARAVEL_API_URL}`
-    - Same credentials and headers configuration
-- ⏳ Create `src/shared/lib/api-client/interceptors.ts` with request/response interceptors (planned)
-  - **Request Interceptors:**
-    - Transform request data: camelCase → snake_case (skip FormData)
-    - Extract CSRF token from `XSRF-TOKEN` cookie and add as `X-XSRF-TOKEN` header
-  - **Response Interceptors:**
-    - Transform response data: snake_case → camelCase
-    - Handle 419 CSRF errors: Automatically fetch new CSRF cookie and retry request
-- ⏳ Update `src/shared/lib/api-client/laravel-client.ts` to use Axios instances (planned)
-  - Replace native fetch with `laravelApi` and `laravelRootApi`
-  - Update `loginWithEmail`, `loginWithLark`, `getCurrentUser`, `logoutUser` to use Axios
-  - Maintain existing function signatures for backward compatibility
-- ⏳ Export both Axios instances from `src/shared/lib/api-client/index.ts` (planned)
-  - Export `laravelApi` and `laravelRootApi` for direct use in feature modules
-  - Export existing API functions for convenience
-- ✅ Export from `src/shared/index.ts`
+- ✅ Axios instance points to same-origin (Next.js)
+  - `laravelApi`: Base URL `''`; auth routes `/api/auth/*`, proxied API `/api/proxy/*`
+  - `withCredentials: true` so httpOnly auth cookie is sent
+  - No CSRF or client-side Bearer; Next.js Route Handlers add Bearer from cookie
+- ✅ Request/response: camelCase ↔ snake_case transform only
+- ✅ `laravel-client.ts`: `loginWithEmail`, `loginWithLark`, `getCurrentUser`, `logoutUser` call Next.js routes
+- ✅ Export from `src/shared/lib/api-client/index.ts`
 
 **Architecture Notes:**
-- Two Axios instances allow separation of versioned API calls from root endpoints
-- Automatic transformations eliminate manual conversion between camelCase and snake_case
-- CSRF handling is transparent to calling code - interceptors handle token extraction and retry logic
+- All API from browser goes to Next.js; Next.js proxies to Laravel with `LARAVEL_API_URL` and Bearer from httpOnly cookie
+- Automatic transformations for camelCase/snake_case; no CSRF for API
 - All API calls go through React Query hooks for caching and state management (see Phase 3.4)
 
 ### 3.4 Configure TanStack Query
@@ -277,9 +259,9 @@ Belive-FO-Client/
   - `refetchOnReconnect`: true - refetch when network reconnects
   - `refetchOnMount`: true - refetch if data is stale on mount
 - ✅ Implemented smart retry logic:
-  - Queries: No retry on 401 (unauthorized), 419 (CSRF), or 4xx errors
+  - Queries: No retry on 401 (unauthorized) or 4xx errors
   - Queries: Retry up to 2 times for 5xx server errors and network errors
-  - Mutations: No retry on 401, 419, or any 4xx errors
+  - Mutations: No retry on 401 or any 4xx errors
   - Mutations: Retry once for 5xx server errors and network errors
   - Exponential backoff: `Math.min(1000 * 2 ** attemptIndex, 30000)`
 - ✅ Added React Query DevTools in development mode
@@ -360,24 +342,28 @@ The project uses a layered architecture for API communication:
 
 ### 1. Axios Instances
 
-Two Axios instances are configured for different endpoint types:
+Axios is configured for **same-origin calls to Next.js**, which then proxies to Laravel:
 
-- **`laravelApi`**: For versioned API endpoints (`/api/v1/*`)
-  - Base URL: `${LARAVEL_API_URL}/api/v1`
+- **`laravelApi`**: For all browser → Next.js calls:
+  - Auth routes: `/api/auth/login`, `/api/auth/me`, `/api/auth/lark/callback`, `/api/auth/logout`
+  - Proxied API routes: `/api/proxy/...`
+  - Base URL: `''` (same-origin)
   - Automatic camelCase ↔ snake_case transformation
-  - CSRF token handling with automatic retry on 419 errors
-  
-- **`laravelRootApi`**: For root endpoints (`/sanctum/csrf-cookie`, health checks)
-  - Base URL: `${LARAVEL_API_URL}`
-  - Same transformation and CSRF handling
+  - `withCredentials: true` so browser cookies (including auth/cache cookies) are sent to Next.js
 
-Both instances:
-- Include credentials (`withCredentials: true`) for session cookies
-- Set `Accept: application/json` header
-- Transform request data: camelCase → snake_case
-- Transform response data: snake_case → camelCase
-- Automatically extract CSRF token from `XSRF-TOKEN` cookie
-- Retry requests on 419 CSRF errors after fetching new token
+- **`laravelRootApi`**:
+  - Currently an alias of `laravelApi`
+  - Kept for compatibility; no direct browser → Laravel calls
+
+Laravel CSRF handling is done **inside Next.js Route Handlers**, not in the browser:
+
+- Login/logout handlers call Laravel with:
+  - `Cookie` header built from browser cookies (Laravel session + `XSRF-TOKEN`)
+  - `X-XSRF-TOKEN` header derived from the `XSRF-TOKEN` cookie
+  - Optional `Authorization: Bearer <token>` from the httpOnly Bearer cookie
+- Other API handlers (`/api/proxy/...`, `/api/auth/me`) forward:
+  - `Cookie` header for Laravel’s session
+  - Optional `Authorization: Bearer <token>` for `auth:sanctum` APIs
 
 ### 2. Transform Utilities
 
@@ -498,13 +484,9 @@ queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
 ### 8. Environment Variables
 
 **Current Setup:**
-- `NEXT_PUBLIC_LARAVEL_API_URL`: Exposed to client (required for client-side auth)
-- Used in Axios instance configuration
-
-**Note:** The setup guide uses `LARAVEL_API_URL` (server-side only), but this project uses `NEXT_PUBLIC_LARAVEL_API_URL` because:
-- Client-side authentication with Lark OAuth
-- Direct API calls from browser
-- BFF pattern may be adopted later for enhanced security
+- `LARAVEL_API_URL`: Server-only; used by Next.js Route Handlers (auth and proxy) to call Laravel. Never exposed to the browser.
+- `AUTH_COOKIE_NAME`: Optional; name of the httpOnly cookie holding the Bearer token (default `belive_auth_token`).
+- Browser never calls Laravel directly; all API goes through Next.js (`/api/auth/*`, `/api/proxy/*`) with credentials so the httpOnly cookie is sent.
 
 ### 9. Common Patterns
 
@@ -872,7 +854,7 @@ Create `src/features/claims/` following same structure:
 - Handle Lark SDK unavailability (desktop browser fallback) in `@/features/lark-sdk`
 - Handle offline scenarios gracefully
 - ✅ Retry logic configured in QueryProvider (smart retry for 5xx errors, no retry for 4xx)
-- ✅ CSRF retry logic configured in Axios interceptors (automatic retry on 419 errors)
+- ✅ Auth via Next.js Route Handlers; no CSRF (httpOnly cookie, proxy pattern)
 - Verify comprehensive error handling across all API calls
 
 ### 7.2 Performance Optimization

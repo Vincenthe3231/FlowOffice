@@ -44,14 +44,14 @@ function CallbackContent() {
         }
 
         const body = await larkLoginMutation.mutateAsync(code)
-        const { user, token } = parseAuthSuccess(body)
+        const { user } = parseAuthSuccess(body)
 
-        if (!user || !token) {
+        if (!user) {
           console.error('Response structure:', body)
-          throw new Error('Authentication succeeded but user data or token was not returned.')
+          throw new Error('Authentication succeeded but user data was not returned.')
         }
 
-        // Mutation's onSuccess already stored user + token and updated cache
+        // Mutation's onSuccess already stored user and updated cache; cookie set by Next.js
 
         setStatus('success')
         setMessage('Login successful! Redirecting...')
@@ -82,9 +82,7 @@ function CallbackContent() {
         const apiErr = extractError(err)
         let errorMessage = apiErr.message || 'Authentication failed. Please try again.'
 
-        if (apiErr.status === 419) {
-          errorMessage = 'CSRF token mismatch. Please refresh the page and try logging in again.'
-        } else if (apiErr.status === 429 && apiErr.retryAfter != null) {
+        if (apiErr.status === 429 && apiErr.retryAfter != null) {
           errorMessage = `Too many requests. Try again in ${apiErr.retryAfter} seconds.`
         } else if (apiErr.status === 423 && apiErr.remainingSeconds != null) {
           errorMessage = `Account locked. Try again in ${apiErr.remainingSeconds} seconds.`

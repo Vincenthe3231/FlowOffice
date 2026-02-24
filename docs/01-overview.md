@@ -17,14 +17,14 @@
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Next.js Frontend                                            │
-│  ├─ Gets Lark code → Exchanges with Laravel                  │
-│  ├─ Receives: { api_token, supabase_token }                  │
-│  ├─ Calls Laravel API (api_token)                            │
-│  └─ Subscribes to Supabase Realtime (supabase_token)         │
+│  ├─ Gets Lark code → Sends to Next.js /api/auth/lark/callback│
+│  ├─ Next.js sets httpOnly cookie (Bearer); returns user only │
+│  ├─ All API via Next.js (/api/proxy/*, /api/auth/me)         │
+│  └─ Subscribes to Supabase Realtime where used                │
 └────┬──────────────────────────┬─────────────────────────────┘
      │                          │
-     │ REST API                 │ WebSocket
-     │ (api_token)              │ (supabase_token)
+     │ REST (cookie)             │ WebSocket
+     │ Next.js adds Bearer       │ (supabase_token if used)
      │                          │
      ▼                          ▼
 ┌──────────────────┐    ┌────────────────────┐
@@ -117,7 +117,7 @@ export const larkSDK = {
 // src/lib/auth/lark-auth.ts (planned)
 export async function loginWithLark(code: string): Promise<AuthTokens> {
   // Exchange Lark code with Laravel
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/lark/callback`, {
+  const response = await fetch('/api/auth/lark/callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -129,94 +129,17 @@ export async function loginWithLark(code: string): Promise<AuthTokens> {
   
   const data = await response.json()
   
-  // Laravel returns both tokens
-  return {
-    apiToken: data.api_token,        // For Laravel API calls
-    supabaseToken: data.supabase_token, // For Supabase Realtime
-    user: data.user,
-  }
+  // Next.js route sets httpOnly cookie; response is user only (no token in client)
+  return data.user
 }
 
-// src/shared/stores/auth-store.ts
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+// src/shared/stores/auth-store.ts (current: user only; token in httpOnly cookie)
+// Store holds user and authMethod for UI; no apiToken/supabaseToken in client.
+// setUser(user, authMethod?), logout(), isAuthenticated() -> !!user
 
-type AuthState = {
-  user: User | null
-  apiToken: string | null
-  supabaseToken: string | null
-  
-  setTokens: (tokens: AuthTokens) => void
-  logout: () => void
-  isAuthenticated: () => boolean
-}
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      apiToken: null,
-      supabaseToken: null,
-      
-      setTokens: (tokens) => set({
-        user: tokens.user,
-        apiToken: tokens.apiToken,
-        supabaseToken: tokens.supabaseToken,
-      }),
-      
-      logout: () => set({
-        user: null,
-        apiToken: null,
-        supabaseToken: null,
-      }),
-      
-      isAuthenticated: () => !!get().apiToken,
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        // Only persist tokens, not user object
-        apiToken: state.apiToken,
-        supabaseToken: state.supabaseToken,
-      }),
-    }
-  )
-)
-
-// src/app/auth/callback/page.tsx (planned)
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { loginWithLark } from '@/lib/auth/lark-auth'
-import { useAuthStore } from '@/shared/stores/auth-store'
-
-export default function LarkCallbackPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const setTokens = useAuthStore((state) => state.setTokens)
-  
-  useEffect(() => {
-    const code = searchParams.get('code')
-    
-    if (!code) {
-      router.push('/login')
-      return
-    }
-    
-    loginWithLark(code)
-      .then((tokens) => {
-        setTokens(tokens)
-        router.push('/attendance')
-      })
-      .catch((error) => {
-        console.error('Login failed:', error)
-        router.push('/login?error=auth_failed')
-      })
-  }, [searchParams, router, setTokens])
-  
-  return <div>Logging in...</div>
-}
+// src/app/auth/callback/page.tsx
+// Calls POST /api/auth/lark/callback with { code }; Next.js sets cookie, returns { data: { user } }.
+// Mutation onSuccess stores user via setUser(validated, 'lark') and redirects to dashboard.
 ```
 
 ---

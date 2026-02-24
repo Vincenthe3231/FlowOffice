@@ -19,7 +19,7 @@ Start with the main [README](../README.md) for quick setup and installation inst
 
 Learn how all systems work together:
 - 🔄 Full system architecture diagrams
-- 🔐 Authentication flow (Lark OAuth → Laravel → Supabase JWT)
+- 🔐 Authentication flow (Lark OAuth / email → Laravel → Next.js httpOnly cookie and proxy)
 - 📱 Lark SDK integration (GPS, Camera, WiFi geofencing)
 - 🚀 Laravel API structure and endpoints
 - ⚡ Supabase Realtime subscriptions and RLS policies

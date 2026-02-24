@@ -1,53 +1,28 @@
 /**
- * Laravel API Client
+ * API Client for auth and proxied backend
  *
- * Handles communication with Laravel Sanctum backend.
- * Built on top of Axios instances from `./axios.ts`.
- *
- * Features inherited from Axios layer:
- * - Session-based auth (withCredentials)
- * - Auto CSRF token injection
- * - Auto CSRF 419 retry
- * - Auto camelCase ↔ snake_case transform
+ * Auth endpoints hit Next.js Route Handlers; token lives in httpOnly cookie.
+ * No CSRF or client-side Bearer token.
  */
 
-import { laravelApi, laravelRootApi } from './axios'
+import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
-
-// ---------------------------------------------------------------------------
-// CSRF
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch CSRF cookie from Laravel Sanctum.
- * Must be called before any state-changing (POST/PUT/DELETE) request.
- */
-export async function getCsrfCookie(): Promise<void> {
-  await laravelRootApi.get(API_ROUTES.CSRF_COOKIE)
-}
-
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
 
 /**
  * Login with email and password.
- * Automatically fetches CSRF cookie first.
+ * Next.js route sets httpOnly cookie and returns user only.
  */
 export async function loginWithEmail(email: string, password: string) {
-  await getCsrfCookie()
-
   const response = await laravelApi.post(API_ROUTES.AUTH.LOGIN, {
     email,
     password,
   })
-
   return response.data
 }
 
 /**
  * Get current authenticated user.
- * Used by useAuth to verify session validity.
+ * Next.js reads cookie and calls Laravel /api/user with Bearer.
  */
 export async function getCurrentUser() {
   const response = await laravelApi.get(API_ROUTES.AUTH.ME)
@@ -56,29 +31,17 @@ export async function getCurrentUser() {
 
 /**
  * Login with Lark OAuth code.
- * Automatically fetches CSRF cookie first.
- *
- * Use via `useLarkLoginMutation` hook for proper TanStack Query integration.
+ * Next.js forwards code to Laravel, sets httpOnly cookie, returns user only.
  */
 export async function loginWithLark(code: string) {
-  try {
-    await getCsrfCookie()
-  } catch {
-    throw new Error(
-      'Failed to initialize CSRF token. Please refresh the page and try again.',
-    )
-  }
-
   const response = await laravelApi.post(API_ROUTES.AUTH.LARK_CALLBACK, {
     code,
   })
-
   return response.data
 }
 
 /**
- * Log out the current user. Requires Bearer token (set by interceptor from store).
- * Caller should clear auth store and redirect to /login on success or 401.
+ * Log out. Next.js revokes token on Laravel and clears cookie.
  */
 export async function logoutUser(): Promise<void> {
   await laravelApi.post(API_ROUTES.AUTH.LOGOUT)

@@ -32,10 +32,12 @@
 
 #### 2.1 Security and Authentication
 
-- **Supabase Client (@supabase/supabase-js)**: Primary authentication and data access layer. Handles JWT validation, Realtime subscriptions, and Storage access with Row-Level Security (RLS) enforcement.
-- **Next.js Middleware (proxy.ts)**: Server-side logic to intercept requests for edge-case routing and auth guards.
-- **Lark OAuth**: Enterprise SSO protocol for secure user login via the Lark ecosystem. OAuth flow generates Supabase JWT tokens.
-- **NextAuth (Optional)**: Session management wrapper around Supabase JWT. Only needed if you want additional session helpers beyond direct Supabase JWT usage.
+- **Laravel Sanctum (Bearer in httpOnly cookie)**: Laravel issues API tokens on login/OAuth; Next.js stores the token in an httpOnly cookie and proxies all API requests to Laravel with `Authorization: Bearer`. The browser never sees the token; no CSRF for API.
+- **Next.js Route Handlers**: Auth routes (`/api/auth/login`, `/api/auth/me`, `/api/auth/lark/callback`, `/api/auth/logout`) and proxy (`/api/proxy/[...path]`) implement the thin BFF. Env: `LARAVEL_API_URL` (server-only).
+- **Next.js Middleware (proxy.ts)**: Route protection by checking for the httpOnly auth cookie; redirects unauthenticated users to `/login`.
+- **Lark OAuth**: Enterprise SSO; user logs in via Lark, callback hits Next.js, which exchanges code with Laravel and sets the auth cookie.
+- **Supabase Client (@supabase/supabase-js)**: Data access, Realtime, Storage with RLS where used.
+- **NextAuth (Optional)**: Only if additional session helpers are needed beyond the current flow.
 
 #### 2.2 Authorization
 

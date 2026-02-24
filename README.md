@@ -131,8 +131,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_SUPABASE_SECRET=your-supabase-service-role-key
 NEXT_SUPABASE_JWT_SECRET=your-supabase-jwt-secret
 
-# Laravel API
+# Laravel API (server-only; Next.js Route Handlers use this for proxy and auth)
 NEXT_PUBLIC_LARAVEL_API_URL=your-laravel-api-url
+# Auth cookie name (httpOnly Bearer token)
+AUTH_COOKIE_NAME=belive_auth_token
 BFF_INTERNAL_SECRET=your-internal-secret
 
 # Lark OAuth
@@ -169,15 +171,31 @@ Comprehensive documentation is available in the [`/docs`](./docs) folder:
 
 ## 🔐 Authentication Flow
 
-1. User clicks "Lark" button on login page
-2. Redirected to Lark OAuth
-3. Lark returns authorization code
-4. Frontend exchanges code with Laravel API
-5. Laravel validates and returns:
-   - `api_token` (for Laravel API calls)
-   - `supabase_token` (JWT for Supabase)
-6. Tokens stored in Zustand store (persisted)
-7. User redirected to dashboard (planned)
+FlowOffice follows a **staff-portal-style session + httpOnly Bearer** model:
+
+- Browser → **Next.js** only (never talks to Laravel directly)
+- Next.js Route Handlers → **Laravel** with:
+  - `Cookie` header built from browser cookies (Laravel session + `XSRF-TOKEN`)
+  - Optional `Authorization: Bearer <token>` from an httpOnly cookie for `auth:sanctum` APIs
+
+High-level flow:
+
+1. User clicks "Lark" (or submits email/password) on login page
+2. For Lark: redirect to Lark OAuth; Lark returns authorization code to `/auth/callback`
+3. Frontend sends code (or email/password) to Next.js (`/api/auth/login` or `/api/auth/lark/callback`)
+4. Next.js calls Laravel:
+   - Bootstrap CSRF/session via `/sanctum/csrf-cookie` if needed
+   - Perform login against Laravel, forwarding `Cookie` + `X-XSRF-TOKEN`
+   - Receive user + optional Sanctum API token
+5. Next.js:
+   - Forwards Laravel `Set-Cookie` headers back to the browser (session + `XSRF-TOKEN`)
+   - Stores the Sanctum token in an **httpOnly Bearer cookie** (e.g. `belive_auth_token`)
+   - Returns JSON with the user only (no raw token in the body)
+6. All subsequent API calls go to Next.js (`/api/proxy/...` or `/api/auth/me`):
+   - Next.js reads browser cookies and builds a `Cookie` header for Laravel
+   - If the httpOnly Bearer cookie is present, Next.js also sets `Authorization: Bearer <token>`
+   - Any Laravel `Set-Cookie` headers are forwarded back to the browser
+7. Route protection (`proxy.ts`) checks for the auth cookie(s) to decide if a user is treated as logged in
 
 **Current Implementation:**
 - Login page with Lark OAuth button and username/password form

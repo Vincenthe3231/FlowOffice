@@ -8,11 +8,10 @@ import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
 
 /**
  * Lark Login Mutation Hook.
- * Backend returns { data: { user, token } }; we store both and send Bearer on subsequent requests.
+ * Next.js auth route sets httpOnly cookie and returns user only; we store user for UI.
  */
 export function useLarkLoginMutation() {
   const queryClient = useQueryClient()
-  const setUserAndToken = useAuthStore((state) => state.setUserAndToken)
   const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
@@ -22,27 +21,17 @@ export function useLarkLoginMutation() {
       return body
     },
     onSuccess: (body) => {
-      const { user, token } = parseAuthSuccess(body)
+      const { user } = parseAuthSuccess(body)
       if (!user) return
       const validated = userSchema.parse(user)
-      if (token) {
-        setUserAndToken(validated, token)
-      } else {
-        setUser(validated)
-      }
+      setUser(validated, 'lark')
       queryClient.setQueryData(AUTH_QUERY_KEYS.ME, validated)
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     },
     onError: (error: unknown) => {
-      // Error is handled by the component
-      if (axios.isAxiosError(error) && error.response?.status === 419) {
-        console.error('Lark login: CSRF token mismatch. Please refresh the page.')
-      } else {
-        console.error('Lark login error:', error)
-      }
+      console.error('Lark login error:', error)
     },
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    // Don't retry on client errors – prevents infinite retry loops
+    gcTime: 10 * 60 * 1000,
     retry: (failureCount, error: unknown) => {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
@@ -52,4 +41,3 @@ export function useLarkLoginMutation() {
     },
   })
 }
-

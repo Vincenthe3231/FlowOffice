@@ -3,9 +3,8 @@
 // Axios instances – use directly for custom requests
 export { laravelApi, laravelRootApi } from './axios'
 
-// Laravel API functions (high-level, uses Axios under the hood)
+// API functions (auth via Next.js; cookie-based)
 export {
-  getCsrfCookie,
   loginWithEmail,
   loginWithLark,
   getCurrentUser,
