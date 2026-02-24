@@ -75,3 +75,11 @@ export async function loginWithLark(code: string) {
 
   return response.data
 }
+
+/**
+ * Log out the current user. Requires Bearer token (set by interceptor from store).
+ * Caller should clear auth store and redirect to /login on success or 401.
+ */
+export async function logoutUser(): Promise<void> {
+  await laravelApi.post(API_ROUTES.AUTH.LOGOUT)
+}

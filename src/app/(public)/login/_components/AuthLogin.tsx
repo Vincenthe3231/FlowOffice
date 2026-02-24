@@ -1,14 +1,14 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
 import React, { useState } from 'react'
-import axios from 'axios'
 import { Eye, EyeOff } from 'lucide-react'
+import { extractError } from '@/shared/lib/api-client/response-handler'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { loginSchema, type LoginFormData } from '@/shared/lib/validation/auth.schemas'
@@ -16,6 +16,7 @@ import { useLoginMutation } from '@/shared/hooks/useLoginMutation'
 
 const AuthLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
+  const router = useRouter()
   const searchParams = useSearchParams()
   const from = searchParams.get('from') || '/dashboard'
 
@@ -49,8 +50,9 @@ const AuthLogin = () => {
       // 3. Invalidates query to trigger refetch
       // useAuth in authenticated layout will pick up the cached data automatically
       
-      // Redirect to original destination or dashboard
-      window.location.href = from
+      // Redirect to original destination or dashboard without full reload
+      // This preserves the in-memory auth store (including Bearer token)
+      router.push(from)
     } catch (error) {
       // Error is handled by mutation and displayed below
       console.error('Login error:', error)
@@ -58,23 +60,33 @@ const AuthLogin = () => {
   }
 
   /**
-   * Get user-friendly error message
+   * Get user-friendly error message from backend envelope (error, message, status, fields).
    */
   const getErrorMessage = () => {
     if (!loginMutation.isError) return null
 
-    const error = loginMutation.error
+    const apiErr = extractError(loginMutation.error)
 
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status
-      const data = error.response?.data as Record<string, unknown> | undefined
-
-      if (status === 401) return 'Email or password is incorrect'
-      if (status === 422) return (data?.message as string) || 'Invalid input'
+    if (apiErr.status === 401 || apiErr.error === 'INVALID_CREDENTIALS' || apiErr.error === 'UNAUTHENTICATED') {
+      return 'Email or password is incorrect'
+    }
+    if (apiErr.status === 422 || apiErr.error === 'VALIDATION_ERROR') {
+      if (apiErr.fields && Object.keys(apiErr.fields).length > 0) {
+        const first = Object.values(apiErr.fields)[0]
+        return Array.isArray(first) ? first[0] : apiErr.message
+      }
+      return apiErr.message || 'Invalid input'
+    }
+    if (apiErr.status === 429 || apiErr.error === 'RATE_LIMIT_EXCEEDED') {
+      const retry = apiErr.retryAfter != null ? ` Try again in ${apiErr.retryAfter} seconds.` : ''
+      return `Too many requests.${retry}`
+    }
+    if (apiErr.status === 423 || apiErr.error === 'ACCOUNT_LOCKED') {
+      const remaining = apiErr.remainingSeconds != null ? ` Try again in ${apiErr.remainingSeconds} seconds.` : ''
+      return `Account locked.${remaining}`
     }
 
-    // Network or connection error
-    return 'Unable to sign in. Please try again.'
+    return apiErr.message || 'Unable to sign in. Please try again.'
   }
 
   const errorMessage = getErrorMessage()

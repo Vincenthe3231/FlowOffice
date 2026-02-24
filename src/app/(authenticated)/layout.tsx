@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import FullLogo from "@/components/shared/FullLogo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
+import { LogoutButton } from "@/components/shared/LogoutButton";
 import { useAuth } from "@/shared/hooks/useAuth";
 
 const menuItems = [
@@ -88,7 +89,10 @@ export default function DashboardLayout({
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
           <SidebarTrigger />
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
           {children}

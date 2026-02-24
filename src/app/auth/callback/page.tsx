@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import axios from 'axios'
 import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
+import { parseAuthSuccess, extractError } from '@/shared/lib/api-client/response-handler'
 import { Loader2 } from 'lucide-react'
 
 function CallbackContent() {
@@ -43,25 +43,15 @@ function CallbackContent() {
           throw new Error('Missing authorization code. Please try logging in again.')
         }
 
-        // Use TanStack Query mutation for proper caching and tracking
-        const response = await larkLoginMutation.mutateAsync(code)
+        const body = await larkLoginMutation.mutateAsync(code)
+        const { user, token } = parseAuthSuccess(body)
 
-        // Handle response structure - backend uses session-based auth
-        // Expected: { user, message } or { data: { user, message } }
-        const user = response?.data?.user || response?.user
-
-        if (!user) {
-          console.error('Response structure:', response)
-          throw new Error('Authentication succeeded but user data was not returned.')
+        if (!user || !token) {
+          console.error('Response structure:', body)
+          throw new Error('Authentication succeeded but user data or token was not returned.')
         }
 
-        // Backend uses session-based auth (Sanctum SPA mode)
-        // Session cookies are automatically set by the API call
-        // Mutation's onSuccess already:
-        // 1. Sets query cache (['auth', 'me'])
-        // 2. Updates Zustand store
-        // 3. Invalidates query to trigger refetch
-        // useAuth in authenticated layout will pick up the cached data automatically
+        // Mutation's onSuccess already stored user + token and updated cache
 
         setStatus('success')
         setMessage('Login successful! Redirecting...')
@@ -86,29 +76,22 @@ function CallbackContent() {
         setTimeout(() => {
           router.push(redirectTo)
         }, 1000)
-      } catch (error) {
-        console.error('Lark OAuth callback error:', error)
-        
-        // Extract error message with better handling
-        let errorMessage = 'Authentication failed. Please try again.'
+      } catch (err) {
+        console.error('Lark OAuth callback error:', err)
 
-        if (axios.isAxiosError(error)) {
-          const status = error.response?.status
-          if (status === 419) {
-            errorMessage = 'CSRF token mismatch. Please refresh the page and try logging in again.'
-          } else {
-            const data = error.response?.data as Record<string, unknown> | undefined
-            errorMessage =
-              (data?.message as string) ??
-              error.message ??
-              'Request failed'
-          }
-        } else if (error instanceof Error) {
-          errorMessage = error.message
-        } else if (typeof error === 'string') {
-          errorMessage = error
+        const apiErr = extractError(err)
+        let errorMessage = apiErr.message || 'Authentication failed. Please try again.'
+
+        if (apiErr.status === 419) {
+          errorMessage = 'CSRF token mismatch. Please refresh the page and try logging in again.'
+        } else if (apiErr.status === 429 && apiErr.retryAfter != null) {
+          errorMessage = `Too many requests. Try again in ${apiErr.retryAfter} seconds.`
+        } else if (apiErr.status === 423 && apiErr.remainingSeconds != null) {
+          errorMessage = `Account locked. Try again in ${apiErr.remainingSeconds} seconds.`
+        } else if (err instanceof Error && !apiErr.error) {
+          errorMessage = err.message
         }
-        
+
         setStatus('error')
         setMessage(errorMessage)
       }

@@ -35,6 +35,7 @@ interface AuthState {
 
   // Actions
   setUser: (user: User) => void
+  setUserAndToken: (user: User, token: string) => void
   setTokens: (tokens: { apiToken: string; supabaseToken: string }, user: User) => void
   logout: () => void
   isAuthenticated: () => boolean
@@ -56,14 +57,21 @@ export const useAuthStore = create<AuthState>()(
       supabaseToken: null,
 
       /**
-       * Set user for email/password auth (session-based)
-       * Used when logging in with email/password
+       * Set user only (e.g. from GET /user refresh). Does not clear token.
        */
       setUser: (user: User) => {
+        set({ user })
+      },
+
+      /**
+       * Set user and Bearer token after login or Lark callback.
+       * Token is sent on all API requests via Axios interceptor.
+       */
+      setUserAndToken: (user: User, token: string) => {
         set({
           user,
           authMethod: 'email',
-          apiToken: null,
+          apiToken: token,
           supabaseToken: null,
         })
       },

@@ -14,5 +14,6 @@ export const API_ROUTES = {
     LOGIN: '/api/auth/login',
     ME: '/api/user',
     LARK_CALLBACK: '/api/auth/lark/callback',
+    LOGOUT: '/api/auth/logout',
   },
 } as const

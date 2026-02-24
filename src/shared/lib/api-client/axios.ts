@@ -19,6 +19,7 @@ import axios, {
   type AxiosResponse,
 } from 'axios'
 import { keysToCamel, keysToSnake } from './transform'
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_LARAVEL_API_URL || 'http://localhost:8000'
@@ -73,6 +74,17 @@ const addCsrfToken = (
   const csrfToken = getCsrfToken()
   if (csrfToken) {
     config.headers['X-XSRF-TOKEN'] = csrfToken
+  }
+  return config
+}
+
+/** Attach Bearer token from auth store (for protected and logout requests) */
+const addBearerToken = (
+  config: InternalAxiosRequestConfig,
+): InternalAxiosRequestConfig => {
+  const token = useAuthStore.getState().apiToken
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 }
@@ -133,9 +145,10 @@ const handleCsrfError = async (error: unknown) => {
 // Wire interceptors
 // ---------------------------------------------------------------------------
 
-// laravelApi: transform → CSRF → response transform + 419 retry
+// laravelApi: transform → CSRF → Bearer → response transform + 419 retry
 laravelApi.interceptors.request.use(transformRequest)
 laravelApi.interceptors.request.use(addCsrfToken)
+laravelApi.interceptors.request.use(addBearerToken)
 laravelApi.interceptors.response.use(transformResponse, handleCsrfError)
 
 // laravelRootApi: transform only (no CSRF injection – it's the provider)

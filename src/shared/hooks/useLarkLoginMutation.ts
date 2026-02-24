@@ -1,41 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { loginWithLark } from '@/shared/lib/api-client/laravel-client'
+import { parseAuthSuccess } from '@/shared/lib/api-client/response-handler'
 import { useAuthStore } from '@/shared/stores/auth-store'
+import { userSchema } from '@/shared/lib/validation/api.schemas'
 import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
 
 /**
- * Lark Login Mutation Hook
- * 
- * Uses TanStack Query for Lark OAuth callback API call
- * Handles loading states, errors, and success automatically
- * Properly caches the mutation for debugging
- * Updates query cache and Zustand store on success
- * 
- * IMPORTANT: This mutation does NOT retry on CSRF errors (419) to prevent infinite loops
+ * Lark Login Mutation Hook.
+ * Backend returns { data: { user, token } }; we store both and send Bearer on subsequent requests.
  */
 export function useLarkLoginMutation() {
   const queryClient = useQueryClient()
+  const setUserAndToken = useAuthStore((state) => state.setUserAndToken)
   const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
     mutationKey: AUTH_QUERY_KEYS.LARK_LOGIN,
     mutationFn: async (code: string) => {
-      // Call Laravel backend to exchange code for user session
-      const response = await loginWithLark(code)
-      return response
+      const body = await loginWithLark(code)
+      return body
     },
-    onSuccess: (data) => {
-      // Store user in auth store (session-based auth)
-      const user = data?.data?.user || data?.user
-      if (user) {
-        // Set query cache to avoid refetch
-        queryClient.setQueryData(AUTH_QUERY_KEYS.ME, user)
-        // Store in Zustand for persistence
-        setUser(user)
-        // Invalidate to trigger refetch if needed
-        queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+    onSuccess: (body) => {
+      const { user, token } = parseAuthSuccess(body)
+      if (!user) return
+      const validated = userSchema.parse(user)
+      if (token) {
+        setUserAndToken(validated, token)
+      } else {
+        setUser(validated)
       }
+      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, validated)
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     },
     onError: (error: unknown) => {
       // Error is handled by the component

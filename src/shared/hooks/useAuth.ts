@@ -1,32 +1,24 @@
 import { useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import axios from 'axios'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import { useHydration } from './useHydration'
 import { getCurrentUser } from '@/shared/lib/api-client/laravel-client'
-import { userSchema, authResponseSchema } from '@/shared/lib/validation/api.schemas'
+import { parseUserResponse } from '@/shared/lib/api-client/response-handler'
+import { userSchema } from '@/shared/lib/validation/api.schemas'
 import { AUTH_QUERY_KEYS, AUTH_CONFIG } from '@/shared/lib/api-client/auth-constants'
 
 /**
- * Query options factory for auth/me endpoint
- * 
- * Uses queryOptions pattern (TanStack Query v5 best practice)
- * Query is always registered, ensuring visibility in devtools
+ * Query options factory for auth/me endpoint.
+ * Backend returns { message?, data: { user } }; we parse and validate user.
  */
 export const authQueryOptions = queryOptions({
   queryKey: AUTH_QUERY_KEYS.ME,
   queryFn: async () => {
-    const response = await getCurrentUser()
-    
-    // Validate response structure
-    // The API might return { user } or just user directly
-    if (response?.user) {
-      const validated = authResponseSchema.parse(response)
-      return validated.user
-    } else {
-      // If response is user directly
-      return userSchema.parse(response)
-    }
+    const body = await getCurrentUser()
+    const user = parseUserResponse(body)
+    return userSchema.parse(user)
   },
   retry: AUTH_CONFIG.RETRY,
   staleTime: AUTH_CONFIG.STALE_TIME,
@@ -58,25 +50,24 @@ export const authQueryOptions = queryOptions({
 export function useAuth() {
   const isHydrated = useHydration()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const { user: storedUser, setUser, logout: storeLogout } = useAuthStore()
 
-  // Query is always active (no conditional enabling)
-  // This ensures it's always registered in the cache and visible in devtools
-  // API will return 401 if not authenticated, which we handle gracefully
   const query = useQuery(authQueryOptions)
 
-  // Handle 401: clear store but don't treat as error
-  // This allows the query to remain visible in devtools even when not authenticated
+  // On 401: clear store, clear auth query cache, redirect to login
+  // (e.g. cookies cleared, token expired, or session invalid)
   useEffect(() => {
-    if (query.error) {
-      const status = axios.isAxiosError(query.error)
-        ? query.error.response?.status
-        : undefined
-      if (status === 401) {
-        storeLogout()
-      }
-    }
-  }, [query.error, storeLogout])
+    if (!query.error) return
+    const status = axios.isAxiosError(query.error)
+      ? query.error.response?.status
+      : undefined
+    if (status !== 401) return
+
+    storeLogout()
+    queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+    router.replace('/login')
+  }, [query.error, storeLogout, queryClient, router])
 
   // Sync query data with store when it updates
   useEffect(() => {

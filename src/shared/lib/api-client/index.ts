@@ -9,11 +9,18 @@ export {
   loginWithEmail,
   loginWithLark,
   getCurrentUser,
+  logoutUser,
 } from './laravel-client'
 
 // Response helpers
-export { extractData, extractError, validateAndExtract } from './response-handler'
-export type { ApiError } from './response-handler'
+export {
+  extractData,
+  extractError,
+  validateAndExtract,
+  parseAuthSuccess,
+  parseUserResponse,
+} from './response-handler'
+export type { ApiError, AuthSuccess } from './response-handler'
 
 // Route constants
 export { API_ROUTES } from './constants'
