@@ -17,14 +17,14 @@
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Next.js Frontend                                            │
-│  ├─ Gets Lark code → Exchanges with Laravel                  │
-│  ├─ Receives: { api_token, supabase_token }                  │
-│  ├─ Calls Laravel API (api_token)                            │
-│  └─ Subscribes to Supabase Realtime (supabase_token)         │
+│  ├─ Gets Lark code → Sends to Next.js /api/auth/lark/callback│
+│  ├─ Next.js sets httpOnly cookie (Bearer); returns user only │
+│  ├─ All API via Next.js (/api/proxy/*, /api/auth/me)         │
+│  └─ Subscribes to Supabase Realtime where used                │
 └────┬──────────────────────────┬─────────────────────────────┘
      │                          │
-     │ REST API                 │ WebSocket
-     │ (api_token)              │ (supabase_token)
+     │ REST (cookie)             │ WebSocket
+     │ Next.js adds Bearer       │ (supabase_token if used)
      │                          │
      ▼                          ▼
 ┌──────────────────┐    ┌────────────────────┐
@@ -59,7 +59,7 @@ export default function RootLayout({ children }) {
   )
 }
 
-// lib/lark-sdk.ts
+// src/features/lark-sdk/index.ts
 declare global {
   interface Window {
     tt: {
@@ -114,10 +114,10 @@ export const larkSDK = {
 #### 1.2 Lark OAuth Login
 
 ```typescript
-// lib/auth/lark-auth.ts
+// src/lib/auth/lark-auth.ts (planned)
 export async function loginWithLark(code: string): Promise<AuthTokens> {
   // Exchange Lark code with Laravel
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/lark/callback`, {
+  const response = await fetch('/api/auth/lark/callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -129,94 +129,17 @@ export async function loginWithLark(code: string): Promise<AuthTokens> {
   
   const data = await response.json()
   
-  // Laravel returns both tokens
-  return {
-    apiToken: data.api_token,        // For Laravel API calls
-    supabaseToken: data.supabase_token, // For Supabase Realtime
-    user: data.user,
-  }
+  // Next.js route sets httpOnly cookie; response is user only (no token in client)
+  return data.user
 }
 
-// modules/shared/stores/auth-store.ts
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+// src/shared/stores/auth-store.ts (current: user only; token in httpOnly cookie)
+// Store holds user and authMethod for UI; no apiToken/supabaseToken in client.
+// setUser(user, authMethod?), logout(), isAuthenticated() -> !!user
 
-type AuthState = {
-  user: User | null
-  apiToken: string | null
-  supabaseToken: string | null
-  
-  setTokens: (tokens: AuthTokens) => void
-  logout: () => void
-  isAuthenticated: () => boolean
-}
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      apiToken: null,
-      supabaseToken: null,
-      
-      setTokens: (tokens) => set({
-        user: tokens.user,
-        apiToken: tokens.apiToken,
-        supabaseToken: tokens.supabaseToken,
-      }),
-      
-      logout: () => set({
-        user: null,
-        apiToken: null,
-        supabaseToken: null,
-      }),
-      
-      isAuthenticated: () => !!get().apiToken,
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        // Only persist tokens, not user object
-        apiToken: state.apiToken,
-        supabaseToken: state.supabaseToken,
-      }),
-    }
-  )
-)
-
-// app/auth/callback/page.tsx
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { loginWithLark } from '@/lib/auth/lark-auth'
-import { useAuthStore } from '@/modules/shared/stores/auth-store'
-
-export default function LarkCallbackPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const setTokens = useAuthStore((state) => state.setTokens)
-  
-  useEffect(() => {
-    const code = searchParams.get('code')
-    
-    if (!code) {
-      router.push('/login')
-      return
-    }
-    
-    loginWithLark(code)
-      .then((tokens) => {
-        setTokens(tokens)
-        router.push('/attendance')
-      })
-      .catch((error) => {
-        console.error('Login failed:', error)
-        router.push('/login?error=auth_failed')
-      })
-  }, [searchParams, router, setTokens])
-  
-  return <div>Logging in...</div>
-}
+// src/app/auth/callback/page.tsx
+// Calls POST /api/auth/lark/callback with { code }; Next.js sets cookie, returns { data: { user } }.
+// Mutation onSuccess stores user via setUser(validated, 'lark') and redirects to dashboard.
 ```
 
 ---
@@ -226,8 +149,8 @@ export default function LarkCallbackPage() {
 #### 2.1 API Client Setup
 
 ```typescript
-// lib/api/laravel-client.ts
-import { useAuthStore } from '@/modules/shared/stores/auth-store'
+// src/shared/lib/api-client/laravel-client.ts
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 class LaravelAPIClient {
   private baseURL: string
@@ -308,7 +231,7 @@ export const api = new LaravelAPIClient()
 #### 2.2 TanStack Query Integration
 
 ```typescript
-// lib/api/query-client.ts
+// src/shared/lib/api-client/query-client.ts
 import { QueryClient } from '@tanstack/react-query'
 
 export const queryClient = new QueryClient({
@@ -338,7 +261,7 @@ export const queryClient = new QueryClient({
 
 // app/layout.tsx
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from '@/lib/api/query-client'
+import { queryClient } from '@/shared/lib/api-client/query-client'
 
 export default function RootLayout({ children }) {
   return (
@@ -356,8 +279,8 @@ export default function RootLayout({ children }) {
 #### 2.3 Module API Example
 
 ```typescript
-// modules/attendance/api/attendance-api.ts
-import { api } from '@/lib/api/laravel-client'
+// src/features/attendance/api/attendance-api.ts
+import { api } from '@/shared/lib/api-client/laravel-client'
 import type { Attendance, ClockInData } from '../types/attendance.types'
 
 export const attendanceApi = {
@@ -378,11 +301,11 @@ export const attendanceApi = {
   },
 }
 
-// modules/attendance/hooks/useClockIn.ts
+// src/features/attendance/hooks/useClockIn.ts
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { attendanceApi } from '../api/attendance-api'
-import { larkSDK } from '@/lib/lark-sdk'
-import { eventBus } from '@/modules/shared/lib/event-bus'
+import { larkSDK } from '@/features/lark-sdk'
+import { eventBus } from '@/shared/lib/event-bus'
 import { AttendanceEvents } from '../events/attendance-events'
 
 export function useClockIn() {
@@ -407,6 +330,7 @@ export function useClockIn() {
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       
       // Publish event for other modules
+      // Note: eventBus is currently a placeholder - will be implemented in Phase 3
       eventBus.emit(AttendanceEvents.CLOCKED_IN, {
         userId: data.user_id,
         attendanceId: data.id,
@@ -424,9 +348,9 @@ export function useClockIn() {
 #### 3.1 Supabase Client Setup
 
 ```typescript
-// lib/supabase/client.ts
+// src/shared/lib/supabase/client.ts
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { useAuthStore } from '@/modules/shared/stores/auth-store'
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 let supabaseClient: SupabaseClient | null = null
 
@@ -468,10 +392,10 @@ useAuthStore.subscribe((state) => {
 #### 3.2 Realtime Subscriptions
 
 ```typescript
-// modules/shared/hooks/useSupabaseRealtime.ts
+// src/shared/hooks/useSupabaseRealtime.ts
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getSupabaseClient } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/shared/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 type RealtimeConfig = {
@@ -525,10 +449,10 @@ export function useSupabaseRealtime({
   }, [table, event, schema, filter, onPayload])
 }
 
-// modules/attendance/hooks/useAttendanceRealtime.ts
-import { useSupabaseRealtime } from '@/modules/shared/hooks/useSupabaseRealtime'
+// src/features/attendance/hooks/useAttendanceRealtime.ts
+import { useSupabaseRealtime } from '@/shared/hooks/useSupabaseRealtime'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/modules/shared/stores/auth-store'
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 export function useAttendanceRealtime() {
   const queryClient = useQueryClient()
@@ -576,7 +500,7 @@ export function AttendanceView() {
 #### 3.3 Storage Integration
 
 ```typescript
-// lib/supabase/storage.ts
+// src/shared/lib/supabase/storage.ts
 import { getSupabaseClient } from './client'
 
 export const supabaseStorage = {
@@ -626,10 +550,10 @@ export const supabaseStorage = {
   },
 }
 
-// modules/claims/hooks/useUploadReceipt.ts
+// src/features/claims/hooks/useUploadReceipt.ts
 import { useMutation } from '@tanstack/react-query'
-import { supabaseStorage } from '@/lib/supabase/storage'
-import { useAuthStore } from '@/modules/shared/stores/auth-store'
+import { supabaseStorage } from '@/shared/lib/supabase/storage'
+import { useAuthStore } from '@/shared/stores/auth-store'
 
 export function useUploadReceipt() {
   const user = useAuthStore((state) => state.user)
@@ -653,7 +577,7 @@ export function useUploadReceipt() {
 ### 4. Handling Hydration Mismatches (Zustand + SSR)
 
 ```typescript
-// modules/shared/hooks/useHydration.ts
+// src/shared/hooks/useHydration.ts
 import { useEffect, useState } from 'react'
 
 export function useHydration() {
@@ -666,7 +590,7 @@ export function useHydration() {
   return hydrated
 }
 
-// modules/shared/stores/ui-store.ts
+// src/shared/stores/ui-store.ts
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -710,13 +634,13 @@ export function Sidebar() {
 ### 5. Complete Data Flow Example
 
 ```typescript
-// modules/attendance/components/ClockInButton.tsx
+// src/features/attendance/components/ClockInButton.tsx
 'use client'
 
-import { Button } from '@/modules/shared/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { useClockIn } from '../hooks/useClockIn'
 import { useAttendanceRealtime } from '../hooks/useAttendanceRealtime'
-import { useToast } from '@/modules/shared/hooks/useToast'
+import { useToast } from '@/shared/hooks/useToast'
 
 export function ClockInButton() {
   const { mutate: clockIn, isPending } = useClockIn()

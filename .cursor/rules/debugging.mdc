@@ -1,0 +1,201 @@
+---
+alwaysApply: true
+---
+# Next.js + TanStack Runtime Debugging & Inspection Rules
+
+Static analysis (TypeScript, ESLint) is NOT sufficient to confirm runtime correctness.
+
+The agent MUST verify actual runtime state using MCP tools before concluding any debugging or feature task.
+
+---
+
+# 1️⃣ Mandatory Runtime Verification (Next.js)
+
+You are equipped with the `next-devtools` MCP server.
+
+Before proposing any fix related to:
+
+- Runtime crashes
+- Hydration mismatch
+- API route failures
+- Server errors
+- Build/runtime divergence
+- Data fetching issues
+
+## Requirement
+
+You MUST call:
+
+- `nextjs_call` (preferred for specific route/function debugging)
+- `nextjs_index` (for general route discovery and runtime state)
+
+## Goal
+
+- Retrieve actual stack traces
+- Inspect server logs
+- Confirm hydration state
+- Verify API response behavior
+
+## Constraint
+
+Do NOT:
+- Guess hydration causes
+- Assume API routes exist
+- Infer runtime behavior from static code alone
+
+Always confirm with MCP runtime logs.
+
+---
+
+# 2️⃣ API Route & Endpoint Inspection
+
+When debugging API or backend logic:
+
+## Required Action
+
+Access:
+
+http://localhost:3000/_next/mcp
+
+Validate:
+
+- Actual route manifest
+- Supported HTTP methods
+- Response schemas
+- Runtime response shape
+- Route registration status
+
+## Validation Rule
+
+If static code and MCP route manifest differ, trust the MCP runtime state.
+
+---
+
+# 3️⃣ TanStack (React Query) MCP Debugging Protocol
+
+When the issue involves:
+
+- Queries not firing
+- Queries not appearing in Devtools
+- Cache not updating
+- Mutations not invalidating
+- Refetch not triggering
+- QueryClient issues
+- Suspense not resolving
+- Data stuck in loading state
+
+You MUST verify runtime query state.
+
+## Required Runtime Checks
+
+Confirm:
+
+- A single `QueryClient` instance exists
+- `<QueryClientProvider>` wraps the application
+- Component using `useQuery` is a Client Component
+- Query key is stable and serializable
+- Query function resolves (no silent promise rejection)
+- Network request actually fires
+- No duplicate React Query versions installed
+- No Server Component boundary preventing hook execution
+
+## If TanStack MCP / Devtools Is Available
+
+Inspect:
+
+- Active query keys
+- Query cache contents
+- Query status (loading, success, error)
+- Mutation state
+- Observers count
+- Retry attempts
+- Stale time behavior
+
+Do NOT assume React Query failure without checking runtime query cache state.
+
+---
+
+# 4️⃣ Error Validation Workflow (Strict)
+
+When an error is reported:
+
+### Step 1 — Initialize
+Call MCP and retrieve last 5 minutes of logs.
+
+### Step 2 — Analyze
+Cross-reference:
+- Stack trace
+- File location
+- Route context
+- Component boundary
+- Query lifecycle
+
+### Step 3 — Propose Fix
+Only after runtime verification.
+
+### Step 4 — Verify
+After user applies fix:
+- Refresh
+- Re-call MCP
+- Confirm error is gone from logs
+- Confirm TanStack query state is correct
+
+---
+
+# 5️⃣ Completion Criteria (Non-Negotiable)
+
+A task is NOT complete unless:
+
+- ✅ TypeScript passes
+- ✅ ESLint passes
+- ✅ Build passes
+- ✅ No runtime server errors
+- ✅ No hydration mismatch warnings
+- ✅ No React runtime exceptions
+- ✅ No failed network calls
+- ✅ React Query cache behaves correctly
+- ✅ Queries appear in runtime inspection (if applicable)
+
+Lint success alone is insufficient.
+
+---
+
+# 6️⃣ Tool Priority
+
+### For Next.js Runtime
+
+1. `nextjs_call`
+2. `nextjs_index`
+
+### For TanStack Issues
+
+1. Query cache inspection
+2. Devtools state verification
+3. Network request verification
+4. Provider boundary verification
+
+### Fallback
+
+Only rely on static code analysis if:
+
+- Dev server is confirmed offline
+
+If MCP is unreachable, explicitly state:
+
+"I cannot reach the Next.js DevTools. Please ensure `npm run dev` is running."
+
+Runtime verification cannot be completed otherwise.
+
+---
+
+# Guiding Principle
+
+Static correctness ≠ Runtime correctness.
+
+Query declared ≠ Query executed.
+
+Route written ≠ Route registered.
+
+Hydration compiled ≠ Hydration successful.
+
+Always verify execution state before closing the session.

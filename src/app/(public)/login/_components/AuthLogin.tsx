@@ -1,141 +1,173 @@
 'use client'
 
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Eye, EyeOff } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import Link from 'next/link'
+import React, { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
+import { extractError } from '@/shared/lib/api-client/response-handler'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { loginSchema, type LoginFormData } from '@/shared/lib/validation/auth.schemas'
+import { useLoginMutation } from '@/shared/hooks/useLoginMutation'
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  remember: z.boolean().default(false),
-})
-
-type LoginFormData = z.infer<typeof loginSchema>
-
-export default function AuthLogin() {
-  const router = useRouter()
+const AuthLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [serverError, setServerError] = useState<string | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from') || '/dashboard'
 
+  // React Hook Form with Zod validation
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
 
-  const onSubmit = async (data: LoginFormData) => {
-    setServerError(null)
-    setIsLoading(true)
+  // TanStack Query mutation for login
+  // Mutation handles cache updates automatically via onSuccess
+  const loginMutation = useLoginMutation()
 
+  /**
+   * Handle form submit
+   */
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      console.log('Login attempt:', { email: data.email })
+      await loginMutation.mutateAsync(data)
       
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Mutation's onSuccess already:
+      // 1. Sets query cache (['auth', 'me'])
+      // 2. Updates Zustand store
+      // 3. Invalidates query to trigger refetch
+      // useAuth in authenticated layout will pick up the cached data automatically
       
-      alert('Login successful! (Mock - Phase 2 will implement actual auth)')
-      
+      // Redirect to original destination or dashboard without full reload
+      // This preserves the in-memory auth store (including Bearer token)
+      router.push(from)
     } catch (error) {
+      // Error is handled by mutation and displayed below
       console.error('Login error:', error)
-      setServerError('Login failed. Please try again.')
-    } finally {
-      setIsLoading(false)
     }
   }
 
+  /**
+   * Get user-friendly error message from backend envelope (error, message, status, fields).
+   */
+  const getErrorMessage = () => {
+    if (!loginMutation.isError) return null
+
+    const apiErr = extractError(loginMutation.error)
+
+    if (apiErr.status === 401 || apiErr.error === 'INVALID_CREDENTIALS' || apiErr.error === 'UNAUTHENTICATED') {
+      return 'Email or password is incorrect'
+    }
+    if (apiErr.status === 422 || apiErr.error === 'VALIDATION_ERROR') {
+      if (apiErr.fields && Object.keys(apiErr.fields).length > 0) {
+        const first = Object.values(apiErr.fields)[0]
+        return Array.isArray(first) ? first[0] : apiErr.message
+      }
+      return apiErr.message || 'Invalid input'
+    }
+    if (apiErr.status === 429 || apiErr.error === 'RATE_LIMIT_EXCEEDED') {
+      const retry = apiErr.retryAfter != null ? ` Try again in ${apiErr.retryAfter} seconds.` : ''
+      return `Too many requests.${retry}`
+    }
+    if (apiErr.status === 423 || apiErr.error === 'ACCOUNT_LOCKED') {
+      const remaining = apiErr.remainingSeconds != null ? ` Try again in ${apiErr.remainingSeconds} seconds.` : ''
+      return `Account locked.${remaining}`
+    }
+
+    return apiErr.message || 'Unable to sign in. Please try again.'
+  }
+
+  const errorMessage = getErrorMessage()
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Email Field */}
-      <div>
-        <Label htmlFor="email" className="text-sm font-medium text-[#2a3547] dark:text-white mb-2 block">
-          Email
-        </Label>
+    <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
+      <div className="mb-4">
+        <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           type="email"
+          className="bg-background text-foreground"
           placeholder="Enter your email"
           {...register('email')}
-          className="h-10 bg-white dark:bg-transparent border-[#e5e5e5] dark:border-[#333f55] text-[#2a3547] dark:text-white placeholder:text-[#5a6a85] focus:border-[#5d87ff] focus:ring-0"
         />
         {errors.email && (
-          <p className="text-sm text-[#ef4444] mt-1">{errors.email.message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
         )}
       </div>
 
-      {/* Password Field */}
-      <div>
-        <Label htmlFor="password" className="text-sm font-medium text-[#2a3547] dark:text-white mb-2 block">
-          Password
-        </Label>
+      <div className="mb-4">
+        <Label htmlFor="password">Password</Label>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? 'text' : 'password'}
             placeholder="Enter your password"
+            className="pr-10 bg-background text-foreground"
             {...register('password')}
-            className="h-10 pr-10 bg-white dark:bg-transparent border-[#e5e5e5] dark:border-[#333f55] text-[#2a3547] dark:text-white placeholder:text-[#5a6a85] focus:border-[#5d87ff] focus:ring-0"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a6a85] hover:text-[#2a3547] dark:hover:text-white"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? (
+              <Eye className="h-4 w-4" />
+            ) : (
+              <EyeOff className="h-4 w-4" />
+            )}
           </button>
         </div>
         {errors.password && (
-          <p className="text-sm text-[#ef4444] mt-1">{errors.password.message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
         )}
       </div>
 
-      {/* Remember & Forgot Password */}
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between my-5">
         <div className="flex items-center gap-2">
-          <Checkbox 
-            id="remember" 
-            {...register('remember')}
-            className="border-[#e5e5e5] dark:border-[#333f55] data-[state=checked]:bg-[#5d87ff] data-[state=checked]:border-[#5d87ff]"
-          />
-          <Label 
-            htmlFor="remember" 
-            className="text-sm font-normal cursor-pointer text-[#5a6a85] dark:text-[#7c8fac]"
-          >
+          <Checkbox id="remember" />
+          <Label htmlFor="remember" className="text-foreground">
             Remember this device
           </Label>
         </div>
+
         <Link
           href="/forgot-password"
-          className="text-sm text-[#5d87ff] hover:text-[#4a6fd9] font-medium"
+          className="text-primary text-sm font-medium"
         >
           Forgot Password?
         </Link>
       </div>
 
-      {/* Error Message */}
-      {serverError && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-sm text-[#ef4444]">{serverError}</p>
+      {errorMessage && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">
+            {errorMessage}
+          </p>
         </div>
       )}
 
-      {/* Submit Button */}
-      <Button 
-        type="submit" 
-        disabled={isLoading} 
-        className="w-full h-10 bg-gradient-to-r from-[#5d87ff] to-[#8754ec] hover:from-[#4a6fd9] hover:to-[#6d31bd] text-white font-medium text-sm shadow-[0_9px_17.5px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all hover:-translate-y-0.5"
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={loginMutation.isPending}
       >
-        {isLoading ? 'Signing in...' : 'Sign in'}
+        {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
       </Button>
     </form>
   )
 }
+
+export default AuthLogin

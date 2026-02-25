@@ -1,0 +1,90 @@
+---
+alwaysApply: true
+---
+# Runtime Validation Rule (Non-Negotiable)
+
+Linting success does NOT equal runtime correctness.
+
+Before closing any task, the coding agent MUST verify that no runtime errors exist that static analysis cannot detect.
+
+---
+
+## 1️⃣ Mandatory Runtime Check
+
+Before concluding a fix, feature, or refactor:
+
+- Ensure the dev server is running (`npm run dev`).
+- Inspect:
+  - Browser console errors
+  - Server terminal logs
+  - Network request failures
+  - Hydration mismatch warnings
+  - Unhandled promise rejections
+
+If using Next.js DevTools MCP:
+- Call `nextjs_call` or `nextjs_index`
+- Retrieve recent server/client logs
+- Confirm no runtime exceptions exist
+
+---
+
+## 2️⃣ Required Verification Steps
+
+The agent must confirm:
+
+- No 500 errors
+- No hydration warnings
+- No React runtime errors
+- No API route crashes
+- No undefined/null access errors
+- No failed fetch calls (4xx/5xx)
+
+If any exist:
+- Diagnose using runtime logs
+- Fix
+- Re-verify after refresh
+
+---
+
+## 3️⃣ Completion Criteria
+
+A task is considered complete ONLY IF:
+
+- ✅ TypeScript passes
+- ✅ ESLint passes
+- ✅ Build passes
+- ✅ Runtime logs show zero critical errors
+- ✅ Browser console is clean
+
+Lint success alone is insufficient.
+
+---
+
+## 4️⃣ Forbidden Behavior
+
+The agent MUST NOT:
+
+- Assume hydration mismatch causes
+- Guess runtime issues from static code
+- Close a task without runtime validation
+- Ignore console warnings
+
+---
+
+## 5️⃣ If Dev Server Is Offline
+
+If runtime logs cannot be accessed:
+
+The agent must explicitly state:
+
+> "Runtime validation could not be performed because the dev server is not running."
+
+The task cannot be marked fully verified.
+
+---
+
+# Guiding Principle
+
+Static correctness ≠ Runtime correctness.
+
+Always verify execution state before completion.
