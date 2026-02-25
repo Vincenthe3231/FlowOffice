@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/shared/lib/auth-cookie'
+import {
+  extractCookiesFromSetCookie,
+  extractXsrfTokenFromCookieHeader,
+  forwardSetCookies,
+  getSetCookieValues,
+} from '@/shared/lib/laravel-csrf'
 
 const LARAVEL_API_URL =
   process.env.LARAVEL_API_URL ||
@@ -11,31 +17,6 @@ type LaravelLoginResponse = {
   data?: { user?: unknown; token?: string }
   token?: string
   user?: unknown
-}
-
-function extractCookiesFromSetCookie(setCookieValues: string[]): string {
-  return setCookieValues
-    .map((value) => value.split(';', 1)[0])
-    .filter(Boolean)
-    .join('; ')
-}
-
-function getSetCookieValues(res: Response): string[] {
-  const anyHeaders = res.headers as Headers & {
-    getSetCookie?: () => string[]
-  }
-  const fromHelper = anyHeaders.getSetCookie?.()
-  if (Array.isArray(fromHelper) && fromHelper.length > 0) {
-    return fromHelper
-  }
-  const single = res.headers.get('set-cookie')
-  return single ? [single] : []
-}
-
-function forwardSetCookies(setCookieValues: string[], response: NextResponse) {
-  setCookieValues.forEach((value) => {
-    response.headers.append('Set-Cookie', value)
-  })
 }
 
 export async function POST(request: NextRequest) {
@@ -85,22 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const csrfCookieHeader = extractCookiesFromSetCookie(csrfSetCookies)
-    const xsrfTokenCookie = csrfCookieHeader
-      .split(';')
-      .map((part) => part.trim())
-      .find((part) => part.startsWith('XSRF-TOKEN='))
-
-    let xsrfToken: string | undefined
-    if (xsrfTokenCookie) {
-      const [, value] = xsrfTokenCookie.split('=', 2)
-      if (value) {
-        try {
-          xsrfToken = decodeURIComponent(value)
-        } catch {
-          xsrfToken = value
-        }
-      }
-    }
+    const xsrfToken = extractXsrfTokenFromCookieHeader(csrfCookieHeader)
 
     if (!xsrfToken) {
       console.error('Auth login: XSRF-TOKEN cookie missing from CSRF response')
