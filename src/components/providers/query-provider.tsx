@@ -34,14 +34,15 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             gcTime: 10 * 60 * 1000, // 10 minutes
             // Retry configuration with exponential backoff
             // Don't retry on 401 (unauthorized) or 419 (CSRF token mismatch) errors
-            retry: (failureCount, error: any) => {
-              const status = error?.status || error?.response?.status
+            retry: (failureCount, error: unknown) => {
+              const err = error as { status?: number; response?: { status?: number } }
+              const status = err?.status ?? err?.response?.status
               // Don't retry on authentication or CSRF errors
               if (status === 401 || status === 419) {
                 return false
               }
               // Don't retry on client errors (4xx) except specific cases
-              if (status >= 400 && status < 500) {
+              if (status != null && status >= 400 && status < 500) {
                 return false
               }
               // Retry up to 2 times for server errors (5xx) and network errors
@@ -57,10 +58,11 @@ export function QueryProvider({ children }: { children: ReactNode }) {
           },
           mutations: {
             // Don't retry mutations on client errors (4xx) or CSRF errors
-            retry: (failureCount, error: any) => {
-              const status = error?.status || error?.response?.status
+            retry: (failureCount, error: unknown) => {
+              const err = error as { status?: number; response?: { status?: number } }
+              const status = err?.status ?? err?.response?.status
               // Never retry on authentication, CSRF, or client errors
-              if (status === 401 || status === 419 || (status >= 400 && status < 500)) {
+              if (status === 401 || status === 419 || (status != null && status >= 400 && status < 500)) {
                 return false
               }
               // Only retry once on server errors (5xx) or network errors
@@ -76,20 +78,18 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       })
   )
 
-  // Track mutation errors in development for debugging
+  // Track mutation/query errors in development for debugging (event types may extend beyond typed union)
   if (process.env.NODE_ENV === 'development') {
-    queryClient.getMutationCache().subscribe((event) => {
+    queryClient.getMutationCache().subscribe((event: { type?: string; mutation?: { options?: { mutationKey?: unknown } }; error?: unknown }) => {
       if (event?.type === 'error') {
-        const mutation = event?.mutation
-        const mutationKey = mutation?.options.mutationKey || 'unknown'
+        const mutationKey = event?.mutation?.options?.mutationKey ?? 'unknown'
         console.error('[TanStack Query] Mutation error:', mutationKey, event.error)
       }
     })
 
-    queryClient.getQueryCache().subscribe((event) => {
+    queryClient.getQueryCache().subscribe((event: { type?: string; query?: { queryKey?: unknown }; error?: unknown }) => {
       if (event?.type === 'error') {
-        const query = event?.query
-        const queryKey = query?.queryKey || 'unknown'
+        const queryKey = event?.query?.queryKey ?? 'unknown'
         console.error('[TanStack Query] Query error:', queryKey, event.error)
       }
     })

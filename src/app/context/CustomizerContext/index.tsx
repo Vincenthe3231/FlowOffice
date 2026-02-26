@@ -27,7 +27,7 @@ interface CustomizerContextState {
   setIsLanguage: (lang: string) => void
 }
 
-export const CustomizerContext = createContext<CustomizerContextState | any>(
+export const CustomizerContext = createContext<CustomizerContextState | undefined>(
   undefined
 )
 

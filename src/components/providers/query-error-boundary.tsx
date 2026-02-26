@@ -74,7 +74,7 @@ export class QueryErrorBoundary extends Component<Props, State> {
       }
 
       // Check if it's a 401 error (unauthorized)
-      const error = this.state.error as any
+      const error = this.state.error as { status?: number } | null
       if (error?.status === 401) {
         return <UnauthorizedError onRetry={this.handleRetry} />
       }
@@ -144,7 +144,7 @@ function UnauthorizedError({ onRetry }: { onRetry: () => void }) {
 function DefaultError({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
   const errorMessage =
     error?.message ||
-    (error as any)?.error ||
+    (error as { error?: string })?.error ||
     'An unexpected error occurred. Please try again.'
 
   return (

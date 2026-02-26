@@ -14,7 +14,7 @@ const FullLogo = () => {
         className="rounded-lg"
       />
       {/* FlowOffice text */}
-      <span className='text-2xl font-bold text-primary'>FlowOffice</span>
+      <span className="text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden">FlowOffice</span>
     </Link>
   )
 }

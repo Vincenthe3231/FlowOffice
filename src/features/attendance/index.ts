@@ -1,5 +1,6 @@
 // Public API exports for attendance feature
-// Will be implemented in Phase 5
-export {};
+export { StatCard } from "./components/StatCard";
+export { StatusBadge } from "./components/StatusBadge";
+export * from "./data/mockData";
 
 

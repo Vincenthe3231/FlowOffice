@@ -6,22 +6,23 @@ import { CustomizerContext } from '@/app/context/CustomizerContext'
 
 const ThemeToggle = () => {
   const [mounted, setMounted] = useState(false)
-  const { activeMode, setActiveMode } = useContext(CustomizerContext)
+  const ctx = useContext(CustomizerContext)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   const toggleMode = () => {
-    const newMode = activeMode === 'light' ? 'dark' : 'light'
-    setActiveMode(newMode)
+    if (!ctx) return
+    const newMode = ctx.activeMode === 'light' ? 'dark' : 'light'
+    ctx.setActiveMode(newMode)
   }
 
-  if (!mounted) {
+  if (!mounted || !ctx) {
     return null
   }
 
-  const isLight = activeMode === 'light'
+  const isLight = ctx.activeMode === 'light'
 
   return (
     <button
