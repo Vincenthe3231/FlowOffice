@@ -50,6 +50,7 @@ import { Bell, Search, ChevronDown } from "lucide-react";
 
 const mainNav = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Attendance", href: "/dashboard/attendnance", icon: ClipboardList },
   { title: "Leave", href: "/dashboard/leave", icon: Calendar },
   { title: "Claims", href: "/dashboard/claims", icon: FileText },
 ];

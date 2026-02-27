@@ -1,6 +1,6 @@
-# Frontend Integration Guide: Lark + Laravel + Supabase
+# Frontend Integration Guide: Lark + Laravel
 
-> **How to make Next.js, Lark, Laravel, and Supabase work seamlessly together**
+> **How to make Next.js, Lark, and Laravel work seamlessly together**
 
 ---
 
@@ -20,21 +20,21 @@
 │  ├─ Gets Lark code → Sends to Next.js /api/auth/lark/callback│
 │  ├─ Next.js sets httpOnly cookie (Bearer); returns user only │
 │  ├─ All API via Next.js (/api/proxy/*, /api/auth/me)         │
-│  └─ Subscribes to Supabase Realtime where used                │
+│  └─ Talks only to Laravel via the BFF                         │
 └────┬──────────────────────────┬─────────────────────────────┘
      │                          │
      │ REST (cookie)             │ WebSocket
      │ Next.js adds Bearer       │ (supabase_token if used)
      │                          │
      ▼                          ▼
-┌──────────────────┐    ┌────────────────────┐
-│  Laravel API     │    │  Supabase          │
-│  (Authoritative) │───▶│  (Subordinate)     │
-│                  │    │                    │
-│  • Validation    │    │  • Realtime        │
-│  • Business      │    │  • Storage         │
-│  • Audit         │    │  • RLS (defense)   │
-└──────────────────┘    └────────────────────┘
+┌──────────────────┐
+│  Laravel API     │
+│  (Authoritative) │
+│                  │
+│  • Validation    │
+│  • Business      │
+│  • Audit         │
+└──────────────────┘
 ```
 
 ---

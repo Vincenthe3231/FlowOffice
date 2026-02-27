@@ -1,6 +1,6 @@
 # Frontend Implementation Plan
 
-This plan outlines the phased implementation of the BeLive FlowOffice frontend, a Next.js 16+ application integrating with Lark, Laravel, and Supabase. The project uses a flat structure with feature modules organized under `src/features/` and shared utilities under `src/shared/`, following Next.js best practices.
+This plan outlines the phased implementation of the BeLive FlowOffice frontend, a Next.js 16+ application integrating with Lark and Laravel. The project uses a flat structure with feature modules organized under `src/features/` and shared utilities under `src/shared/`, following Next.js best practices.
 
 ---
 
@@ -70,13 +70,11 @@ Belive-FO-Client/
 │   │   │   └── index.ts
 │   │   ├── lib/              # Utility functions
 │   │   │   ├── api-client/   # API clients
-│   │   │   │   ├── axios-instance.ts
+│   │   │   │   ├── axios.ts
 │   │   │   │   ├── laravel-client.ts
-│   │   │   │   ├── supabase-client.ts
-│   │   │   │   ├── interceptors.ts
+│   │   │   │   ├── response-handler.ts
+│   │   │   │   ├── constants.ts
 │   │   │   │   └── index.ts
-│   │   │   ├── supabase/     # Supabase utilities
-│   │   │   │   └── client.ts
 │   │   │   ├── validation/   # Zod schemas
 │   │   │   │   ├── common.schemas.ts
 │   │   │   │   ├── validators.ts
@@ -116,7 +114,6 @@ Belive-FO-Client/
 - **State Management:** TanStack Query, Zustand
 - **Forms:** react-hook-form, @hookform/resolvers, Zod
 - **UI:** shadcn/ui (initialized), lucide-react
-- **Supabase:** @supabase/supabase-js
 - **HTTP Client:** Axios
 - **Build Tools:** Turborepo (for build caching)
 

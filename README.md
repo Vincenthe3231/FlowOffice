@@ -1,6 +1,6 @@
 # BeLive FlowOffice - Frontend
 
-> Modern HR Management System Frontend built with Next.js, integrated with Lark, Laravel, and Supabase
+> Modern HR Management System Frontend built with Next.js, integrated with Lark and Laravel
 
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.2-blue?logo=react)](https://react.dev/)
@@ -61,8 +61,8 @@ Visit [http://localhost:3000](http://localhost:3000) to see your app.
 - **Lucide React** - Icon library
 
 ### Backend Integration
-- **Supabase Client** - Database & Realtime
-- **Axios** - HTTP client
+- **Laravel API (via Next.js BFF)** - Authoritative backend
+- **Axios** - HTTP client (same-origin, proxied to Laravel)
 - **Lark SDK** - Enterprise OAuth & native features
 
 ### Build Tools
@@ -125,16 +125,10 @@ pnpm format       # Format code with Prettier
 Create a `.env.local` file with the following variables:
 
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-NEXT_SUPABASE_SECRET=your-supabase-service-role-key
-NEXT_SUPABASE_JWT_SECRET=your-supabase-jwt-secret
+# Laravel Backend API
+NEXT_PUBLIC_LARAVEL_API_URL=http://localhost:8000
 
-# Laravel API (server-only; Next.js Route Handlers use this for proxy and auth)
-NEXT_PUBLIC_LARAVEL_API_URL=your-laravel-api-url
-# Auth cookie name (httpOnly Bearer token)
-AUTH_COOKIE_NAME=belive_auth_token
+# Internal BFF Secret
 BFF_INTERNAL_SECRET=your-internal-secret
 
 # Lark OAuth
@@ -148,7 +142,7 @@ NEXT_PUBLIC_LARK_REDIRECT_URI=your-redirect-uri
 
 Comprehensive documentation is available in the [`/docs`](./docs) folder:
 
-- **[System Overview](./docs/01-overview.md)** - Complete integration architecture (Lark + Laravel + Supabase)
+- **[System Overview](./docs/01-overview.md)** - Complete integration architecture (Lark + Laravel, proxied via Next.js)
 - **[Implementation Plan](./docs/02-implementation-plan.md)** - Step-by-step implementation guide
 - **[Complete Guide](./docs/03-complete-guide.md)** - Comprehensive tech stack and implementation details
 
@@ -159,7 +153,6 @@ Comprehensive documentation is available in the [`/docs`](./docs) folder:
 ## 🏗️ Key Features
 
 - ✅ **Lark OAuth** - Enterprise SSO authentication
-- ✅ **Real-time Updates** - Supabase Realtime subscriptions
 - ✅ **Attendance Tracking** - GPS-based clock in/out with geofencing
 - ✅ **Leave Management** - Request, approve, and track leave
 - ✅ **Expense Claims** - Submit claims with receipt uploads
@@ -250,7 +243,6 @@ pnpm start
 
 - [Next.js](https://nextjs.org/)
 - [shadcn/ui](https://ui.shadcn.com/)
-- [Supabase](https://supabase.com/)
 - [Lark/Feishu](https://www.larksuite.com/)
 
 ---
