@@ -13,15 +13,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { MapPin, Plus, Pencil, Loader2 } from "lucide-react";
-import { useOfficeManagement, type OfficeFormData, type Office } from "@/features/attendance/hooks/useOfficeManagement";
+import { useOfficeManagement } from "@/features/attendance/hooks/useOfficeManagement";
+import { OfficeFormData, Office } from "@/shared/lib/api-client/offices";
 
 const emptyForm: OfficeFormData = {
   name: "",
   address: "",
   latitude: 0,
   longitude: 0,
-  radius_meters: 200,
-  is_active: true,
+  radiusMeters: 200,
+  isActive: true,
 };
 
 export function LocationManager() {
@@ -43,8 +44,8 @@ export function LocationManager() {
       address: office.address || "",
       latitude: office.latitude,
       longitude: office.longitude,
-      radius_meters: office.radius_meters,
-      is_active: office.is_active,
+      radiusMeters: office.radiusMeters,
+      isActive: office.isActive,
     });
     setDialogOpen(true);
   };
@@ -86,20 +87,20 @@ export function LocationManager() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">{office.name}</p>
-                    <Badge variant={office.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                      {office.is_active ? "Active" : "Inactive"}
+                    <Badge variant={office.isActive ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                      {office.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                   {office.address && (
                     <p className="text-xs text-muted-foreground truncate">{office.address}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Radius: {office.radius_meters}m
+                    Radius: {office.radiusMeters}m
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
-                    checked={office.is_active}
+                    checked={office.isActive}
                     onCheckedChange={(checked) =>
                       toggleActive.mutate({ id: office.id, is_active: checked })
                     }
@@ -140,10 +141,10 @@ export function LocationManager() {
             </div>
             <div>
               <Label className="text-xs">Radius (meters)</Label>
-              <Input type="number" value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: parseInt(e.target.value) || 100 })} />
+              <Input type="number" value={form.radiusMeters} onChange={(e) => setForm({ ...form, radiusMeters: parseInt(e.target.value) || 100 })} />
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={form.is_active} onCheckedChange={(checked) => setForm({ ...form, is_active: checked })} />
+              <Switch checked={form.isActive} onCheckedChange={(checked) => setForm({ ...form, isActive: checked })} />
               <Label className="text-xs">Active</Label>
             </div>
           </div>

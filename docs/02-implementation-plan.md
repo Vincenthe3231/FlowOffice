@@ -157,6 +157,7 @@ Belive-FO-Client/
 - ✅ Created `src/shared/stores/auth-store.ts`
 - ✅ Store `apiToken`, `supabaseToken`, and `user` object
 - ✅ Use `persist` middleware with `partialize` to persist user (and authMethod) only; no token in store
+- ✅ Encrypted persistence via `src/shared/lib/secure-storage.ts` (Web Crypto AES-GCM); PII hidden in localStorage; `NEXT_PUBLIC_AUTH_STORE_SECRET` (min 32 chars)
 - ✅ Implement `setTokens`, `logout`, and `isAuthenticated` methods
 - ✅ Export from `src/shared/index.ts` for use in app and other features
 

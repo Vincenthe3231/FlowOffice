@@ -75,7 +75,7 @@ export function useAdminAttendance(enabled: boolean) {
         const lateBy = Math.round((new Date(ts).getTime() - nineAm.getTime()) / 60000);
         return {
           userId,
-          name: profile?.full_name || profile?.email || "Unknown",
+          name: profile?.fullName || profile?.email || "Unknown",
           time: ts,
           lateByMinutes: lateBy,
         };
@@ -93,7 +93,7 @@ export function useAdminAttendance(enabled: boolean) {
       return {
         id: l.id,
         photoUrl: l.photoUrl!,
-        name: profile?.full_name || profile?.email || "Unknown",
+        name: profile?.fullName || profile?.email || "Unknown",
         timestamp: l.timestamp,
       };
     });
@@ -110,7 +110,7 @@ export function useAdminAttendance(enabled: boolean) {
     const firstLog = todayAllLogs.find((l) => l.userId === userId && l.type === "clock_in");
     return {
       userId,
-      name: profile?.full_name || profile?.email || "Unknown",
+      name: profile?.fullName || profile?.email || "Unknown",
       time: firstLog?.timestamp || "",
     };
   });

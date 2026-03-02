@@ -111,7 +111,7 @@ export default function Attendance() {
   }, [location.latitude, location.longitude, selectedOffice, attendance.calculateDistance, location.hasLocation]);
 
   const isWithinRadius = distanceToOffice !== null && selectedOffice
-    ? distanceToOffice <= selectedOffice.radius_meters
+    ? distanceToOffice <= selectedOffice.radiusMeters
     : false;
 
   const handleOpenCamera = async () => {
@@ -128,7 +128,7 @@ export default function Attendance() {
     const photoData = camera.capturePhoto();
     if (photoData) {
       // Automatically trigger face verification after capture
-      await faceVerification.verifyFace(photoData, profile?.face_photo_url || profile?.avatar_url);
+      await faceVerification.verifyFace(photoData, profile?.facePhotoUrl || profile?.avatarUrl);
     }
   };
 
@@ -465,7 +465,7 @@ export default function Attendance() {
                 <MapPin className="h-4 w-4" />
                 <span>
                   {formatDistance(distanceToOffice)} from {selectedOffice.name}
-                  {!isWithinRadius && ` — Must be within ${formatDistance(selectedOffice.radius_meters)}`}
+                  {!isWithinRadius && ` — Must be within ${formatDistance(selectedOffice.radiusMeters)}`}
                 </span>
               </motion.div>
             )}
@@ -611,9 +611,9 @@ export default function Attendance() {
                         <p className="text-sm font-medium text-foreground">
                           {log.type === "clock_in" ? "Clock In" : "Clock Out"}
                         </p>
-                        {log.distance_meters && (
+                        {log.distanceMeters && (
                           <p className="text-xs text-muted-foreground">
-                            {formatDistance(log.distance_meters)} from office
+                            {formatDistance(log.distanceMeters)} from office
                           </p>
                         )}
                         {log.notes && (

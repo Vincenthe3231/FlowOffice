@@ -9,6 +9,8 @@ import {
   updateOffice as updateOfficeApi,
 } from "@/shared/lib/api-client/offices";
 
+export type { Office, OfficeFormData };
+
 export function useOfficeManagement() {
   const queryClient = useQueryClient();
 

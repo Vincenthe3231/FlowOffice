@@ -7,17 +7,17 @@ interface AttendanceLog {
   id: string;
   type: "clock_in" | "clock_out";
   timestamp: string;
-  office_id: string | null;
-  photo_url: string | null;
-  distance_meters: number | null;
+  officeId: string | null;
+  photoUrl: string | null;
+  distanceMeters: number | null;
   notes: string | null;
   status: string;
 }
 
 interface Profile {
-  full_name: string | null;
+  fullName: string | null;
   email: string | null;
-  avatar_url: string | null;
+  avatarUrl: string | null;
   department: string | null;
 }
 
@@ -37,7 +37,7 @@ interface Props {
 export function StaffDetailSheet({ open, onOpenChange, profile, logs, offices }: Props) {
   if (!profile) return null;
 
-  const initials = (profile.full_name || profile.email || "?")
+  const initials = (profile.fullName || profile.email || "?")
     .split(" ")
     .map((w) => w[0])
     .join("")
@@ -61,14 +61,14 @@ export function StaffDetailSheet({ open, onOpenChange, profile, logs, offices }:
         <SheetHeader className="pb-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={profile.avatar_url || undefined} />
+              <AvatarImage src={profile.avatarUrl || undefined} />
               <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div>
               <SheetTitle className="text-base">
-                {profile.full_name || profile.email || "Unknown"}
+                {profile.fullName || profile.email || "Unknown"}
               </SheetTitle>
               {profile.department && (
                 <p className="text-xs text-muted-foreground">{profile.department}</p>
@@ -118,17 +118,17 @@ export function StaffDetailSheet({ open, onOpenChange, profile, logs, offices }:
                       </Badge>
                       <span className="text-sm font-medium">{formatTime(log.timestamp)}</span>
                     </div>
-                    {log.photo_url && (
+                    {log.photoUrl && (
                       <div className="h-8 w-8 rounded overflow-hidden shrink-0">
-                        <img src={log.photo_url} alt="" className="h-full w-full object-cover" />
+                        <img src={log.photoUrl} alt="" className="h-full w-full object-cover" />
                       </div>
                     )}
                   </div>
                   <div className="mt-1 space-y-0.5">
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      {getOfficeName(log.office_id)}
-                      {log.distance_meters != null && ` · ${log.distance_meters}m`}
+                      {getOfficeName(log.officeId)}
+                      {log.distanceMeters != null && ` · ${log.distanceMeters}m`}
                     </p>
                     {log.notes && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 italic">
