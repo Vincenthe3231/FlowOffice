@@ -29,6 +29,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import FullLogo from "@/components/shared/FullLogo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -113,6 +114,8 @@ function NavGroup({
   );
 }
 
+type ViewMode = "website" | "tablet" | "mobile";
+
 export default function DashboardLayout({
   children,
 }: {
@@ -121,6 +124,7 @@ export default function DashboardLayout({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
+  const [viewMode, setViewMode] = React.useState<ViewMode>("website");
 
   const handleLogout = async () => {
     try {
@@ -168,6 +172,23 @@ export default function DashboardLayout({
               <Bell className="h-5 w-5" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="hidden md:inline-flex h-8 px-3 text-xs font-medium"
+              onClick={() =>
+                setViewMode((prev) =>
+                  prev === "website" ? "tablet" : prev === "tablet" ? "mobile" : "website",
+                )
+              }
+            >
+              {viewMode === "website"
+                ? "Website view"
+                : viewMode === "tablet"
+                ? "Tablet view"
+                : "Mobile view"}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2">
@@ -184,7 +205,9 @@ export default function DashboardLayout({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/profile">Profile</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
@@ -194,7 +217,22 @@ export default function DashboardLayout({
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-          {children}
+          {viewMode === "website" ? (
+            <div className="w-full">{children}</div>
+          ) : (
+            <div className="flex justify-center">
+              <div
+                className={cn(
+                  "w-full",
+                  viewMode === "tablet"
+                    ? "max-w-[834px]"
+                    : "max-w-[430px]"
+                )}
+              >
+                {children}
+              </div>
+            </div>
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>

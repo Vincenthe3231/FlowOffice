@@ -9,11 +9,11 @@ export function BottomNav() {
   const pathname = usePathname(); // 4. Get the current path
 
   const navItems = [
-    { icon: Home, label: "Home", path: "/" },
-    { icon: Clock, label: "Attendance", path: "/attendance" },
-    { icon: Calendar, label: "Leave", path: "/leave" },
-    { icon: Receipt, label: "Claims", path: "/claims" },
-    { icon: User, label: "Profile", path: "/profile" },
+    { icon: Home, label: "Home", path: "/dashboard" },
+    { icon: Clock, label: "Attendance", path: "/dashboard/attendnance" },
+    { icon: Calendar, label: "Leave", path: "/dashboard/leave" },
+    { icon: Receipt, label: "Claims", path: "/dashboard/claims" },
+    { icon: User, label: "Profile", path: "/dashboard/profile" },
   ];
 
   return (

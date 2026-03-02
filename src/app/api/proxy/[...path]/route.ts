@@ -47,6 +47,9 @@ function forwardSetCookie(from: Response, to: NextResponse) {
 async function handleRequest(request: NextRequest, method: string) {
   const bearerToken = request.cookies.get(AUTH_COOKIE_NAME)?.value
   const cookieHeader = buildCookieHeader(request)
+  const incomingContentType = request.headers.get('content-type') || ''
+  const isMultipart = incomingContentType.includes('multipart/form-data')
+  const isJson = incomingContentType.includes('application/json')
 
   const pathSegments = (
     request.nextUrl.pathname.match(/^\/api\/proxy\/(.+)$/)?.[1] || ''
@@ -84,28 +87,44 @@ async function handleRequest(request: NextRequest, method: string) {
     headers.set('Authorization', `Bearer ${bearerToken}`)
   }
 
-  let body: string | undefined
+  let body: BodyInit | undefined
+  let requiresDuplex = false
   if (method !== 'GET' && method !== 'HEAD') {
-    try {
-      body = await request.text()
-    } catch {
-      // no body
+    if (isMultipart) {
+      // For file uploads, stream the raw body and preserve original headers
+      body = request.body as any
+      requiresDuplex = true
+    } else if (isJson) {
+      // For JSON requests, read and forward as text, and ensure Content-Type
+      try {
+        const textBody = await request.text()
+        if (textBody) {
+          body = textBody
+          headers.set('Content-Type', 'application/json')
+        }
+      } catch {
+        body = undefined
+      }
+    } else {
+      // Fallback: stream whatever body we have without changing Content-Type
+      body = request.body as any
+      requiresDuplex = true
     }
   }
 
-  if (
-    body &&
-    (!headers.get('Content-Type') ||
-      headers.get('Content-Type')?.includes('application/json'))
-  ) {
-    headers.set('Content-Type', 'application/json')
-  }
-
-  const res = await fetch(url.toString(), {
+  const fetchInit: RequestInit & { duplex?: 'half' } = {
     method,
     headers,
-    body: body || undefined,
-  })
+  }
+
+  if (body !== undefined) {
+    fetchInit.body = body
+    if (requiresDuplex) {
+      fetchInit.duplex = 'half'
+    }
+  }
+
+  const res = await fetch(url.toString(), fetchInit as RequestInit)
 
   const responseBody = await res.text()
   let parsed: unknown
