@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useFaceVerification } from "@/features/attendance/hooks/useFaceVerification";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -247,7 +246,7 @@ export default function Attendance() {
         slidesPerView={2}
         spaceBetween={isMobile ? 8 : 12}
         freeMode
-        className="!overflow-visible"
+        className="w-full overflow-hidden"
       >
         <SwiperSlide>
           <motion.div whileTap={{ scale: 0.97 }}>
@@ -725,10 +724,10 @@ export default function Attendance() {
   const showBoth = activeChip === "superadmin";
 
   return (
-    <MobileLayout showFab={false}>
+    <>
       <PageHeader title="Attendance" subtitle="" />
 
-      <div className="px-3 py-4 space-y-4 md:px-4 md:py-6 md:space-y-6">
+      <div className="px-3 py-4 space-y-4 md:px-4 md:py-6 md:space-y-6 overflow-x-hidden min-w-0">
         {/* ── Role Preview Chips ── */}
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 md:gap-2">
           {roleChips.map((chip) => (
@@ -890,6 +889,6 @@ export default function Attendance() {
           </div>
         </DialogContent>
       </Dialog>
-    </MobileLayout>
+    </>
   );
 }

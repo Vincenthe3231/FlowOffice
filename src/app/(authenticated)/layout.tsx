@@ -222,14 +222,14 @@ export default function DashboardLayout({
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 lg:pb-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 lg:pb-6 overflow-x-hidden min-w-0">
           {viewMode === "website" ? (
-            <div className="w-full">{children}</div>
+            <div className="w-full min-w-0">{children}</div>
           ) : (
-            <div className="flex justify-center">
+            <div className="flex justify-center min-w-0">
               <div
                 className={cn(
-                  "w-full",
+                  "w-full min-w-0",
                   viewMode === "tablet"
                     ? "max-w-[834px]"
                     : "max-w-[430px]"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,30 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MapPin, Plus, Pencil, Loader2 } from "lucide-react";
+import { MapPin, Plus, Pencil, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useOfficeManagement } from "@/features/attendance/hooks/useOfficeManagement";
 import { OfficeFormData, Office } from "@/shared/lib/api-client/offices";
+
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const GEOCODE_DEBOUNCE_MS = 800;
+
+type GeocodeStatus = "idle" | "loading" | "found" | "not_found";
+
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  const q = address.trim();
+  if (!q) return null;
+  const params = new URLSearchParams({ q, format: "json", limit: "1" });
+  const res = await fetch(`${NOMINATIM_URL}?${params}`, {
+    headers: { "Accept": "application/json", "User-Agent": "FlowOffice/1.0" },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const lat = parseFloat(data[0].lat);
+  const lon = parseFloat(data[0].lon);
+  if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
+  return { lat, lon };
+}
 
 const emptyForm: OfficeFormData = {
   name: "",
@@ -30,10 +51,13 @@ export function LocationManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<OfficeFormData>(emptyForm);
+  const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setGeocodeStatus("idle");
     setDialogOpen(true);
   };
 
@@ -47,8 +71,54 @@ export function LocationManager() {
       radiusMeters: office.radiusMeters,
       isActive: office.isActive,
     });
+    setGeocodeStatus("idle");
     setDialogOpen(true);
+    const lat = Number(office.latitude);
+    const lng = Number(office.longitude);
+    if (lat === 0 && lng === 0 && (office.address || "").trim()) {
+      setTimeout(() => runGeocode(office.address || ""), 100);
+    }
   };
+
+  const runGeocode = useCallback((address: string) => {
+    if (!address.trim()) {
+      setGeocodeStatus("idle");
+      setForm((prev) => ({ ...prev, latitude: 0, longitude: 0 }));
+      return;
+    }
+    setGeocodeStatus("loading");
+    geocodeAddress(address)
+      .then((result) => {
+        if (result) {
+          setForm((prev) => ({ ...prev, latitude: result.lat, longitude: result.lon }));
+          setGeocodeStatus("found");
+        } else {
+          setForm((prev) => ({ ...prev, latitude: 0, longitude: 0 }));
+          setGeocodeStatus("not_found");
+        }
+      })
+      .catch(() => {
+        setForm((prev) => ({ ...prev, latitude: 0, longitude: 0 }));
+        setGeocodeStatus("not_found");
+      });
+  }, []);
+
+  const handleAddressChange = (value: string) => {
+    setForm((prev) => ({ ...prev, address: value }));
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value.trim()) {
+      setGeocodeStatus("idle");
+      setForm((prev) => ({ ...prev, latitude: 0, longitude: 0 }));
+      return;
+    }
+    debounceRef.current = setTimeout(() => runGeocode(value), GEOCODE_DEBOUNCE_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -127,21 +197,36 @@ export function LocationManager() {
             </div>
             <div>
               <Label className="text-xs">Address</Label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Full address" />
+              <Input
+                value={form.address}
+                onChange={(e) => handleAddressChange(e.target.value)}
+                placeholder="Full address (e.g. SS19 Subang Jaya)"
+              />
+              <p className="text-[11px] mt-1.5 flex items-center gap-1.5 text-muted-foreground">
+                {geocodeStatus === "loading" && (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                    Locating...
+                  </>
+                )}
+                {geocodeStatus === "found" && (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" />
+                    Location found — coordinates will be saved
+                  </>
+                )}
+                {geocodeStatus === "not_found" && (
+                  <>
+                    <AlertCircle className="h-3 w-3 text-amber-600 shrink-0" />
+                    Address not found — coordinates will be 0,0
+                  </>
+                )}
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Latitude</Label>
-                <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label className="text-xs">Longitude</Label>
-                <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) || 0 })} />
-              </div>
-            </div>
+
             <div>
               <Label className="text-xs">Radius (meters)</Label>
-              <Input type="number" value={form.radiusMeters} onChange={(e) => setForm({ ...form, radiusMeters: parseInt(e.target.value) || 100 })} />
+              <Input type="number" value={200} readOnly className="bg-muted cursor-not-allowed" />
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.isActive} onCheckedChange={(checked) => setForm({ ...form, isActive: checked })} />
