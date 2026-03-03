@@ -726,7 +726,7 @@ export default function Attendance() {
 
   return (
     <MobileLayout showFab={false}>
-      <PageHeader title="Attendance" subtitle="Clock in/out" />
+      <PageHeader title="Attendance" subtitle="" />
 
       <div className="px-3 py-4 space-y-4 md:px-4 md:py-6 md:space-y-6">
         {/* ── Role Preview Chips ── */}
@@ -759,11 +759,8 @@ export default function Attendance() {
         <AnimatePresence mode="wait">
           {showBoth ? (
             <motion.div key="superadmin" className="space-y-4 md:space-y-6">
-              {staffView}
-              <div className="border-t border-border pt-3 md:pt-4">
-                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 md:text-xs md:mb-4">Admin Console</h3>
-                {adminView}
-              </div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 md:text-xs md:mb-4">Admin Console</h3>
+              {adminView}
             </motion.div>
           ) : showStaffView ? (
             <div key="staff">{staffView}</div>
