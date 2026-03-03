@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase'
+import { createClient } from '@/shared/lib/supabase/client'
 
 export interface VerificationResult {
   faceDetected: boolean
@@ -15,7 +15,7 @@ export interface VerifyFacePayload {
 export async function verifyFace(
   payload: VerifyFacePayload,
 ): Promise<VerificationResult> {
-  const { data, error } = await supabase.functions.invoke('verify-face', {
+  const { data, error } = await createClient().functions.invoke('verify-face', {
     body: {
       selfie_base64: payload.selfieBase64,
       avatar_url: payload.avatarUrl,

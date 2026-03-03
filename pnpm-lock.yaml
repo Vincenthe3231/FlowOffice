@@ -53,6 +53,9 @@ dependencies:
   '@radix-ui/react-tooltip':
     specifier: ^1.2.8
     version: 1.2.8(@types/react-dom@19.2.3)(@types/react@19.2.13)(react-dom@19.2.4)(react@19.2.4)
+  '@supabase/ssr':
+    specifier: ^0.8.0
+    version: 0.8.0(@supabase/supabase-js@2.98.0)
   '@supabase/supabase-js':
     specifier: ^2.98.0
     version: 2.98.0
@@ -2132,6 +2135,15 @@ packages:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    dev: false
+
+  /@supabase/ssr@0.8.0(@supabase/supabase-js@2.98.0):
+    resolution: {integrity: sha512-/PKk8kNFSs8QvvJ2vOww1mF5/c5W8y42duYtXvkOSe+yZKRgTTZywYG2l41pjhNomqESZCpZtXuWmYjFRMV+dw==}
+    peerDependencies:
+      '@supabase/supabase-js': ^2.76.1
+    dependencies:
+      '@supabase/supabase-js': 2.98.0
+      cookie: 1.1.1
     dev: false
 
   /@supabase/storage-js@2.98.0:
