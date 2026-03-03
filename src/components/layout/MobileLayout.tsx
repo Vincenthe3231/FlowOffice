@@ -1,29 +1,21 @@
 import { ReactNode } from "react";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { FloatingClockButton } from "@/components/layout/FloatingClockButton";
-import { cn } from "@/lib/utils";
 
 interface MobileLayoutProps {
   children: ReactNode;
+  /** Reserved for future use (e.g. hiding FAB). Bottom nav is rendered by the authenticated layout. */
   showNav?: boolean;
   showFab?: boolean;
 }
 
-export function MobileLayout({ 
-  children, 
-  showNav = true, 
-  showFab = true 
+export function MobileLayout({
+  children,
+  showFab = true,
 }: MobileLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      <main className={cn(
-        "min-h-screen",
-        showNav && "pb-20"
-      )}>
-        {children}
-      </main>
+      <main className="min-h-screen">{children}</main>
       {showFab && <FloatingClockButton />}
-      {showNav && <BottomNav />}
     </div>
   );
 }

@@ -98,14 +98,14 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* React Query Devtools - only shows in development */}
+      {/* React Query Devtools - only in development, hidden on mobile (md:) to avoid overlap with bottom nav */}
       {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools 
-          initialIsOpen={false}
-          buttonPosition="bottom-right"
-          // Ensure devtools can see all queries and mutations
-          // position="bottom-right"
-        />
+        <div className="hidden md:block">
+          <ReactQueryDevtools
+            initialIsOpen={false}
+            buttonPosition="bottom-right"
+          />
+        </div>
       )}
     </QueryClientProvider>
   )

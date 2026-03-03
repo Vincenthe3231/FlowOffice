@@ -17,11 +17,13 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
+  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -48,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, Search, ChevronDown } from "lucide-react";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 const mainNav = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -154,6 +157,9 @@ export default function DashboardLayout({
           <NavGroup label="Reports" items={reportNav} />
           <NavGroup label="Settings" items={settingsNav} />
         </SidebarContent>
+        <SidebarFooter className="p-2">
+          <SidebarInput placeholder="Find…" className="h-9" />
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4 premium-shadow">
@@ -216,7 +222,7 @@ export default function DashboardLayout({
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 lg:pb-6">
           {viewMode === "website" ? (
             <div className="w-full">{children}</div>
           ) : (
@@ -234,6 +240,7 @@ export default function DashboardLayout({
             </div>
           )}
         </div>
+        <BottomNav />
       </SidebarInset>
     </SidebarProvider>
   );
