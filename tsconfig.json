@@ -53,6 +53,7 @@
     "node_modules",
     ".next",
     "dist",
-    "RenoXpert-Client"
+    "RenoXpert-Client",
+    "supabase/functions"
   ]
 }
