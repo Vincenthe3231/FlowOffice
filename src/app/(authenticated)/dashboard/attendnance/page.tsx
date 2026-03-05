@@ -129,7 +129,7 @@ export default function Attendance() {
     const photoData = camera.capturePhoto();
     if (photoData) {
       // Automatically trigger face verification after capture
-      await faceVerification.verifyFace(photoData, profile?.facePhotoUrl || profile?.avatarUrl);
+      await faceVerification.verifyFace(photoData);
     }
   };
 
@@ -873,7 +873,7 @@ export default function Attendance() {
                   Retake
                 </Button>
                 <Button
-                  className="flex-1 bg-gradient-primary text-sm h-9 md:h-10 md:text-base"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 text-sm h-9 md:h-10 md:text-base"
                   onClick={handleConfirmPhoto}
                   disabled={faceVerification.isVerifying || (!faceVerification.verificationPassed && !faceVerification.error)}
                 >
@@ -881,7 +881,7 @@ export default function Attendance() {
                 </Button>
               </>
             ) : (
-              <Button className="w-full bg-gradient-primary text-sm h-9 md:h-10 md:text-base" onClick={handleCapture} disabled={!camera.isOpen || !!camera.error}>
+              <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm h-9 md:h-10 md:text-base" onClick={handleCapture} disabled={!camera.isOpen || !!camera.error}>
                 <Camera className="h-3.5 w-3.5 mr-1.5 md:h-4 md:w-4 md:mr-2" />
                 Capture
               </Button>

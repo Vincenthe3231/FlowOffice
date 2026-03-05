@@ -54,6 +54,6 @@
     ".next",
     "dist",
     "RenoXpert-Client",
-    "supabase/functions"
+    "supabase"
   ]
 }

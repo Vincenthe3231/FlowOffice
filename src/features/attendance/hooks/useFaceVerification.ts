@@ -9,7 +9,7 @@ export function useFaceVerification() {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const verifyFace = async (selfieBase64: string, avatarUrl?: string | null) => {
+  const verifyFace = async (selfieBase64: string) => {
     setIsVerifying(true);
     setError(null);
     setVerificationResult(null);
@@ -17,12 +17,11 @@ export function useFaceVerification() {
     try {
       const result = await verifyFaceApi({
         selfieBase64,
-        avatarUrl: avatarUrl || undefined,
       });
       setVerificationResult(result);
       return result;
-    } catch (e: any) {
-      const msg = e?.message || "Face verification failed";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Face verification failed";
       setError(msg);
       return null;
     } finally {
