@@ -1,11 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  AttendanceLog,
-  Office,
   clockInOrOut,
   fetchActiveOffices,
   fetchTodayUserLogs,
+  uploadAttendancePhoto,
 } from "@/shared/lib/api-client/attendance";
 
 // Haversine formula
@@ -79,12 +78,20 @@ export function useAttendance() {
         );
       }
 
+      let finalPhotoUrl: string | undefined;
+      if (photoUrl?.startsWith("data:")) {
+        const blob = await (await fetch(photoUrl)).blob();
+        finalPhotoUrl = await uploadAttendancePhoto(blob);
+      } else if (photoUrl) {
+        finalPhotoUrl = photoUrl;
+      }
+
       const result = await clockInOrOut({
         type,
         latitude,
         longitude,
         officeId: selectedOfficeId,
-        photoUrl,
+        photoUrl: finalPhotoUrl,
         notes,
       });
 

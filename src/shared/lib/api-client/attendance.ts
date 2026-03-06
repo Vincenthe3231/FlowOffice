@@ -77,6 +77,14 @@ export interface ClockResponse {
   distanceMeters: number
 }
 
+export async function uploadAttendancePhoto(file: File | Blob): Promise<string> {
+  const formData = new FormData()
+  formData.append('photo', file, 'selfie.jpg')
+  const response = await laravelApi.post(`${PROXY}/attendance/upload-photo`, formData)
+  const data = extractData<{ url: string }>(response)
+  return data.url
+}
+
 export async function clockInOrOut(payload: ClockPayload): Promise<ClockResponse> {
   const response = await laravelApi.post(`${PROXY}/attendance/logs`, payload)
   return extractData<ClockResponse>(response)

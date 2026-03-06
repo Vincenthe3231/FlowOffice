@@ -20,13 +20,15 @@ import { keysToCamel, keysToSnake } from './transform'
 // Same-origin; auth cookies are sent via withCredentials
 const BASE_URL = ''
 
-/** Transform outgoing request data to snake_case */
+/** Transform outgoing request data to snake_case; FormData: leave body as-is and drop Content-Type so Axios sets multipart boundary */
 const transformRequest = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-  if (
-    config.data &&
-    typeof config.data === 'object' &&
-    !(config.data instanceof FormData)
-  ) {
+  if (config.data instanceof FormData) {
+    if (config.headers && typeof config.headers === 'object' && !Array.isArray(config.headers)) {
+      delete (config.headers as Record<string, unknown>)['Content-Type']
+    }
+    return config
+  }
+  if (config.data && typeof config.data === 'object') {
     config.data = keysToSnake(config.data)
   }
   return config
