@@ -17,7 +17,9 @@ export interface Profile {
   department: string | null
   employeeId: string | null
   avatarUrl: string | null
-  facePhotoUrl: string | null
+  faceFrontUrl: string | null
+  faceLeftUrl: string | null
+  faceRightUrl: string | null
   officeId: string | null
   managerId: string | null
   createdAt: string
@@ -31,7 +33,9 @@ export interface ProfileUpdateInput {
   department?: string
   employeeId?: string
   avatarUrl?: string
-  facePhotoUrl?: string
+  faceFrontUrl?: string
+  faceLeftUrl?: string
+  faceRightUrl?: string
 }
 
 const PROXY = API_ROUTES.PROXY_PREFIX
@@ -56,9 +60,12 @@ export async function uploadAvatar(file: File): Promise<string> {
   return extractData<string>(response)
 }
 
-export async function uploadFacePhoto(file: File): Promise<string> {
+export type FacePosition = 'front' | 'left' | 'right'
+
+export async function uploadFacePhoto(file: File, position: FacePosition): Promise<string> {
   const formData = new FormData()
   formData.append('face_photo', file)
+  formData.append('position', position)
 
   const response = await laravelApi.post(`${PROXY}/profile/face-photo`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

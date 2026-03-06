@@ -7,6 +7,7 @@ import {
   updateMyProfile,
   uploadAvatar as uploadAvatarApi,
   uploadFacePhoto as uploadFacePhotoApi,
+  type FacePosition,
 } from "@/shared/lib/api-client/profile";
 
 export function useProfile() {
@@ -46,13 +47,16 @@ export function useProfile() {
   });
 
   const uploadFacePhoto = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, position }: { file: File; position: FacePosition }) => {
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) throw new Error("File too large. Maximum 5MB.");
 
-      const url = await uploadFacePhotoApi(file);
-      await updateProfile.mutateAsync({ facePhotoUrl: url });
+      const url = await uploadFacePhotoApi(file, position);
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
       return url;
+    },
+    onSuccess: () => {
+      toast({ title: "Face photo uploaded", description: "Your photo has been saved." });
     },
     onError: (error: Error) => {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });

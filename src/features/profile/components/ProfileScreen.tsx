@@ -21,7 +21,7 @@ import { useAuth } from "@/shared/hooks/useAuth";
 
 export function ProfileScreen() {
   const [darkModeToggle, setDarkModeToggle] = useState(false);
-  const { profile, uploadFacePhoto, isUploadingFacePhoto } = useProfile();
+  const { profile, uploadFacePhoto } = useProfile();
   const { user } = useAuth();
 
   const fullName = profile?.fullName ?? user?.name ?? "User";
@@ -34,23 +34,35 @@ export function ProfileScreen() {
   const avatarUrl =
     profile?.avatarUrl ??
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop";
-  const facePhotoUrl =
-    profile?.facePhotoUrl ??
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop";
+  const faceFrontUrl = profile?.faceFrontUrl ?? null;
+  const faceLeftUrl = profile?.faceLeftUrl ?? null;
+  const faceRightUrl = profile?.faceRightUrl ?? null;
+
+  const [uploadingPosition, setUploadingPosition] = useState<
+    "front" | "left" | "right" | null
+  >(null);
 
   const handleFacePhotoChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
+    position: "front" | "left" | "right",
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setUploadingPosition(position);
     try {
-      await uploadFacePhoto(file);
+      await uploadFacePhoto({ file, position });
     } finally {
-      // allow re-selecting the same file
+      setUploadingPosition(null);
       event.target.value = "";
     }
   };
+
+  const faceSlots = [
+    { label: "Front", position: "front" as const, url: faceFrontUrl },
+    { label: "Left", position: "left" as const, url: faceLeftUrl },
+    { label: "Right", position: "right" as const, url: faceRightUrl },
+  ];
 
   return (
     <div className="min-h-screen bg-[#F0F3F8] p-4 md:p-6 font-sans selection:bg-blue-100">
@@ -172,42 +184,54 @@ export function ProfileScreen() {
               <SectionTitle title="Face Verification" />
               <div className="bg-white rounded-[1.5rem] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#13DEB9]/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="flex gap-4 relative z-10 items-center mb-5">
-                  <div className="relative shrink-0">
-                    <div className="w-[72px] h-[72px] rounded-[1.25rem] overflow-hidden bg-gray-100 shadow-inner">
-                      <img
-                        src={facePhotoUrl}
-                        alt="Face Auth"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#13DEB9] rounded-full border-[3px] border-white shadow-sm" />
-                  </div>
-
-                  <div className="flex flex-col justify-center flex-1">
-                    <h4 className="text-[#1A202C] font-black text-sm mb-1 flex items-center gap-2">
-                      <ScanFace size={18} className="text-[#5D87FF]" />
-                      Face Registered
-                    </h4>
-                    <p className="text-[#5A6A85] text-xs leading-relaxed font-medium">
-                      Your face photo is actively registered for attendance
-                      verification.
-                    </p>
-                  </div>
+                <div className="relative z-10 mb-4">
+                  <h4 className="text-[#1A202C] font-black text-sm mb-1 flex items-center gap-2">
+                    <ScanFace size={18} className="text-[#5D87FF]" />
+                    Face Registered
+                  </h4>
+                  <p className="text-[#5A6A85] text-xs leading-relaxed font-medium">
+                    Upload front, left, and right face photos for attendance
+                    verification.
+                  </p>
                 </div>
 
-                <label className="w-full block">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFacePhotoChange}
-                  />
-                  <div className="w-full py-3.5 bg-[#F4F6FB] hover:bg-[#EAEFFF] text-[#2D3648] font-bold rounded-xl flex justify-center items-center gap-2 transition-colors border border-transparent hover:border-[#DFE5FF] text-sm cursor-pointer">
-                    <Upload size={18} className="text-[#5A6A85]" />
-                    {isUploadingFacePhoto ? "Uploading..." : "Update Photo"}
-                  </div>
-                </label>
+                <div className="grid grid-cols-3 gap-4 relative z-10">
+                  {faceSlots.map(({ label, position, url }) => (
+                    <label
+                      key={position}
+                      className="block cursor-pointer group"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFacePhotoChange(e, position)}
+                        disabled={uploadingPosition !== null}
+                      />
+                      <div className="rounded-xl overflow-hidden bg-gray-100 shadow-inner border-2 border-transparent group-hover:border-[#DFE5FF] transition-colors aspect-square flex flex-col items-center justify-center min-h-[100px]">
+                        {url ? (
+                          <img
+                            src={url}
+                            alt={`Face ${label}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-1.5 p-2 text-center">
+                            <Camera size={24} className="text-[#8C98A9]" />
+                            <span className="text-[11px] font-bold text-[#5A6A85]">
+                              {uploadingPosition === position
+                                ? "Uploading..."
+                                : "Add Photo"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-center text-[11px] font-bold text-[#5A6A85] mt-2 uppercase tracking-wider">
+                        {label}
+                      </p>
+                    </label>
+                  ))}
+                </div>
               </div>
             </section>
 
