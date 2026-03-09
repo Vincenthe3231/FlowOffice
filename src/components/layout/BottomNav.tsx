@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useContext } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Menu,
   X,
+  Bell,
+  Moon,
+  Sun,
+  User,
+  Settings,
+  LogOut,
   LayoutDashboard,
   ClipboardList,
   Timer,
@@ -20,6 +27,21 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { useAuthStore } from "@/shared/stores/auth-store";
+import { logoutUser } from "@/shared/lib/api-client/laravel-client";
+import { AUTH_QUERY_KEYS } from "@/shared/lib/api-client/auth-constants";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProfile } from "@/features/profile/hooks/useProfile";
+import { CustomizerContext } from "@/app/context/CustomizerContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Same nav structure as the sidebar (existing sidebar content)
 const mainNav = [
@@ -120,7 +142,16 @@ function filterNavGroupsByQuery(
 export function BottomNav() {
   const [isOpen, setIsOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
+  const [isThemeReady, setIsThemeReady] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const customizer = useContext(CustomizerContext);
+  const logout = useAuthStore((s) => s.logout);
+  const queryClient = useQueryClient();
+  const currentMode = customizer?.activeMode ?? "light";
+  const hasSearchQuery = findQuery.trim().length > 0;
+  const isPanelOpen = isOpen || hasSearchQuery;
   const pinnedGroups = useMemo(
     () => filterNavGroupsByQuery(navGroups, findQuery),
     [findQuery]
@@ -137,7 +168,33 @@ export function BottomNav() {
     };
   }, [isOpen]);
 
-  const closeMenu = () => setIsOpen(false);
+  const closeMenu = () => {
+    setIsOpen(false);
+    setFindQuery("");
+  };
+  const isLightMode = currentMode !== "dark";
+
+  useEffect(() => {
+    setIsThemeReady(true);
+  }, []);
+
+  const handleThemeToggle = () => {
+    if (!customizer) return;
+    customizer.setActiveMode(isLightMode ? "dark" : "light");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // ignore
+    } finally {
+      logout();
+      queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME });
+      queryClient.clear();
+      window.location.href = "/login";
+    }
+  };
 
   return (
     <>
@@ -155,11 +212,11 @@ export function BottomNav() {
       </AnimatePresence>
 
       <nav
-        className="fixed bottom-3 left-1/2 z-[70] w-[50%] max-w-[200px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[320px] sm:w-[92%] md:bottom-6 md:w-[90%] md:max-w-[380px] md:bottom-8 lg:hidden"
+        className="fixed bottom-3 left-1/2 z-[70] w-[92%] max-w-[220px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[380px] md:bottom-6 md:w-[90%] md:max-w-[440px] md:bottom-8 lg:hidden"
         aria-label="Mobile navigation"
       >
         <AnimatePresence>
-          {isOpen && (
+          {isPanelOpen && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -207,30 +264,119 @@ export function BottomNav() {
 
         <motion.div
           layout
-          className="flex h-8 w-full items-center justify-between rounded-full border border-border bg-card px-2.5 shadow-2xl text-foreground sm:h-9 sm:px-3 md:h-11 md:px-4"
+          className="flex h-12 w-full items-center justify-between rounded-full border border-border bg-card px-3 shadow-2xl text-foreground sm:h-[52px] sm:px-4 md:h-14 md:px-5"
         >
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 md:gap-2.5">
-            <Search className="h-3 w-3 shrink-0 text-muted-foreground sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5 md:gap-3">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
             <input
               type="text"
               placeholder="Find..."
               value={findQuery}
               onChange={(e) => setFindQuery(e.target.value)}
-              className="min-w-0 flex-1 border-none bg-transparent text-[11px] outline-none placeholder:text-muted-foreground sm:text-xs md:text-sm"
-              onFocus={() => setIsOpen(true)}
+              className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:text-sm md:text-base"
               aria-label="Search"
             />
           </div>
 
-          <div className="mx-1 h-3.5 w-px shrink-0 bg-border sm:mx-1.5 sm:h-4 md:mx-2 md:h-5" />
+          <div className="mx-2 h-5 w-px shrink-0 bg-border sm:mx-2.5 sm:h-6 md:mx-3 md:h-7" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:p-1.5"
+                aria-label="Profile"
+              >
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9">
+                  <AvatarImage src={profile?.avatarUrl ?? undefined} alt="" />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold sm:text-xs md:text-sm">
+                    {user?.name?.slice(0, 2).toUpperCase() ?? "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              side="top"
+              className="w-56 rounded-2xl border-border/80 bg-card/95 p-1.5 text-foreground shadow-2xl backdrop-blur-xl"
+            >
+              <DropdownMenuLabel className="px-2.5 py-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar className="h-8 w-8 shrink-0 border border-border/60">
+                    <AvatarImage src={profile?.avatarUrl ?? undefined} alt="" />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                      {user?.name?.slice(0, 2).toUpperCase() ?? "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-foreground">
+                      {user?.name ?? "User"}
+                    </p>
+                    <p className="truncate text-[11px] font-normal text-muted-foreground">
+                      {user?.email ?? ""}
+                    </p>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="mx-0 my-1 bg-border/70" />
+              <DropdownMenuItem
+                asChild
+                className="rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground focus:bg-muted/60 focus:text-foreground"
+              >
+                <Link href="/dashboard/profile" className="flex items-center gap-2.5">
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground focus:bg-muted/60 focus:text-foreground">
+                <div className="flex w-full items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <Bell className="h-3.5 w-3.5 shrink-0" />
+                    <span>Notifications</span>
+                  </div>
+                  <span className="h-2 w-2 rounded-full bg-destructive" />
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleThemeToggle}
+                className="rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground focus:bg-muted/60 focus:text-foreground"
+              >
+                <div className="flex w-full items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    {isThemeReady && !isLightMode ? (
+                      <Sun className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <Moon className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    <span>Theme</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    {isThemeReady ? (isLightMode ? "Light" : "Dark") : "Theme"}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground focus:bg-muted/60 focus:text-foreground">
+                <Settings className="h-3.5 w-3.5 shrink-0" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="mx-0 my-1 bg-border/70" />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="rounded-xl px-2.5 py-2 text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5 shrink-0" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="shrink-0 p-0.5 text-muted-foreground transition-colors hover:text-foreground md:p-1"
+            className="ml-3 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground md:ml-4 md:p-1.5"
             aria-label="Toggle Menu"
           >
-            {isOpen ? <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-[18px] md:w-[18px]" /> : <Menu className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-[18px] md:w-[18px]" />}
+            {isOpen ? <X className="h-5 w-5 sm:h-[22px] sm:w-[22px] md:h-6 md:w-6" /> : <Menu className="h-5 w-5 sm:h-[22px] sm:w-[22px] md:h-6 md:w-6" />}
           </button>
         </motion.div>
       </nav>

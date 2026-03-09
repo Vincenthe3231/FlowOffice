@@ -144,7 +144,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <Sidebar collapsible="icon" className="hidden border-r border-sidebar-border lg:flex">
         <SidebarHeader className="p-4 pb-2">
           <div className="flex items-center gap-2.5">
             <FullLogo />
@@ -162,7 +162,7 @@ export default function DashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4 premium-shadow">
+        <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-border bg-card px-4 premium-shadow lg:flex">
           <div className="flex items-center gap-3">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             <div className="relative hidden md:block">
@@ -195,30 +195,32 @@ export default function DashboardLayout({
                 ? "Tablet view"
                 : "Mobile view"}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 px-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                      {user?.name?.slice(0, 2).toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden md:block text-left">
-                    <p className="text-sm font-medium leading-none">{user?.name ?? "User"}</p>
-                    <p className="text-[11px] text-muted-foreground">{user?.email ?? ""}</p>
-                  </div>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden md:block" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="hidden lg:flex">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 px-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                        {user?.name?.slice(0, 2).toUpperCase() ?? "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="hidden md:block text-left">
+                      <p className="text-sm font-medium leading-none">{user?.name ?? "User"}</p>
+                      <p className="text-[11px] text-muted-foreground">{user?.email ?? ""}</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden md:block" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <ThemeToggle />
           </div>
         </header>

@@ -275,7 +275,7 @@ export default function Attendance() {
         <SwiperSlide>
           <motion.div whileTap={{ scale: 0.97 }}>
             <Card className="bg-card border-l-4 border-l-primary shadow-card rounded-lg overflow-hidden md:rounded-xl">
-              <CardContent className="p-3 md:p-4">
+              <CardContent className="p-2 md:p-4">
                 <div className="flex items-center gap-1.5 mb-1.5 md:gap-2 md:mb-2">
                   <div className="h-6 w-6 rounded-md bg-pastel-blue flex items-center justify-center md:h-7 md:w-7 md:rounded-lg">
                     <Timer className="h-3 w-3 text-primary md:h-3.5 md:w-3.5" />
@@ -541,10 +541,10 @@ export default function Attendance() {
                   (location.hasLocation && !isWithinRadius)
                 }
                 className={cn(
-                  "w-full h-12 text-sm rounded-lg font-bold uppercase tracking-wider relative overflow-hidden md:h-14 md:text-lg md:rounded-xl",
+                  "w-full h-12 text-sm rounded-lg font-bold uppercase tracking-wider relative overflow-hidden text-primary-foreground shadow-sm md:h-14 md:text-lg md:rounded-xl",
                   attendance.isClockedIn
-                    ? "bg-gradient-accent hover:opacity-90"
-                    : "bg-gradient-primary hover:opacity-90"
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-primary hover:bg-primary/90"
                 )}
               >
                 {/* Shine sweep effect */}
@@ -779,7 +779,7 @@ export default function Attendance() {
                 onClick={handleCloseCamera}
                 className="h-7 w-7 rounded-full hover:bg-muted flex items-center justify-center md:h-8 md:w-8"
               >
-                <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                {/* <X className="h-3.5 w-3.5 md:h-4 md:w-4" /> */}
               </button>
             </div>
           </DialogHeader>
