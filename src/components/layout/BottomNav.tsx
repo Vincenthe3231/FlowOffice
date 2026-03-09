@@ -212,7 +212,7 @@ export function BottomNav() {
       </AnimatePresence>
 
       <nav
-        className="fixed bottom-3 left-1/2 z-[70] w-[92%] max-w-[220px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[380px] md:bottom-6 md:w-[90%] md:max-w-[440px] md:bottom-8 lg:hidden"
+        className="fixed bottom-3 left-1/2 z-[70] w-[92%] max-w-[200px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[380px] md:bottom-6 md:w-[90%] md:max-w-[440px] md:bottom-8 lg:hidden"
         aria-label="Mobile navigation"
       >
         <AnimatePresence>

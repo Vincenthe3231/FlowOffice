@@ -173,9 +173,9 @@ Belive-FO-Client/
 - Extract `code` from URL search params
 - Call `loginWithLark` (hits Next.js); store user via auth store; redirect to dashboard
 
-### 2.5 Implement Next.js Middleware for Route Protection
+### 2.5 Implement Next.js Proxy for Route Protection
 
-- Create `src/middleware.ts` at app root (planned)
+- Create `src/proxy.ts` at app root
 - Check for httpOnly auth cookie (e.g. `belive_auth_token`) presence
 - Redirect unauthenticated users to `/login`
 - Configure matcher to exclude public routes (`/login`, `/auth/*`, `/_next/*`)
@@ -805,19 +805,13 @@ Create `src/features/leave/` following same structure:
 ### 6.2 Claim Feature Structure
 
 - ✅ Created `src/features/claims/` directory
-- ✅ Created `src/features/claims/index.ts` (placeholder)
-- ⏳ Add dependencies: `@/shared`, `@/features/lark-sdk`
-- ⏳ Set up TypeScript configuration (uses root config)
-
-Create `src/features/claims/` following same structure:
-
-- Types: Claim, ClaimReceipt in `src/features/claims/types/`
-- API: submitClaim, getClaimsList, uploadReceipt in `src/features/claims/api/`
-- Hooks: useSubmitClaim, useClaimsList, useUploadReceipt in `src/features/claims/hooks/`
-- Components: ClaimForm, ClaimsList, ReceiptUploader in `src/features/claims/components/`
-- Export all public APIs from `src/features/claims/index.ts`
-- Integrate Lark SDK from `@/features/lark-sdk` for camera capture
-- Use Supabase Storage helpers from `@/shared` for receipt uploads
+- ✅ Implemented `src/features/claims/index.ts` public exports
+- ✅ Added `src/features/claims/data/mockData.ts` and `src/features/claims/data/index.ts`
+- ✅ Added `src/features/claims/types/index.ts`
+- ✅ Added `src/features/claims/hooks/useClaims.ts`
+- ✅ Split `ClaimsManagement` into feature components under `src/features/claims/components/`
+- ⏳ API integration (`submitClaim`, `getClaimsList`, `uploadReceipt`) remains future work
+- ⏳ Lark SDK camera capture and shared storage integration remain future work
 
 ### 6.3 Cross-Feature Communication
 
@@ -829,9 +823,9 @@ Create `src/features/claims/` following same structure:
 ### 6.4 Create Feature Pages
 
 - ⏳ Create `src/app/(authenticated)/leave/page.tsx`
-- ⏳ Create `src/app/(authenticated)/claims/page.tsx`
-- ⏳ Import components and hooks from `@/features/leave` and `@/features/claims`
-- ⏳ Keep pages thin, compose from feature public APIs
+- ✅ Created `src/app/(authenticated)/dashboard/claims/page.tsx`
+- ✅ Claims page composes from `@/features/claims`
+- ✅ Claims page remains thin and delegates UI/state to the feature module
 
 **Success Criteria:**
 

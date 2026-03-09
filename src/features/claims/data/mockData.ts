@@ -1,0 +1,156 @@
+import type { Claim, ClaimCategory, ClaimFilter, ClaimMonthlySpend } from "@/features/claims/types";
+
+export const CLAIM_FILTERS: ClaimFilter[] = [
+  "All",
+  "Pending",
+  "Approved",
+  "Rejected",
+  "Paid",
+  "Draft",
+];
+
+export const CLAIM_PIE_COLORS = [
+  "hsl(30, 80%, 50%)",
+  "hsl(215, 80%, 55%)",
+  "hsl(270, 60%, 55%)",
+  "hsl(145, 60%, 40%)",
+  "hsl(340, 65%, 55%)",
+];
+
+export const claimCategories: ClaimCategory[] = [
+  { id: "food", name: "Food & Beverage", budget: 2000, spent: 1420 },
+  { id: "transport", name: "Transport", budget: 3000, spent: 2180 },
+  { id: "accommodation", name: "Accommodation", budget: 5000, spent: 1850 },
+  { id: "equipment", name: "Equipment", budget: 4000, spent: 3600 },
+  { id: "mileage", name: "Mileage", budget: 1500, spent: 980 },
+];
+
+export const claimsList: Claim[] = [
+  {
+    id: 1,
+    title: "Client lunch meeting",
+    category: "Food & Beverage",
+    type: "receipt",
+    amount: 85.5,
+    date: "2026-03-08",
+    status: "Approved",
+    merchant: "The Capital Grille",
+    description: "Lunch with Acme Corp stakeholders",
+  },
+  {
+    id: 2,
+    title: "Airport transfer",
+    category: "Transport",
+    type: "receipt",
+    amount: 120,
+    date: "2026-03-07",
+    status: "Pending",
+    merchant: "Uber Business",
+    description: "SFO to downtown hotel",
+  },
+  {
+    id: 3,
+    title: "Hotel stay - NYC trip",
+    category: "Accommodation",
+    type: "receipt",
+    amount: 450,
+    date: "2026-03-05",
+    status: "Paid",
+    merchant: "Marriott NYC",
+    description: "2-night stay for client meetings",
+  },
+  {
+    id: 4,
+    title: "Office chair",
+    category: "Equipment",
+    type: "receipt",
+    amount: 380,
+    date: "2026-03-04",
+    status: "Approved",
+    merchant: "Herman Miller",
+    description: "Ergonomic office chair for WFH setup",
+  },
+  {
+    id: 5,
+    title: "Site visit - East Branch",
+    category: "Mileage",
+    type: "mileage",
+    amount: 64,
+    date: "2026-03-06",
+    status: "Pending",
+    description: "Round trip to East Branch office",
+    fromLocation: "HQ - Floor 1",
+    toLocation: "Branch - East",
+    distance: 80,
+  },
+  {
+    id: 6,
+    title: "Team dinner",
+    category: "Food & Beverage",
+    type: "receipt",
+    amount: 210,
+    date: "2026-03-03",
+    status: "Rejected",
+    merchant: "Nobu",
+    description: "Sprint celebration dinner - exceeded per-head limit",
+  },
+  {
+    id: 7,
+    title: "Laptop stand",
+    category: "Equipment",
+    type: "receipt",
+    amount: 75,
+    date: "2026-03-02",
+    status: "Paid",
+    merchant: "Amazon",
+    description: "Adjustable laptop riser",
+  },
+  {
+    id: 8,
+    title: "Taxi to client office",
+    category: "Transport",
+    type: "receipt",
+    amount: 35,
+    date: "2026-03-01",
+    status: "Draft",
+    merchant: "Lyft",
+    description: "Downtown to financial district",
+  },
+  {
+    id: 9,
+    title: "Conference parking",
+    category: "Transport",
+    type: "receipt",
+    amount: 45,
+    date: "2026-02-28",
+    status: "Pending",
+    merchant: "SP+ Parking",
+    description: "All-day parking at convention center",
+  },
+  {
+    id: 10,
+    title: "Client visit mileage",
+    category: "Mileage",
+    type: "mileage",
+    amount: 48,
+    date: "2026-02-27",
+    status: "Approved",
+    description: "Visit to prospect office",
+    fromLocation: "HQ - Floor 3",
+    toLocation: "Prospect HQ",
+    distance: 60,
+  },
+];
+
+export const claimsMonthlySpend: ClaimMonthlySpend[] = [
+  { month: "Oct", amount: 3200 },
+  { month: "Nov", amount: 2800 },
+  { month: "Dec", amount: 4100 },
+  { month: "Jan", amount: 3500 },
+  { month: "Feb", amount: 3900 },
+  { month: "Mar", amount: 4250 },
+];
+
+export const claimsSparkline = [3200, 2800, 4100, 3500, 3900, 3800, 4250];
+
+export const MILEAGE_RATE = 0.8;

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { AUTH_COOKIE_NAME } from '@/shared/lib/auth-cookie'
 
-const PROTECTED_PREFIXES = ['/dashboard']
+const PROTECTED_PREFIXES = ['/dashboard', '/dashboard/claims']
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/login') return true

@@ -86,7 +86,7 @@ belive-fo/
 │   ├── features/             # Feature modules
 │   │   ├── attendance/       # Attendance management (planned)
 │   │   ├── leave/            # Leave requests (planned)
-│   │   ├── claims/           # Expense claims (planned)
+│   │   ├── claims/           # Expense claims feature
 │   │   └── lark-sdk/         # Lark integration (planned)
 │   ├── shared/               # Shared utilities
 │   │   ├── hooks/            # Custom React hooks
