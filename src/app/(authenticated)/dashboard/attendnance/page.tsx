@@ -644,6 +644,7 @@ export default function Attendance() {
   // ─── ADMIN VIEW ───
   const selectedStaffProfile = selectedStaffId ? admin.getProfileForUser(selectedStaffId) : null;
   const selectedStaffLogs = selectedStaffId ? admin.getLogsForUser(selectedStaffId) : [];
+  const isHodView = activeChip === "hod";
 
   const adminView = (
     <motion.div
@@ -673,12 +674,16 @@ export default function Attendance() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
             <LatenessAlerts lateArrivals={admin.lateArrivals} onStaffClick={setSelectedStaffId} />
           </motion.div>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-            <PhotoVerificationFeed photos={admin.recentPhotos} />
-          </motion.div>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-            <LocationManager />
-          </motion.div>
+          {!isHodView && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+              <PhotoVerificationFeed photos={admin.recentPhotos} />
+            </motion.div>
+          )}
+          {!isHodView && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+              <LocationManager />
+            </motion.div>
+          )}
         </>
       )}
 
