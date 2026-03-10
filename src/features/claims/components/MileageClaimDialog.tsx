@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,8 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
+import { useHydration } from "@/shared/hooks/useHydration";
 import { MILEAGE_RATE } from "@/features/claims/data";
 
 interface MileageClaimDialogProps {
@@ -32,6 +37,9 @@ export function MileageClaimDialog({
   onMileageDistanceChange,
   mileageAmount,
 }: MileageClaimDialogProps) {
+  const isHydrated = useHydration();
+  const [tripDate, setTripDate] = useState<Date | undefined>();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TooltipProvider delayDuration={150}>
@@ -89,6 +97,25 @@ export function MileageClaimDialog({
               maxLength={100}
               className="h-10 border-border/60 focus-visible:ring-purple-500/40"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="mc-date"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Trip Date
+            </Label>
+            {isHydrated ? (
+              <ScrollDatePicker
+                value={tripDate}
+                onChange={setTripDate}
+                placeholder="Pick date"
+                className="w-full border-border/60 bg-muted/10 focus-visible:ring-purple-500/40"
+              />
+            ) : (
+              <div className="h-10 w-full rounded-xl border border-border/60 bg-muted/20 animate-pulse" aria-hidden />
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -190,7 +217,7 @@ export function MileageClaimDialog({
               htmlFor="mc-desc"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Description
+              Description (optional)
             </Label>
             <Textarea
               id="mc-desc"

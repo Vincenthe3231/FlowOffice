@@ -1,7 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Receipt, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
 import {
   Dialog,
   DialogClose,
@@ -16,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useHydration } from "@/shared/hooks/useHydration";
 import type { ClaimCategory } from "@/features/claims/types";
 
 interface ReceiptClaimDialogProps {
@@ -29,6 +34,9 @@ export function ReceiptClaimDialog({
   onOpenChange,
   categories,
 }: ReceiptClaimDialogProps) {
+  const isHydrated = useHydration();
+  const [receiptDate, setReceiptDate] = useState<Date | undefined>();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TooltipProvider delayDuration={150}>
@@ -136,18 +144,23 @@ export function ReceiptClaimDialog({
               >
                 Receipt Date
               </Label>
-              <Input
-                id="rc-date"
-                type="date"
-                className="h-10 border-border/60 focus-visible:ring-blue-500/40"
-              />
+              {isHydrated ? (
+                <ScrollDatePicker
+                  value={receiptDate}
+                  onChange={setReceiptDate}
+                  placeholder="Pick date"
+                  className="border-border/60 bg-muted/10 focus-visible:ring-blue-500/40"
+                />
+              ) : (
+                <div className="h-10 rounded-xl border border-border/60 bg-muted/20 animate-pulse" aria-hidden />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label
                 htmlFor="rc-merchant"
                 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
               >
-                Merchant
+                Merchant (optional)
               </Label>
               <Input
                 id="rc-merchant"
@@ -163,7 +176,7 @@ export function ReceiptClaimDialog({
               htmlFor="rc-desc"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Description
+              Description (optional)
             </Label>
             <Textarea
               id="rc-desc"
