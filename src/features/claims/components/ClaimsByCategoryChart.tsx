@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
-import { claimCategories } from "@/features/claims/data";
 import { ClaimPieTooltip } from "@/features/claims/components/ClaimPieTooltip";
+import type { ClaimCategory } from "@/features/claims/types";
 
 interface ClaimsByCategoryChartProps {
   pieData: Array<{
@@ -9,9 +9,10 @@ interface ClaimsByCategoryChartProps {
     value: number;
     fill: string;
   }>;
+  categories?: ClaimCategory[];
 }
 
-export function ClaimsByCategoryChart({ pieData }: ClaimsByCategoryChartProps) {
+export function ClaimsByCategoryChart({ pieData, categories = [] }: ClaimsByCategoryChartProps) {
   return (
     <Card className="premium-shadow border-0">
       <CardHeader className="pb-2">
@@ -35,7 +36,7 @@ export function ClaimsByCategoryChart({ pieData }: ClaimsByCategoryChartProps) {
                 <Cell key={entry.name} fill={entry.fill} />
               ))}
             </Pie>
-            <RechartsTooltip content={<ClaimPieTooltip categories={claimCategories} />} />
+            <RechartsTooltip content={<ClaimPieTooltip categories={categories} />} />
             <Legend
               iconType="circle"
               iconSize={8}

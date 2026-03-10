@@ -14,28 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import { MapPin, Plus, Pencil, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useOfficeManagement } from "@/features/attendance/hooks/useOfficeManagement";
+import { geocodeAddress } from "@/shared/lib/api-client/geocode";
 import { OfficeFormData, Office } from "@/shared/lib/api-client/offices";
 
-const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const GEOCODE_DEBOUNCE_MS = 800;
 
 type GeocodeStatus = "idle" | "loading" | "found" | "not_found";
-
-async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
-  const q = address.trim();
-  if (!q) return null;
-  const params = new URLSearchParams({ q, format: "json", limit: "1" });
-  const res = await fetch(`${NOMINATIM_URL}?${params}`, {
-    headers: { "Accept": "application/json", "User-Agent": "FlowOffice/1.0" },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) return null;
-  const lat = parseFloat(data[0].lat);
-  const lon = parseFloat(data[0].lon);
-  if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
-  return { lat, lon };
-}
 
 const emptyForm: OfficeFormData = {
   name: "",
@@ -90,7 +74,7 @@ export function LocationManager() {
     geocodeAddress(address)
       .then((result) => {
         if (result) {
-          setForm((prev) => ({ ...prev, latitude: result.lat, longitude: result.lon }));
+          setForm((prev) => ({ ...prev, latitude: result.lat, longitude: result.lng }));
           setGeocodeStatus("found");
         } else {
           setForm((prev) => ({ ...prev, latitude: 0, longitude: 0 }));

@@ -17,8 +17,14 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { claimCategories, claimsSparkline, MILEAGE_RATE } from "@/features/claims/data";
-import { useClaimCategories, useClaims, useClaimsStats } from "@/features/claims/hooks/useClaims";
+import {
+  useClaimCategories,
+  useClaimCategoriesForChart,
+  useClaims,
+  useClaimsStats,
+  useMileageRate,
+  useMonthlySpend,
+} from "@/features/claims/hooks/useClaims";
 import { BudgetUtilization } from "@/features/claims/components/BudgetUtilization";
 import { ClaimDetailSheet } from "@/features/claims/components/ClaimDetailSheet";
 import { ClaimsByCategoryChart } from "@/features/claims/components/ClaimsByCategoryChart";
@@ -112,9 +118,16 @@ export function ClaimsManagement() {
   const [mileageOpen, setMileageOpen] = useState(false);
   const [claimTypesOpen, setClaimTypesOpen] = useState(false);
 
-  const filteredClaims = useClaims(filter);
-  const { approvedCount, pendingCount, totalAmount, totalClaims } = useClaimsStats();
-  const pieData = useClaimCategories();
+  const { data: claimsData } = useClaims(filter);
+  const { data: statsData } = useClaimsStats();
+  const { data: categories = [] } = useClaimCategories();
+  const pieData = useClaimCategoriesForChart();
+  const { data: monthlySpend = [] } = useMonthlySpend();
+  const { data: mileageRate = 0.8 } = useMileageRate();
+
+  const filteredClaims = claimsData?.claims ?? [];
+  const { approvedCount = 0, pendingCount = 0, totalAmount = 0, totalClaims = 0, sparkline = [] } =
+    statsData ?? {};
 
   function handleClaimTypeClick(id: string) {
     if (id === "receipt") {
@@ -151,7 +164,7 @@ export function ClaimsManagement() {
         pendingCount={pendingCount}
         approvedCount={approvedCount}
         totalClaims={totalClaims}
-        sparkline={claimsSparkline}
+        sparkline={sparkline}
       />
 
       <motion.div
@@ -160,8 +173,8 @@ export function ClaimsManagement() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.08 }}
       >
-        <ClaimsByCategoryChart pieData={pieData} />
-        <MonthlySpendChart />
+        <ClaimsByCategoryChart pieData={pieData} categories={categories} />
+        <MonthlySpendChart monthlySpend={monthlySpend} />
       </motion.div>
 
       <motion.div
@@ -169,7 +182,7 @@ export function ClaimsManagement() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.12 }}
       >
-        <BudgetUtilization />
+        <BudgetUtilization categories={categories} />
       </motion.div>
 
       <motion.div
@@ -263,12 +276,12 @@ export function ClaimsManagement() {
       <ReceiptClaimDialog
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
-        categories={claimCategories}
+        categories={categories}
       />
       <MileageClaimDialog
         open={mileageOpen}
         onOpenChange={setMileageOpen}
-        mileageRate={MILEAGE_RATE}
+        mileageRate={mileageRate}
       />
     </div>
   );

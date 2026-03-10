@@ -1,6 +1,6 @@
 import { Tooltip as RadixTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { claimCategories } from "@/features/claims/data";
+import type { ClaimCategory } from "@/features/claims/types";
 
 function budgetGradient(percent: number) {
   if (percent > 90) return "from-red-400 to-rose-500";
@@ -8,7 +8,11 @@ function budgetGradient(percent: number) {
   return "from-emerald-400 to-green-500";
 }
 
-export function BudgetUtilization() {
+interface BudgetUtilizationProps {
+  categories?: ClaimCategory[];
+}
+
+export function BudgetUtilization({ categories = [] }: BudgetUtilizationProps) {
   return (
     <Card className="premium-shadow border-0">
       <CardHeader className="pb-2">
@@ -16,7 +20,7 @@ export function BudgetUtilization() {
         <p className="mt-1 text-xs text-muted-foreground">Category spend vs budget limits</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {claimCategories.map((category, index) => {
+        {categories.map((category, index) => {
           const percent = Math.round((category.spent / category.budget) * 100);
           const remaining = category.budget - category.spent;
 
@@ -45,7 +49,7 @@ export function BudgetUtilization() {
                 <p>Spent: RM {category.spent.toLocaleString()}</p>
                 <p>Remaining: RM {remaining.toLocaleString()}</p>
                 <p>Utilization: {percent}%</p>
-                <p>Rank: #{index + 1} of {claimCategories.length}</p>
+                <p>Rank: #{index + 1} of {categories.length}</p>
               </TooltipContent>
             </RadixTooltip>
           );

@@ -14,4 +14,27 @@ export const API_ROUTES = {
   },
   /** Prefix for proxied Laravel API (e.g. /api/proxy/attendance/clock-in → Laravel /api/attendance/clock-in) */
   PROXY_PREFIX: '/api/proxy',
+
+  /** Claims (relative to PROXY_PREFIX) */
+  CLAIMS: {
+    LIST: 'claims',
+    CREATE: 'claims',
+    DETAIL: (id: number) => `claims/${id}`,
+    UPDATE: (id: number) => `claims/${id}`,
+    DELETE: (id: number) => `claims/${id}`,
+    ATTACHMENTS: (id: number) => `claims/${id}/attachments`,
+    ATTACHMENT: (id: number, attachmentId: number) => `claims/${id}/attachments/${attachmentId}`,
+    APPROVE: (id: number) => `claims/${id}/approve`,
+    REJECT: (id: number) => `claims/${id}/reject`,
+    MARK_PAID: (id: number) => `claims/${id}/mark-paid`,
+    STATS: 'claims/stats',
+    MONTHLY: 'claims/monthly-spend',
+    MILEAGE_RATE: 'claims/mileage-rate',
+    CALCULATE_DISTANCE: 'claims/calculate-distance',
+  },
+  CLAIM_CATEGORIES: 'claim-categories',
+
+  /** Geocode (Google Maps via backend; relative to PROXY_PREFIX) */
+  GEOCODE: 'geocode',
+  REVERSE_GEOCODE: 'reverse-geocode',
 } as const
