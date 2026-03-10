@@ -30,7 +30,7 @@ export function SpendBarTooltip({
       <p className="font-semibold text-foreground">{label}</p>
       <p className="text-muted-foreground">
         Amount:{" "}
-        <span className="font-semibold text-foreground">${currentAmount.toLocaleString()}</span>
+        <span className="font-semibold text-foreground">RM {currentAmount.toLocaleString()}</span>
       </p>
       {change !== null && (
         <p className="text-muted-foreground">

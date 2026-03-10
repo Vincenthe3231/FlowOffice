@@ -127,7 +127,7 @@ export function ClaimsTable({
                       {claim.category}
                     </TableCell>
                     <TableCell className="px-3 py-2.5 text-xs font-semibold sm:px-4 sm:py-3 sm:text-sm">
-                      ${claim.amount.toFixed(2)}
+                      RM {claim.amount.toFixed(2)}
                     </TableCell>
                     <TableCell className="hidden px-3 py-2.5 text-xs text-muted-foreground md:table-cell md:px-4 md:py-3 md:text-sm">
                       {claim.date}

@@ -27,7 +27,7 @@ export function BudgetUtilization() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-foreground">{category.name}</span>
                     <span className="text-xs text-muted-foreground">
-                      ${category.spent.toLocaleString()} / ${category.budget.toLocaleString()} ({percent}
+                      RM {category.spent.toLocaleString()} / RM {category.budget.toLocaleString()} ({percent}
                       %)
                     </span>
                   </div>
@@ -41,9 +41,9 @@ export function BudgetUtilization() {
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
                 <p className="font-semibold">{category.name}</p>
-                <p>Budget: ${category.budget.toLocaleString()}</p>
-                <p>Spent: ${category.spent.toLocaleString()}</p>
-                <p>Remaining: ${remaining.toLocaleString()}</p>
+                <p>Budget: RM {category.budget.toLocaleString()}</p>
+                <p>Spent: RM {category.spent.toLocaleString()}</p>
+                <p>Remaining: RM {remaining.toLocaleString()}</p>
                 <p>Utilization: {percent}%</p>
                 <p>Rank: #{index + 1} of {claimCategories.length}</p>
               </TooltipContent>

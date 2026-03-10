@@ -37,7 +37,7 @@ export function ClaimsStatCards({
                 Total Claims This Month
               </p>
               <p className="mt-1 text-lg font-bold text-foreground sm:text-xl">
-                ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                RM {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
               <p className="mt-1 text-[11px] font-medium text-info">{totalClaims} claims</p>
             </div>

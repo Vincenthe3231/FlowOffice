@@ -95,7 +95,7 @@ export function ReceiptClaimDialog({
                 htmlFor="rc-amount"
                 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
               >
-                Amount ($)
+                Amount (RM)
               </Label>
               <Input
                 id="rc-amount"

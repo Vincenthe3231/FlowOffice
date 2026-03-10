@@ -172,7 +172,7 @@ export function MileageClaimDialog({
                   Rate
                 </Label>
                 <div className="flex h-10 items-center rounded-md border border-border/40 bg-muted/50 px-3 text-sm font-medium text-muted-foreground">
-                  ${mileageRate}/km
+                  RM {mileageRate}/km
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -180,7 +180,7 @@ export function MileageClaimDialog({
                   Amount
                 </Label>
                 <div className="flex h-10 items-center rounded-md bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-200/40 dark:border-purple-800/30 px-3 text-sm font-bold text-foreground">
-                  ${calculatedAmount}
+                  RM {calculatedAmount}
                 </div>
               </div>
             </div>

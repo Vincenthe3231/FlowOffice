@@ -18,7 +18,7 @@ export function MonthlySpendChart() {
             <YAxis
               tick={{ fontSize: 11 }}
               stroke="hsl(220, 10%, 50%)"
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => `RM ${(value / 1000).toFixed(0)}k`}
             />
             <RechartsTooltip content={<SpendBarTooltip monthlySpend={claimsMonthlySpend} />} />
             <Bar dataKey="amount" fill="hsl(230, 70%, 55%)" radius={[4, 4, 0, 0]} name="Spend" />

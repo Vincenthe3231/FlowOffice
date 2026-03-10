@@ -27,7 +27,7 @@ export function ClaimPieTooltip({
     <div className="rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
       <p className="font-semibold text-foreground">{item.name}</p>
       <p className="text-muted-foreground">
-        Spent: <span className="font-semibold text-foreground">${value.toLocaleString()}</span>
+        Spent: <span className="font-semibold text-foreground">RM {value.toLocaleString()}</span>
       </p>
       <p className="text-muted-foreground">
         Share: <span className="font-semibold text-foreground">{percentage}%</span>

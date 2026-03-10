@@ -133,7 +133,7 @@ export function ClaimDetailSheet({
                         <p className="mt-1 text-base font-semibold text-foreground">{claim.title}</p>
                         <div className="mt-2 flex items-center justify-between">
                           <p className="text-lg font-bold text-foreground">
-                            ${claim.amount.toFixed(2)}
+                            RM {claim.amount.toFixed(2)}
                           </p>
                           <StatusBadge status={claim.status} className="px-2 py-0.5 text-[9px]" />
                         </div>
@@ -144,7 +144,7 @@ export function ClaimDetailSheet({
                           <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
                             <p className="text-[11px] text-muted-foreground">Amount</p>
                             <p className="mt-1 text-base font-bold text-foreground">
-                              ${claim.amount.toFixed(2)}
+                              RM {claim.amount.toFixed(2)}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
