@@ -40,7 +40,7 @@ export function useClaimCategories() {
       claimCategories.map((category, index) => ({
         name: category.name,
         value: category.spent,
-        fill: CLAIM_PIE_COLORS[index % CLAIM_PIE_COLORS.length],
+        fill: CLAIM_PIE_COLORS[index % CLAIM_PIE_COLORS.length] ?? "hsl(var(--muted-foreground))",
       })),
     []
   );

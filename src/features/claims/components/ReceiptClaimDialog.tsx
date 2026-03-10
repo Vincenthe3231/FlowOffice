@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Receipt, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
 import {
   Dialog,
@@ -13,13 +11,11 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHydration } from "@/shared/hooks/useHydration";
 import type { ClaimCategory } from "@/features/claims/types";
 
@@ -39,30 +35,6 @@ export function ReceiptClaimDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              <motion.button
-                type="button"
-                whileHover={{ y: -3, scale: 1.01 }}
-                whileTap={{ scale: 0.985 }}
-                className="block w-full text-left"
-              >
-                <Card className="premium-shadow group flex min-h-36 cursor-pointer flex-col justify-between rounded-3xl border-0 p-5 transition-shadow hover:premium-shadow-lg">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 transition-transform group-hover:scale-105">
-                    <Receipt className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">Submit Receipt Claim</p>
-                </Card>
-              </motion.button>
-            </DialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            Upload receipt and fill details
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-0 shadow-2xl">
         <DialogTitle className="sr-only">New Receipt Claim</DialogTitle>
         <DialogDescription className="sr-only">

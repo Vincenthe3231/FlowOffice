@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -12,59 +10,35 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { useHydration } from "@/shared/hooks/useHydration";
-import { MILEAGE_RATE } from "@/features/claims/data";
 
 interface MileageClaimDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mileageDistance: string;
-  onMileageDistanceChange: (value: string) => void;
-  mileageAmount: string;
+  mileageRate: number;
 }
 
 export function MileageClaimDialog({
   open,
   onOpenChange,
-  mileageDistance,
-  onMileageDistanceChange,
-  mileageAmount,
+  mileageRate,
 }: MileageClaimDialogProps) {
   const isHydrated = useHydration();
   const [tripDate, setTripDate] = useState<Date | undefined>();
+  const [distance, setDistance] = useState("");
+
+  const calculatedAmount =
+    distance && !Number.isNaN(parseFloat(distance))
+      ? (parseFloat(distance) * mileageRate).toFixed(2)
+      : "0.00";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              <motion.button
-                type="button"
-                whileHover={{ y: -3, scale: 1.01 }}
-                whileTap={{ scale: 0.985 }}
-                className="block w-full text-left"
-              >
-                <Card className="premium-shadow group flex min-h-36 cursor-pointer flex-col justify-between rounded-3xl border-0 p-5 transition-shadow hover:premium-shadow-lg">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 transition-transform group-hover:scale-105">
-                    <Car className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">Submit Mileage Claim</p>
-                </Card>
-              </motion.button>
-            </DialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent>Enter trip details and distance</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-0 shadow-2xl">
         <DialogTitle className="sr-only">New Mileage Claim</DialogTitle>
         <DialogDescription className="sr-only">
@@ -184,8 +158,8 @@ export function MileageClaimDialog({
                     type="number"
                     placeholder="0"
                     min={0}
-                    value={mileageDistance}
-                    onChange={(event) => onMileageDistanceChange(event.target.value)}
+                    value={distance}
+                    onChange={(event) => setDistance(event.target.value)}
                     className="h-10 border-border/60 pr-8 focus-visible:ring-purple-500/40"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
@@ -198,7 +172,7 @@ export function MileageClaimDialog({
                   Rate
                 </Label>
                 <div className="flex h-10 items-center rounded-md border border-border/40 bg-muted/50 px-3 text-sm font-medium text-muted-foreground">
-                  ${MILEAGE_RATE}/km
+                  ${mileageRate}/km
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -206,7 +180,7 @@ export function MileageClaimDialog({
                   Amount
                 </Label>
                 <div className="flex h-10 items-center rounded-md bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-200/40 dark:border-purple-800/30 px-3 text-sm font-bold text-foreground">
-                  ${mileageAmount}
+                  ${calculatedAmount}
                 </div>
               </div>
             </div>
