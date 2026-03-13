@@ -32,6 +32,7 @@ export const API_ROUTES = {
     MILEAGE_RATE: 'claims/mileage-rate',
     CALCULATE_DISTANCE: 'claims/calculate-distance',
     TYPES: 'claim-types',
+    TYPE_DETAIL: (id: string | number) => `claim-types/${id}`,
     TYPE_SUBCLAIMS: (id: string | number) => `claim-types/${id}/subclaim-types`,
     CLAIM_APPROVALS: (id: number) => `claims/${id}/approvals`,
     APPROVAL_THRESHOLD: 'claims/approval-threshold',

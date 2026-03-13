@@ -24,6 +24,7 @@ import {
   ScrollText,
   Calendar,
   FileText,
+  List,
   ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -67,19 +68,19 @@ const reportNav = [
   { title: "Reports & Export", href: "/dashboard/reports", icon: BarChart3 },
 ];
 
-const settingsNav = [
+const baseSettingsNav = [
   { title: "Work Locations", href: "/dashboard/settings/locations", icon: MapPin },
   { title: "Work Mode", href: "/dashboard/settings/work-mode", icon: Monitor },
   { title: "Shift Scheduling", href: "/dashboard/settings/shifts", icon: Calendar },
   { title: "Audit Trail", href: "/dashboard/settings/audit", icon: ScrollText },
 ];
 
-const navGroups: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] = [
+const navGroupsBase: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] = [
   { label: "Main", items: mainNav },
   { label: "Attendance", items: attendanceNav },
   { label: "Overtime", items: overtimeNav },
   { label: "Reports", items: reportNav },
-  { label: "Settings", items: settingsNav },
+  { label: "Settings", items: baseSettingsNav },
 ];
 
 function MenuOption({
@@ -152,9 +153,33 @@ export function BottomNav() {
   const currentMode = customizer?.activeMode ?? "light";
   const hasSearchQuery = findQuery.trim().length > 0;
   const isPanelOpen = isOpen || hasSearchQuery;
+
+  const isClaimTypesAdmin =
+    profile?.role === "hr_admin" || profile?.role === "super_admin";
+  const settingsNav = useMemo(
+    () =>
+      isClaimTypesAdmin
+        ? [
+            ...baseSettingsNav,
+            {
+              title: "Manage Claims",
+              href: "/dashboard/settings/claim-types",
+              icon: List,
+            },
+          ]
+        : baseSettingsNav,
+    [isClaimTypesAdmin]
+  );
+  const navGroups = useMemo(
+    () =>
+      navGroupsBase.map((g) =>
+        g.label === "Settings" ? { ...g, items: settingsNav } : g
+      ),
+    [settingsNav]
+  );
   const pinnedGroups = useMemo(
     () => filterNavGroupsByQuery(navGroups, findQuery),
-    [findQuery]
+    [navGroups, findQuery]
   );
 
   useEffect(() => {

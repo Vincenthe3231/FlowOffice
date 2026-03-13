@@ -5,7 +5,6 @@ import type { CustomField } from "@/features/claims/types";
 
 interface ClaimReviewSummaryProps {
   claimantName: string;
-  claimantNickname: string;
   claimTypeLabel: string;
   subclaimLabel?: string;
   formData: Record<string, unknown>;
@@ -15,7 +14,6 @@ interface ClaimReviewSummaryProps {
 
 export function ClaimReviewSummary({
   claimantName,
-  claimantNickname,
   claimTypeLabel,
   subclaimLabel,
   formData,
@@ -24,7 +22,6 @@ export function ClaimReviewSummary({
 }: ClaimReviewSummaryProps) {
   const fieldDisplay = [
     { label: "Full Name", value: claimantName },
-    { label: "Nickname", value: claimantNickname },
     { label: "Claim Type", value: claimTypeLabel },
     ...(subclaimLabel ? [{ label: "Subclaim", value: subclaimLabel }] : []),
     ...(formData.title ? [{ label: "Title", value: String(formData.title) }] : []),

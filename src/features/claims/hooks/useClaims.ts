@@ -10,6 +10,8 @@ import {
   uploadClaimAttachment,
   fetchClaimTypes as fetchClaimTypesApi,
   fetchSubclaimTypes as fetchSubclaimTypesApi,
+  createClaimType as createClaimTypeApi,
+  deleteClaimType as deleteClaimTypeApi,
   fetchClaimById,
   fetchClaimApprovals as fetchClaimApprovalsApi,
   fetchAllClaimsForApproval as fetchAllClaimsForApprovalApi,
@@ -30,6 +32,7 @@ import type {
 import type {
   CreateClaimPayload,
   ApproveRejectPayload,
+  CreateClaimTypePayload,
 } from "@/shared/lib/api-client/claims";
 import { extractError } from "@/shared/lib/api-client/response-handler";
 
@@ -307,6 +310,36 @@ export function useCreateSubclaim() {
     onError: (err) => {
       const apiError = extractError(err);
       toast.error(apiError.message ?? "Failed to create subclaim type");
+    },
+  });
+}
+
+export function useCreateClaimType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateClaimTypePayload) => createClaimTypeApi(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claimTypes() });
+      toast.success("Claim type created");
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to create claim type");
+    },
+  });
+}
+
+export function useDeleteClaimType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string | number) => deleteClaimTypeApi(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claimTypes() });
+      toast.success("Claim type deleted");
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to delete claim type");
     },
   });
 }

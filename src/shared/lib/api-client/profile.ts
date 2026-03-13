@@ -8,6 +8,8 @@ export interface OfficeSummary {
   address: string | null
 }
 
+export type ProfileRole = "super_admin" | "hr_admin" | "manager" | "employee"
+
 export interface Profile {
   id: string
   userId: string
@@ -22,6 +24,7 @@ export interface Profile {
   faceRightUrl: string | null
   officeId: string | null
   managerId: string | null
+  role?: ProfileRole | null
   createdAt: string
   updatedAt: string
   office?: OfficeSummary | null

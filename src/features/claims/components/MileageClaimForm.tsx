@@ -116,8 +116,8 @@ export function MileageClaimForm({
                 placeholder="0"
                 min={0}
                 value={String(distance)}
-                onChange={(e) => update("distance", e.target.value)}
-                className="h-10 pr-8 focus-visible:ring-primary/40"
+                readOnly
+                className="h-10 pr-8 bg-muted/50 cursor-default focus-visible:ring-0"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
                 km

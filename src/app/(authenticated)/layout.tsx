@@ -13,6 +13,7 @@ import {
   ScrollText,
   Calendar,
   FileText,
+  List,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { useProfile } from "@/features/profile/hooks/useProfile";
 
 const mainNav = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -71,7 +73,7 @@ const reportNav = [
   { title: "Reports & Export", href: "/dashboard/reports", icon: BarChart3 },
 ];
 
-const settingsNav = [
+const baseSettingsNav = [
   { title: "Work Locations", href: "/dashboard/settings/locations", icon: MapPin },
   { title: "Work Mode", href: "/dashboard/settings/work-mode", icon: Monitor },
   { title: "Shift Scheduling", href: "/dashboard/settings/shifts", icon: Calendar },
@@ -125,9 +127,27 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
   const [viewMode, setViewMode] = React.useState<ViewMode>("website");
+
+  const isClaimTypesAdmin =
+    profile?.role === "hr_admin" || profile?.role === "super_admin";
+  const settingsNav = React.useMemo(
+    () =>
+      isClaimTypesAdmin
+        ? [
+            ...baseSettingsNav,
+            {
+              title: "Manage Claims",
+              href: "/dashboard/settings/claim-types",
+              icon: List,
+            },
+          ]
+        : baseSettingsNav,
+    [isClaimTypesAdmin]
+  );
 
   const handleLogout = async () => {
     try {

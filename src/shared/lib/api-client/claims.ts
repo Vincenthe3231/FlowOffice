@@ -31,6 +31,25 @@ export interface ClaimAttachmentApi {
   mimeType?: string
 }
 
+export interface ClaimTypeRef {
+  id: string | number
+  key: string
+  label: string
+  description?: string
+  icon?: string
+  color?: string
+}
+
+export interface SubclaimTypeRef {
+  id: string | number
+  claimTypeId: string
+  key: string
+  label: string
+  rate?: number | null
+  status?: string
+  description?: string
+}
+
 export interface ClaimApiResponse {
   id: number
   title: string
@@ -44,6 +63,8 @@ export interface ClaimApiResponse {
   mileage?: ClaimMileageApi | null
   attachments?: ClaimAttachmentApi[]
   createdAt?: string
+  claimType?: ClaimTypeRef | null
+  subclaimType?: SubclaimTypeRef | null
 }
 
 export interface ClaimsListResponse {
@@ -136,6 +157,8 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     description: row.description ?? '',
     type: row.type as Claim['type'],
     merchant: row.merchant ?? undefined,
+    claimTypeLabel: row.claimType?.label ?? undefined,
+    subclaimTypeLabel: row.subclaimType?.label ?? undefined,
   }
   if (row.type === 'mileage' && row.mileage) {
     return {
@@ -335,6 +358,23 @@ export async function fetchSubclaimTypes(claimTypeId: string): Promise<SubclaimT
   )
   const data = extractData<SubclaimTypeApi[]>(response)
   return Array.isArray(data) ? data : []
+}
+
+export interface CreateClaimTypePayload {
+  key: string
+  label: string
+  description?: string
+  icon?: string
+  color?: string
+}
+
+export async function createClaimType(data: CreateClaimTypePayload): Promise<ClaimTypeApi> {
+  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.TYPES}`, data)
+  return extractData<ClaimTypeApi>(response)
+}
+
+export async function deleteClaimType(id: string | number): Promise<void> {
+  await laravelApi.delete(`${PROXY}/${API_ROUTES.CLAIMS.TYPE_DETAIL(id)}`)
 }
 
 // ---------------------------------------------------------------------------

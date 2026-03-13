@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import {
   FileText as FileTextIcon,
   Clock,
   AlertCircle,
+  Settings,
 } from "lucide-react";
 import { ReceiptClaimForm } from "@/features/claims/components/ReceiptClaimForm";
 import { MileageClaimForm } from "@/features/claims/components/MileageClaimForm";
@@ -39,6 +40,7 @@ import { ClaimReviewSummary } from "@/features/claims/components/ClaimReviewSumm
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
 import { CreateSubclaimDialog } from "@/features/claims/components/CreateSubclaimDialog";
 import { useClaimDraftStore } from "@/features/claims/stores/useClaimDraftStore";
+import { useProfile } from "@/features/profile/hooks/useProfile";
 import {
   useClaimTypes,
   useSubclaimTypes,
@@ -47,8 +49,8 @@ import {
   useClaimCategories,
   useClaimById,
 } from "@/features/claims/hooks/useClaims";
+import { calculateDistance } from "@/shared/lib/api-client/claims";
 import type { Claim, ClaimType, ClaimApproval } from "@/features/claims/types";
-import { FALLBACK_CLAIM_TYPES } from "@/features/claims/data/claimTypesFallback";
 
 const steps = [
   { id: 1, label: "Claimant", icon: User },
@@ -93,8 +95,13 @@ export function NewClaimWizard() {
     resubmitId != null && !Number.isNaN(resubmitId) ? resubmitId : null;
 
   const draft = useClaimDraftStore();
+  const { profile } = useProfile();
   const resubmitLoadedRef = useRef(false);
   const draftPromptShownRef = useRef(false);
+  const prevStepRef = useRef<number>(0);
+
+  const isClaimTypesAdmin =
+    profile?.role === "hr_admin" || profile?.role === "super_admin";
 
   const { data: claimTypes, isLoading: typesLoading } = useClaimTypes();
   const { data: subclaimTypes } = useSubclaimTypes(draft.selectedTypeId);
@@ -104,7 +111,7 @@ export function NewClaimWizard() {
   const { data: resubmitClaim } = useClaimById(resubmitIdValid);
 
   const currentStep = draft.currentStep;
-  const displayClaimTypes = claimTypes?.length ? claimTypes : FALLBACK_CLAIM_TYPES;
+  const displayClaimTypes = claimTypes ?? [];
   const selectedTypeData = displayClaimTypes.find((t) => t.id === draft.selectedTypeId);
 
   // Resubmit: when claim is loaded, clear draft and populate from API (Claim shape; extend when API returns claimant/custom_fields)
@@ -128,7 +135,7 @@ export function NewClaimWizard() {
       c.claimant_name ?? "",
       c.claimant_nickname ?? ""
     );
-    const typesForResubmit = claimTypes?.length ? claimTypes : FALLBACK_CLAIM_TYPES;
+    const typesForResubmit = claimTypes ?? [];
     if (c.type) {
       const typeMatch = typesForResubmit.find(
         (t) => t.key === c.type || t.id === String(c.claim_type_id ?? "")
@@ -167,6 +174,14 @@ export function NewClaimWizard() {
     });
   }, [resubmitIdValid, resubmitClaim, claimTypes, draft]);
 
+  // Clear claim type selection when entering step 2 so Next stays disabled until user picks a type (avoids persisted draft making Next enabled)
+  useEffect(() => {
+    if (currentStep === 2 && prevStepRef.current !== 2) {
+      draft.setType(null, null);
+    }
+    prevStepRef.current = currentStep;
+  }, [currentStep, draft]);
+
   // Draft-resume toast (one-time when opening /claims/new with existing draft, no resubmit)
   useEffect(() => {
     if (
@@ -192,21 +207,25 @@ export function NewClaimWizard() {
     });
   }, [resubmitIdValid, draft.hasDraft, draft.lastSaved, draft]);
 
-  // Pre-select type from URL (e.g. ?type=receipt or ?type=mileage); use fallback list when API returns no types
+  // Sync claimant name from profile when not resubmitting (profile name is source of truth)
+  useEffect(() => {
+    if (resubmitIdValid != null || !profile) return;
+    const name = profile.fullName ?? "";
+    if (name.trim()) draft.setClaimant(name.trim(), "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draft.setClaimant is stable; only run when profile or resubmit changes
+  }, [profile, resubmitIdValid]);
+
+  // Pre-select type from URL (e.g. ?type=receipt or ?type=mileage)
   useEffect(() => {
     if (!typeParam) return;
-    const types = claimTypes?.length ? claimTypes : FALLBACK_CLAIM_TYPES;
+    const types = claimTypes ?? [];
     const match = types.find((t) => t.key === typeParam || t.id === typeParam);
     if (match) draft.setType(match.id, match.key);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when URL or claimTypes change, not on every draft update
   }, [typeParam, claimTypes]);
 
   const canNext = () => {
-    if (currentStep === 1)
-      return (
-        draft.claimantName.trim().length > 0 &&
-        draft.claimantNickname.trim().length > 0
-      );
+    if (currentStep === 1) return draft.claimantName.trim().length > 0;
     if (currentStep === 2) return draft.selectedTypeId !== null;
     if (currentStep === 3)
       return !subclaimTypes?.length || draft.selectedSubclaimId !== null;
@@ -214,6 +233,10 @@ export function NewClaimWizard() {
   };
 
   const handleNext = () => {
+    if (currentStep === 2 && !draft.selectedTypeId) {
+      toast.error("Please select a claim type.");
+      return;
+    }
     if (currentStep < 5) draft.setStep(currentStep + 1);
   };
 
@@ -313,24 +336,55 @@ export function NewClaimWizard() {
 
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
 
+  const runMileageDistanceCalculation = useCallback(() => {
+    const from = String(draft.formData.fromLocation ?? "").trim();
+    const to = String(draft.formData.toLocation ?? "").trim();
+    if (!from || !to) return;
+    calculateDistance(from, to)
+      .then((km) => {
+        if (km !== null) {
+          const distanceCeiled = Math.ceil(km);
+          draft.updateFormField("distance", String(distanceCeiled));
+          draft.updateFormField(
+            "amount",
+            (distanceCeiled * mileageRate).toFixed(2)
+          );
+        } else {
+          toast.error(
+            "Unable to calculate distance. You can enter the distance manually."
+          );
+        }
+      })
+      .catch(() => {
+        toast.error(
+          "Unable to calculate distance. You can enter the distance manually."
+        );
+      });
+  }, [
+    draft.formData.fromLocation,
+    draft.formData.toLocation,
+    draft.updateFormField,
+    mileageRate,
+  ]);
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <div className="relative overflow-hidden rounded-2xl gradient-primary animate-gradient p-6 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl gradient-modernize-blue p-6 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         <div className="relative flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push("/dashboard/claims")}
-            className="shrink-0 text-primary-foreground hover:bg-white/10"
+            className="shrink-0 text-white hover:bg-white/10"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-primary-foreground">
+            <h1 className="text-2xl font-bold text-white">
               {resubmitIdValid != null ? "Resubmit Claim" : "Submit New Claim"}
             </h1>
-            <p className="text-sm text-primary-foreground/80 mt-0.5">
+            <p className="text-sm text-white/80 mt-0.5">
               Step {currentStep} of 5
             </p>
           </div>
@@ -351,9 +405,9 @@ export function NewClaimWizard() {
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                     isCompleted
-                      ? "gradient-primary border-transparent text-primary-foreground shadow-lg"
+                      ? "gradient-modernize-blue border-transparent text-white shadow-lg"
                       : isActive
-                        ? "border-primary glass-card animate-glow text-primary"
+                        ? "border-blue-500 glass-card animate-glow-blue text-blue-600"
                         : "border-border/50 glass-card text-muted-foreground"
                   }`}
                 >
@@ -364,14 +418,14 @@ export function NewClaimWizard() {
                   )}
                 </div>
                 <span
-                  className={`text-xs font-medium hidden sm:block ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                  className={`text-xs font-medium hidden sm:block ${isActive ? "text-blue-600" : "text-muted-foreground"}`}
                 >
                   {step.label}
                 </span>
               </div>
               {i < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-3 mt-[-20px] rounded-full transition-all duration-300 ${currentStep > step.id ? "gradient-primary" : "bg-border/30"}`}
+                  className={`flex-1 h-0.5 mx-3 mt-[-20px] rounded-full transition-all duration-300 ${currentStep > step.id ? "gradient-modernize-blue" : "bg-border/30"}`}
                 />
               )}
             </div>
@@ -396,7 +450,7 @@ export function NewClaimWizard() {
                       Claimant Information
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Enter your details.
+                      Fetched from your profile.
                     </p>
                   </div>
                   <div className="space-y-4 max-w-md">
@@ -405,33 +459,13 @@ export function NewClaimWizard() {
                         htmlFor="claimant-name"
                         className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                       >
-                        Full Name <span className="text-destructive">*</span>
+                        Full Name
                       </Label>
                       <Input
                         id="claimant-name"
-                        placeholder="Enter your full name"
                         value={draft.claimantName}
-                        onChange={(e) =>
-                          draft.setClaimant(e.target.value, draft.claimantNickname)
-                        }
-                        className="h-11 focus-visible:ring-primary/40"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="claimant-nickname"
-                        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                      >
-                        Nickname <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="claimant-nickname"
-                        placeholder="Enter your nickname"
-                        value={draft.claimantNickname}
-                        onChange={(e) =>
-                          draft.setClaimant(draft.claimantName, e.target.value)
-                        }
-                        className="h-11 focus-visible:ring-primary/40"
+                        readOnly
+                        className="h-11 bg-muted/50 cursor-default"
                       />
                     </div>
                   </div>
@@ -440,17 +474,43 @@ export function NewClaimWizard() {
 
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">
-                      Select Claim Type
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Choose the type of claim you want to submit.
-                    </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Select Claim Type
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Choose the type of claim you want to submit.
+                      </p>
+                    </div>
+                    {isClaimTypesAdmin && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push("/dashboard/settings/claim-types")}
+                        className="shrink-0 gap-1.5"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                        Manage Claims
+                      </Button>
+                    )}
                   </div>
                   {typesLoading ? (
                     <p className="text-sm text-muted-foreground">
                       Loading claim types...
+                    </p>
+                  ) : displayClaimTypes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">
+                      No claim types available. Ask an admin to add them in{" "}
+                      <button
+                        type="button"
+                        onClick={() => router.push("/dashboard/settings/claim-types")}
+                        className="underline text-primary hover:no-underline"
+                      >
+                        Manage Claims
+                      </button>
+                      .
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -462,7 +522,7 @@ export function NewClaimWizard() {
                         const colorClass =
                           type.color && typeColorMap[type.color]
                             ? typeColorMap[type.color]
-                            : "bg-primary/10 text-primary";
+                            : "bg-blue-500/10 text-blue-600";
                         const description =
                           type.description ??
                           (type.key === "receipt"
@@ -478,13 +538,13 @@ export function NewClaimWizard() {
                             onClick={() => draft.setType(type.id, type.key)}
                             className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all glass-card ${
                               isSelected
-                                ? "border-primary/50 shadow-lg animate-glow"
+                                ? "border-blue-500/50 shadow-lg animate-glow-blue"
                                 : "border-border/30 hover:border-border/60"
                             }`}
                           >
                             {isSelected && (
-                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full gradient-primary shadow-md">
-                                <Check className="h-3 w-3 text-primary-foreground" />
+                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full gradient-modernize-blue shadow-md">
+                                <Check className="h-3 w-3 text-white" />
                               </div>
                             )}
                             <div
@@ -536,13 +596,13 @@ export function NewClaimWizard() {
                               onClick={() => draft.setSubclaim(sub.id)}
                               className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all glass-card ${
                                 isSelected
-                                  ? "border-primary/50 shadow-lg animate-glow"
+                                  ? "border-blue-500/50 shadow-lg animate-glow-blue"
                                   : "border-border/30 hover:border-border/60"
                               }`}
                             >
                               {isSelected && (
-                                <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full gradient-primary shadow-md">
-                                  <Check className="h-3 w-3 text-primary-foreground" />
+                                <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full gradient-modernize-blue shadow-md">
+                                  <Check className="h-3 w-3 text-white" />
                                 </div>
                               )}
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stat-purple">
@@ -568,7 +628,7 @@ export function NewClaimWizard() {
                                   </p>
                                 )}
                                 {sub.rate != null && (
-                                  <p className="text-xs text-primary font-medium mt-0.5">
+                                  <p className="text-xs text-blue-600 font-medium mt-0.5">
                                     RM {Number(sub.rate).toFixed(2)}/km
                                   </p>
                                 )}
@@ -630,6 +690,8 @@ export function NewClaimWizard() {
                       mileageRate={Number(mileageRate)}
                       formData={draft.formData as Record<string, unknown>}
                       onUpdate={draft.updateFormField}
+                      onFromBlur={runMileageDistanceCalculation}
+                      onToBlur={runMileageDistanceCalculation}
                     />
                   )}
 
@@ -665,7 +727,6 @@ export function NewClaimWizard() {
 
                   <ClaimReviewSummary
                     claimantName={draft.claimantName}
-                    claimantNickname={draft.claimantNickname}
                     claimTypeLabel={selectedTypeData?.label ?? ""}
                     subclaimLabel={
                       subclaimTypes?.find(
@@ -678,8 +739,8 @@ export function NewClaimWizard() {
                   />
 
                   <div className="rounded-xl p-4 glass-card">
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10 mb-4">
-                      <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 mb-4">
+                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                       <p className="text-xs text-muted-foreground">
                         Your claim will go through{" "}
                         {getAmount() >= thresholdAmount ? "3-level" : "2-level"}{" "}
@@ -704,7 +765,7 @@ export function NewClaimWizard() {
         <Button
           variant="outline"
           onClick={handleBack}
-          className="gap-1.5 hover:bg-primary/5"
+          className="gap-1.5 hover:bg-blue-500/5 hover:border-blue-500/30"
         >
           <ChevronLeft className="h-4 w-4" />
           {currentStep === 1 ? "Cancel" : "Back"}
@@ -724,7 +785,7 @@ export function NewClaimWizard() {
             <Button
               onClick={handleNext}
               disabled={!canNext()}
-              className="gap-1.5 gradient-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow"
+              className="gap-1.5 gradient-modernize-blue text-white shadow-lg hover:shadow-xl transition-shadow"
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -733,7 +794,7 @@ export function NewClaimWizard() {
             <Button
               onClick={handleSubmit}
               disabled={submitClaim.isPending}
-              className="gap-1.5 gradient-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow"
+              className="gap-1.5 gradient-modernize-blue text-white shadow-lg hover:shadow-xl transition-shadow"
             >
               {submitClaim.isPending ? "Submitting..." : "Submit Claim"}
             </Button>

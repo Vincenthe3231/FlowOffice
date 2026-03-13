@@ -250,11 +250,27 @@
   animation: gradient-shift 6s ease infinite;
 }
 
+/* Modernize-style blue gradient (claims hero + FAB) */
+.gradient-modernize-blue {
+  background: linear-gradient(135deg, hsl(221 83% 53%), hsl(235 70% 50%));
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 12px hsl(230 70% 55% / 0.15); }
   50% { box-shadow: 0 0 24px hsl(270 60% 55% / 0.3); }
 }
 
+@keyframes glow-pulse-blue {
+  0%, 100% { box-shadow: 0 0 12px hsl(221 83% 53% / 0.25); }
+  50% { box-shadow: 0 0 24px hsl(235 70% 50% / 0.4); }
+}
+
 .animate-glow {
   animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-glow-blue {
+  animation: glow-pulse-blue 3s ease-in-out infinite;
 }

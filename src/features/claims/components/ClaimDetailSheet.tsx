@@ -161,7 +161,7 @@ export function ClaimDetailSheet({
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-xs text-muted-foreground">Category</span>
                               <span className="text-xs font-medium text-foreground">
-                                {claim.category}
+                                {claim.claimTypeLabel ?? claim.category ?? "—"}
                               </span>
                             </div>
                             <div className="flex items-center justify-between gap-3">
@@ -172,7 +172,7 @@ export function ClaimDetailSheet({
                                 ) : (
                                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                                 )}
-                                {claim.type}
+                                {claim.subclaimTypeLabel ?? claim.type ?? "—"}
                               </span>
                             </div>
                             {claim.merchant && (

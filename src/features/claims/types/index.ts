@@ -31,6 +31,10 @@ interface BaseClaim {
   description: string;
   type: ClaimSubmissionType;
   merchant?: string;
+  /** Main claim type label from API (e.g. "Business Travel") */
+  claimTypeLabel?: string;
+  /** Subclaim type label from API (e.g. "Hotel") */
+  subclaimTypeLabel?: string;
 }
 
 export interface ReceiptClaim extends BaseClaim {
