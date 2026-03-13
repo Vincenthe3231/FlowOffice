@@ -17,6 +17,8 @@ export function ClaimPieTooltip({
   if (!active || !payload?.length) return null;
 
   const item = payload[0];
+  if (item == null) return null;
+
   const totalSpent = categories.reduce((sum, category) => sum + category.spent, 0);
   const sortedCategories = [...categories].sort((a, b) => b.spent - a.spent);
   const rank = sortedCategories.findIndex((category) => category.name === item.name) + 1;

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Car, FileText } from "lucide-react";
+import { Car, FileText, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/features/attendance";
@@ -12,6 +13,7 @@ interface ClaimsTableProps {
   onFilterChange: (value: ClaimFilter) => void;
   claims: Claim[];
   onClaimSelect: (claim: Claim) => void;
+  onResubmit?: (claim: Claim) => void;
 }
 
 export function ClaimsTable({
@@ -19,6 +21,7 @@ export function ClaimsTable({
   onFilterChange,
   claims,
   onClaimSelect,
+  onResubmit,
 }: ClaimsTableProps) {
   const handleFilterSelect = (value: ClaimFilter) => {
     if (value !== filter) {
@@ -95,6 +98,9 @@ export function ClaimsTable({
                   <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
                     Status
                   </TableHead>
+                  <TableHead className="h-9 w-[80px] px-3 text-right text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,6 +140,22 @@ export function ClaimsTable({
                     </TableCell>
                     <TableCell className="px-3 py-2.5 sm:px-4 sm:py-3">
                       <StatusBadge status={claim.status} className="px-2 py-0.5 text-[9px] sm:text-[10px]" />
+                    </TableCell>
+                    <TableCell className="px-3 py-2.5 text-right sm:px-4 sm:py-3">
+                      {claim.status === "Rejected" && onResubmit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 text-[10px] sm:text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResubmit(claim);
+                          }}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Resubmit
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

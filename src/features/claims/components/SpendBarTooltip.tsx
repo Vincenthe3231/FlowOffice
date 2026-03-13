@@ -17,9 +17,9 @@ export function SpendBarTooltip({
 }: SpendBarTooltipProps) {
   if (!active || !payload?.length || !label) return null;
 
-  const currentAmount = payload[0].value ?? 0;
+  const currentAmount = payload[0]?.value ?? 0;
   const currentIndex = monthlySpend.findIndex((entry) => entry.month === label);
-  const previousAmount = currentIndex > 0 ? monthlySpend[currentIndex - 1].amount : null;
+  const previousAmount = currentIndex > 0 ? monthlySpend[currentIndex - 1]?.amount ?? null : null;
   const change =
     previousAmount && previousAmount !== 0
       ? (((currentAmount - previousAmount) / previousAmount) * 100).toFixed(1)

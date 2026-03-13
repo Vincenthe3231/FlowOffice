@@ -16,13 +16,13 @@ import {
   Route,
 } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   useClaimCategories,
   useClaimCategoriesForChart,
   useClaims,
   useClaimsStats,
-  useMileageRate,
   useMonthlySpend,
 } from "@/features/claims/hooks/useClaims";
 import { BudgetUtilization } from "@/features/claims/components/BudgetUtilization";
@@ -30,11 +30,10 @@ import { ClaimDetailSheet } from "@/features/claims/components/ClaimDetailSheet"
 import { ClaimsByCategoryChart } from "@/features/claims/components/ClaimsByCategoryChart";
 import { ClaimsStatCards } from "@/features/claims/components/ClaimsStatCards";
 import { ClaimsTable } from "@/features/claims/components/ClaimsTable";
-import { MileageClaimDialog } from "@/features/claims/components/MileageClaimDialog";
 import { MonthlySpendChart } from "@/features/claims/components/MonthlySpendChart";
-import { ReceiptClaimDialog } from "@/features/claims/components/ReceiptClaimDialog";
 import type { Claim, ClaimFilter } from "@/features/claims/types";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const claimTypes = [
   {
@@ -112,10 +111,9 @@ const claimTypes = [
 ] as const;
 
 export function ClaimsManagement() {
+  const router = useRouter();
   const [filter, setFilter] = useState<ClaimFilter>("All");
   const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(null);
-  const [receiptOpen, setReceiptOpen] = useState(false);
-  const [mileageOpen, setMileageOpen] = useState(false);
   const [claimTypesOpen, setClaimTypesOpen] = useState(false);
 
   const { data: claimsData } = useClaims(filter);
@@ -123,7 +121,6 @@ export function ClaimsManagement() {
   const { data: categories = [] } = useClaimCategories();
   const pieData = useClaimCategoriesForChart();
   const { data: monthlySpend = [] } = useMonthlySpend();
-  const { data: mileageRate = 0.8 } = useMileageRate();
 
   const filteredClaims = claimsData?.claims ?? [];
   const { approvedCount = 0, pendingCount = 0, totalAmount = 0, totalClaims = 0, sparkline = [] } =
@@ -131,11 +128,11 @@ export function ClaimsManagement() {
 
   function handleClaimTypeClick(id: string) {
     if (id === "receipt") {
-      setReceiptOpen(true);
+      router.push("/dashboard/claims/new?type=receipt");
       return;
     }
     if (id === "mileage") {
-      setMileageOpen(true);
+      router.push("/dashboard/claims/new?type=mileage");
       return;
     }
     toast.info("Coming Soon");
@@ -148,16 +145,26 @@ export function ClaimsManagement() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground">Claims Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Submit, track, and manage expense claims
-        </p>
-      </motion.div>
+      <div className="relative overflow-hidden rounded-2xl gradient-primary animate-gradient p-6 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary-foreground">
+              Claims Management
+            </h1>
+            <p className="text-sm text-primary-foreground/70 mt-1">
+              Submit, track, and manage expense claims
+            </p>
+          </div>
+          <Button
+            onClick={() => router.push("/dashboard/claims/new")}
+            className="gap-1.5 hidden md:flex bg-white/15 hover:bg-white/25 text-primary-foreground border border-white/20 backdrop-blur-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Submit New Claim
+          </Button>
+        </div>
+      </div>
 
       <ClaimsStatCards
         totalAmount={totalAmount}
@@ -263,6 +270,7 @@ export function ClaimsManagement() {
             onFilterChange={setFilter}
             claims={filteredClaims}
             onClaimSelect={handleClaimSelect}
+            onResubmit={(c) => router.push(`/dashboard/claims/new?resubmit=${c.id}`)}
           />
         </motion.div>
       </AnimatePresence>
@@ -273,16 +281,13 @@ export function ClaimsManagement() {
         onClose={() => setSelectedClaimIndex(null)}
       />
 
-      <ReceiptClaimDialog
-        open={receiptOpen}
-        onOpenChange={setReceiptOpen}
-        categories={categories}
-      />
-      <MileageClaimDialog
-        open={mileageOpen}
-        onOpenChange={setMileageOpen}
-        mileageRate={mileageRate}
-      />
+      <Button
+        onClick={() => router.push("/dashboard/claims/new")}
+        className="fixed bottom-6 right-6 md:hidden z-40 rounded-full shadow-xl h-14 w-14 p-0 gradient-primary animate-glow"
+        size="icon"
+      >
+        <Plus className="h-6 w-6 text-primary-foreground" />
+      </Button>
     </div>
   );
 }

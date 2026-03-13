@@ -68,6 +68,48 @@ export interface MileageRateApi {
   rate: number
 }
 
+// Wizard / approval API types (camelCase after transform)
+export interface ClaimTypeApi {
+  id: string | number
+  key: string
+  label: string
+  description?: string
+  icon?: string
+  color?: string
+}
+
+export interface SubclaimTypeApi {
+  id: string | number
+  claimTypeId: string
+  key: string
+  label: string
+  rate?: number | null
+  status?: string
+  description?: string
+}
+
+export interface ClaimApprovalApi {
+  id: number
+  claimId: number
+  level: number
+  status: 'pending' | 'approved' | 'rejected'
+  reason?: string | null
+  decidedAt?: string | null
+}
+
+export interface ApprovalThresholdApi {
+  id?: number
+  level1Max?: number
+  level2Max?: number
+  level3Min?: number
+}
+
+export interface ClaimWithApprovalsApi extends ClaimApiResponse {
+  claimApprovals?: ClaimApprovalApi[]
+  claimTypes?: { key: string; label: string }
+  subclaimTypes?: { key: string; label: string; rate?: number }
+}
+
 // ---------------------------------------------------------------------------
 // Map API response to frontend Claim type
 // ---------------------------------------------------------------------------
@@ -275,4 +317,116 @@ export async function calculateDistance(from: string, to: string): Promise<numbe
     return Number(Number(data.distanceKm).toFixed(2))
   }
   return null
+}
+
+// ---------------------------------------------------------------------------
+// Claim types & subclaim types (wizard)
+// ---------------------------------------------------------------------------
+
+export async function fetchClaimTypes(): Promise<ClaimTypeApi[]> {
+  const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.TYPES}`)
+  const data = extractData<ClaimTypeApi[]>(response)
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchSubclaimTypes(claimTypeId: string): Promise<SubclaimTypeApi[]> {
+  const response = await laravelApi.get(
+    `${PROXY}/${API_ROUTES.CLAIMS.TYPE_SUBCLAIMS(claimTypeId)}`
+  )
+  const data = extractData<SubclaimTypeApi[]>(response)
+  return Array.isArray(data) ? data : []
+}
+
+// ---------------------------------------------------------------------------
+// Claim approvals & threshold
+// ---------------------------------------------------------------------------
+
+export async function fetchClaimApprovals(claimId: number): Promise<ClaimApprovalApi[]> {
+  const response = await laravelApi.get(
+    `${PROXY}/${API_ROUTES.CLAIMS.CLAIM_APPROVALS(claimId)}`
+  )
+  const data = extractData<ClaimApprovalApi[]>(response)
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchAllClaimsForApproval(): Promise<ClaimWithApprovalsApi[]> {
+  const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.LIST}`, {
+    params: { for_approval: 1 },
+  })
+  const data = extractData<ClaimWithApprovalsApi[]>(response)
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchPendingApprovals(): Promise<ClaimWithApprovalsApi[]> {
+  const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.LIST}`, {
+    params: { status: 'pending_l1,pending_l2,pending_l3' },
+  })
+  const data = extractData<ClaimWithApprovalsApi[]>(response)
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchApprovalThreshold(): Promise<ApprovalThresholdApi | null> {
+  const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.APPROVAL_THRESHOLD}`)
+  const data = extractData<ApprovalThresholdApi | null>(response)
+  return data ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Submit claim (wizard: claim + approval rows)
+// ---------------------------------------------------------------------------
+
+export interface SubmitClaimPayload {
+  claim: Record<string, unknown>
+  approvalLevels: Record<string, unknown>[]
+}
+
+export async function submitClaim(payload: SubmitClaimPayload): Promise<Claim> {
+  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, payload)
+  const data = extractData<ClaimApiResponse>(response)
+  return mapClaimFromApi(data)
+}
+
+// ---------------------------------------------------------------------------
+// Approve / reject (HR)
+// ---------------------------------------------------------------------------
+
+export interface ApproveRejectPayload {
+  claimId: number
+  level: number
+  action: 'approved' | 'rejected'
+  reason?: string
+}
+
+export async function approveRejectClaim(payload: ApproveRejectPayload): Promise<void> {
+  const path =
+    payload.action === 'approved'
+      ? API_ROUTES.CLAIMS.APPROVE(payload.claimId)
+      : API_ROUTES.CLAIMS.REJECT(payload.claimId)
+  await laravelApi.post(`${PROXY}/${path}`, {
+    level: payload.level,
+    reason: payload.reason ?? null,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Create custom subclaim type
+// ---------------------------------------------------------------------------
+
+export interface CreateSubclaimPayload {
+  claimTypeId: string
+  label: string
+  key?: string
+  description?: string
+  rate?: number
+}
+
+export async function createSubclaimType(
+  claimTypeId: string,
+  data: Omit<CreateSubclaimPayload, 'claimTypeId'>
+): Promise<SubclaimTypeApi> {
+  const response = await laravelApi.post(
+    `${PROXY}/${API_ROUTES.CLAIMS.TYPE_SUBCLAIMS(claimTypeId)}`,
+    data
+  )
+  return extractData<SubclaimTypeApi>(response)
 }

@@ -8,10 +8,29 @@ import {
   fetchMileageRate,
   createClaim,
   uploadClaimAttachment,
+  fetchClaimTypes as fetchClaimTypesApi,
+  fetchSubclaimTypes as fetchSubclaimTypesApi,
+  fetchClaimById,
+  fetchClaimApprovals as fetchClaimApprovalsApi,
+  fetchAllClaimsForApproval as fetchAllClaimsForApprovalApi,
+  fetchPendingApprovals as fetchPendingApprovalsApi,
+  fetchApprovalThreshold as fetchApprovalThresholdApi,
+  submitClaim as submitClaimApi,
+  approveRejectClaim as approveRejectClaimApi,
+  createSubclaimType as createSubclaimTypeApi,
 } from "@/shared/lib/api-client/claims";
 import { CLAIM_PIE_COLORS } from "@/features/claims/data";
-import type { ClaimFilter } from "@/features/claims/types";
-import type { CreateClaimPayload } from "@/shared/lib/api-client/claims";
+import type {
+  ClaimFilter,
+  ClaimType,
+  SubclaimType,
+  ClaimApproval,
+  ApprovalThreshold,
+} from "@/features/claims/types";
+import type {
+  CreateClaimPayload,
+  ApproveRejectPayload,
+} from "@/shared/lib/api-client/claims";
 import { extractError } from "@/shared/lib/api-client/response-handler";
 
 export const CLAIM_QUERY_KEYS = {
@@ -20,6 +39,13 @@ export const CLAIM_QUERY_KEYS = {
   categories: () => ["claims", "categories"] as const,
   monthly: () => ["claims", "monthly"] as const,
   mileageRate: () => ["claims", "mileage-rate"] as const,
+  claimTypes: () => ["claim-types"] as const,
+  subclaimTypes: (id: string | null) => ["subclaim-types", id] as const,
+  claim: (id: number | null) => ["claim", id] as const,
+  claimApprovals: (claimId: number | null) => ["claim-approvals", claimId] as const,
+  allClaimsApproval: () => ["all-claims-approval"] as const,
+  pendingApprovals: () => ["pending-approvals"] as const,
+  approvalThreshold: () => ["approval-threshold"] as const,
 };
 
 export function useClaims(filter: ClaimFilter, page = 1, perPage = 50) {
@@ -122,4 +148,165 @@ export function useMileageAmount(distance: string, rate: number) {
   const parsed = Number.parseFloat(distance);
   if (Number.isNaN(parsed)) return "0.00";
   return (parsed * rate).toFixed(2);
+}
+
+// ── Wizard: claim types & subclaim types ──
+
+export function useClaimTypes() {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.claimTypes(),
+    queryFn: async () => {
+      const data = await fetchClaimTypesApi();
+      return data.map(
+        (row): ClaimType => ({
+          id: String(row.id),
+          key: row.key,
+          label: row.label,
+          description: row.description,
+          icon: row.icon,
+          color: row.color,
+        })
+      );
+    },
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function useSubclaimTypes(claimTypeId: string | null) {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.subclaimTypes(claimTypeId),
+    queryFn: async () => {
+      if (!claimTypeId) return [];
+      const data = await fetchSubclaimTypesApi(claimTypeId);
+      return data.map(
+        (row): SubclaimType => ({
+          id: String(row.id),
+          claimTypeId: String(row.claimTypeId),
+          key: row.key,
+          label: row.label,
+          rate: row.rate ?? null,
+          status: row.status,
+          description: row.description,
+        })
+      );
+    },
+    enabled: !!claimTypeId,
+  });
+}
+
+// ── Single claim (with approvals from detail) ──
+
+export function useClaimById(id: number | null) {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.claim(id),
+    queryFn: () => fetchClaimById(id!),
+    enabled: id != null,
+  });
+}
+
+export function useClaimApprovals(claimId: number | null) {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.claimApprovals(claimId),
+    queryFn: async () => {
+      if (claimId == null) return [];
+      const data = await fetchClaimApprovalsApi(claimId);
+      return data.map(
+        (row): ClaimApproval => ({
+          id: row.id,
+          claimId: row.claimId,
+          level: row.level,
+          status: row.status,
+          reason: row.reason ?? null,
+          decidedAt: row.decidedAt ?? null,
+        })
+      );
+    },
+    enabled: claimId != null,
+  });
+}
+
+// ── Approval (HR) ──
+
+export function useAllClaimsForApproval() {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.allClaimsApproval(),
+    queryFn: fetchAllClaimsForApprovalApi,
+  });
+}
+
+export function usePendingApprovals() {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.pendingApprovals(),
+    queryFn: fetchPendingApprovalsApi,
+  });
+}
+
+export function useApprovalThreshold() {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.approvalThreshold(),
+    queryFn: async () => {
+      const data = await fetchApprovalThresholdApi();
+      if (!data) return null;
+      return {
+        id: data.id,
+        level1Max: data.level1Max,
+        level2Max: data.level2Max,
+        level3Min: data.level3Min,
+      } as ApprovalThreshold;
+    },
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
+export function useSubmitClaim() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: submitClaimApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claims"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+      toast.success("Claim submitted");
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to submit claim");
+    },
+  });
+}
+
+export function useApproveRejectClaim() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ApproveRejectPayload) => approveRejectClaimApi(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claims"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["claim-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+      toast.success("Action saved");
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to update claim");
+    },
+  });
+}
+
+export function useCreateSubclaim() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      claimTypeId,
+      ...data
+    }: { claimTypeId: string; label: string; key?: string; description?: string; rate?: number }) =>
+      createSubclaimTypeApi(claimTypeId, data),
+    onSuccess: (_, { claimTypeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["subclaim-types", claimTypeId] });
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to create subclaim type");
+    },
+  });
 }

@@ -47,3 +47,54 @@ export interface MileageClaim extends BaseClaim {
 }
 
 export type Claim = ReceiptClaim | MileageClaim;
+
+// Wizard & approval types (mirrored from API / orbit-attendance)
+export interface ClaimType {
+  id: string;
+  key: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface SubclaimType {
+  id: string;
+  claimTypeId: string;
+  key: string;
+  label: string;
+  rate?: number | null;
+  status?: string;
+  description?: string;
+}
+
+export interface ClaimApproval {
+  id: number;
+  claimId: number;
+  level: number;
+  status: "pending" | "approved" | "rejected";
+  reason?: string | null;
+  decidedAt?: string | null;
+}
+
+export interface ApprovalThreshold {
+  id?: number;
+  level1Max?: number;
+  level2Max?: number;
+  level3Min?: number;
+}
+
+export interface CustomField {
+  id: string;
+  label: string;
+  type:
+    | "text"
+    | "number"
+    | "date"
+    | "dropdown"
+    | "mileage"
+    | "percentage"
+    | "photo";
+  value: string;
+  options?: string[];
+}

@@ -257,8 +257,10 @@ export function ScrollDatePicker({
     )
   );
 
-  const effectiveYear =
-    yearIndex >= 0 && yearIndex < years.length ? years[yearIndex] : current.getFullYear();
+  const effectiveYear: number =
+    yearIndex >= 0 && yearIndex < years.length
+      ? (years[yearIndex] ?? current.getFullYear())
+      : current.getFullYear();
   const daysInMonth = getDaysInMonth(month, effectiveYear);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
@@ -277,7 +279,9 @@ export function ScrollDatePicker({
 
   const handleConfirm = () => {
     const clampedDay = Math.min(day, daysInMonth);
-    const y = yearIndex >= 0 && yearIndex < years.length ? years[yearIndex] : effectiveYear;
+    const y =
+      (yearIndex >= 0 && yearIndex < years.length ? years[yearIndex] : undefined) ??
+      effectiveYear;
     onChange(new Date(y, month, clampedDay));
     setOpen(false);
   };
