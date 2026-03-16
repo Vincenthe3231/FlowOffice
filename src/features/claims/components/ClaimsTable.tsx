@@ -124,13 +124,13 @@ export function ClaimsTable({
                         <div className="min-w-0">
                           <span className="block truncate text-xs font-medium sm:text-sm">{claim.title}</span>
                           <span className="mt-0.5 block text-[10px] text-muted-foreground sm:hidden">
-                            {claim.category} • {claim.date}
+                            {claim.claimTypeLabel ?? claim.category ?? "—"} • {claim.date}
                           </span>
                         </div>
                       </motion.div>
                     </TableCell>
                     <TableCell className="hidden px-3 py-2.5 text-xs text-muted-foreground sm:table-cell sm:px-4 sm:py-3 sm:text-sm">
-                      {claim.category}
+                      {claim.claimTypeLabel ?? claim.category ?? "—"}
                     </TableCell>
                     <TableCell className="px-3 py-2.5 text-xs font-semibold sm:px-4 sm:py-3 sm:text-sm">
                       RM {claim.amount.toFixed(2)}

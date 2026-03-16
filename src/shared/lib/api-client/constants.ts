@@ -21,6 +21,7 @@ export const API_ROUTES = {
     CREATE: 'claims',
     DETAIL: (id: number) => `claims/${id}`,
     UPDATE: (id: number) => `claims/${id}`,
+    SUBMIT: (id: number) => `claims/${id}/submit`,
     DELETE: (id: number) => `claims/${id}`,
     ATTACHMENTS: (id: number) => `claims/${id}/attachments`,
     ATTACHMENT: (id: number, attachmentId: number) => `claims/${id}/attachments/${attachmentId}`,

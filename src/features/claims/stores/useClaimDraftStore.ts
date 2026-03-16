@@ -13,10 +13,13 @@ interface ClaimDraftState {
   selectedSubclaimId: string | null;
   formData: Record<string, unknown>;
   customFields: CustomField[];
+  /** Single attachment file for post-submit upload; not persisted */
+  attachmentFile: File | null;
   lastSaved: number;
   hasDraft: boolean;
 
   setStep: (step: number) => void;
+  setAttachmentFile: (file: File | null) => void;
   setClaimant: (name: string, nickname: string) => void;
   setType: (id: string | null, key: string | null) => void;
   setSubclaim: (id: string | null) => void;
@@ -39,6 +42,7 @@ const initialState = {
   selectedSubclaimId: null as string | null,
   formData: {} as Record<string, unknown>,
   customFields: [] as CustomField[],
+  attachmentFile: null as File | null,
   lastSaved: 0,
   hasDraft: false,
 };
@@ -97,9 +101,30 @@ export const useClaimDraftStore = create<ClaimDraftState>()(
           lastSaved: Date.now(),
           hasDraft: true,
         })),
-      clearDraft: () => set({ ...initialState }),
+      setAttachmentFile: (file) =>
+        set({
+          attachmentFile: file,
+          lastSaved: Date.now(),
+          hasDraft: true,
+        }),
+      clearDraft: () => set({ ...initialState, attachmentFile: null }),
       markDraft: () => set({ hasDraft: true, lastSaved: Date.now() }),
     }),
-    { name: "claim-draft-storage" }
+    {
+      name: "claim-draft-storage",
+      partialize: (s) => ({
+        currentStep: s.currentStep,
+        claimantName: s.claimantName,
+        claimantNickname: s.claimantNickname,
+        selectedTypeId: s.selectedTypeId,
+        selectedTypeKey: s.selectedTypeKey,
+        selectedSubclaimId: s.selectedSubclaimId,
+        formData: s.formData,
+        customFields: s.customFields,
+        lastSaved: s.lastSaved,
+        hasDraft: s.hasDraft,
+        // attachmentFile omitted (not serializable)
+      }),
+    }
   )
 );

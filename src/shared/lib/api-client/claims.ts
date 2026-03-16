@@ -1,7 +1,7 @@
 import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
-import type { Claim, ClaimCategory, ClaimMonthlySpend } from '@/features/claims/types'
+import type { Claim, ClaimCategory, ClaimMonthlySpend, CustomField } from '@/features/claims/types'
 
 const PROXY = API_ROUTES.PROXY_PREFIX
 
@@ -65,6 +65,10 @@ export interface ClaimApiResponse {
   createdAt?: string
   claimType?: ClaimTypeRef | null
   subclaimType?: SubclaimTypeRef | null
+  /** GET response: custom fields from backend; fields only, value may be string or number */
+  metadata?: {
+    fields?: Array<{ label: string; type: string; value: string | number | null }>
+  } | null
 }
 
 export interface ClaimsListResponse {
@@ -147,6 +151,12 @@ function normalizeStatus(s: string): Claim['status'] {
 }
 
 function mapClaimFromApi(row: ClaimApiResponse): Claim {
+  const customFields: CustomField[] = (row.metadata?.fields ?? []).map((f, i) => ({
+    id: `field-${i}`,
+    label: f.label,
+    type: f.type as CustomField['type'],
+    value: f.value != null ? String(f.value) : '',
+  }))
   const base = {
     id: row.id,
     title: row.title,
@@ -159,6 +169,7 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     merchant: row.merchant ?? undefined,
     claimTypeLabel: row.claimType?.label ?? undefined,
     subclaimTypeLabel: row.subclaimType?.label ?? undefined,
+    customFields,
   }
   if (row.type === 'mileage' && row.mileage) {
     return {
@@ -254,9 +265,15 @@ export async function createClaim(payload: CreateClaimPayload): Promise<Claim> {
   return mapClaimFromApi(data)
 }
 
+export interface UpdateClaimPayload extends Partial<CreateClaimPayload> {
+  metadata?: {
+    fields: Array<{ label: string; type: string; value: string | number | null }>
+  } | null
+}
+
 export async function updateClaim(
   id: number,
-  payload: Partial<CreateClaimPayload>
+  payload: UpdateClaimPayload
 ): Promise<Claim> {
   const response = await laravelApi.put(`${PROXY}/${API_ROUTES.CLAIMS.UPDATE(id)}`, payload)
   const data = extractData<ClaimApiResponse>(response)
@@ -265,6 +282,15 @@ export async function updateClaim(
 
 export async function deleteClaim(id: number): Promise<void> {
   await laravelApi.delete(`${PROXY}/${API_ROUTES.CLAIMS.DELETE(id)}`)
+}
+
+/** Finalize a draft claim (status must be "draft"). No body. Returns full claim with status "pending". */
+export async function submitDraftClaim(claimId: number): Promise<Claim> {
+  const response = await laravelApi.patch(
+    `${PROXY}/${API_ROUTES.CLAIMS.SUBMIT(claimId)}`
+  )
+  const data = extractData<ClaimApiResponse>(response)
+  return mapClaimFromApi(data)
 }
 
 // ---------------------------------------------------------------------------

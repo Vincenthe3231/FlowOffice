@@ -35,6 +35,8 @@ interface BaseClaim {
   claimTypeLabel?: string;
   /** Subclaim type label from API (e.g. "Hotel") */
   subclaimTypeLabel?: string;
+  /** Custom fields from API metadata.fields */
+  customFields?: CustomField[];
 }
 
 export interface ReceiptClaim extends BaseClaim {
@@ -97,8 +99,7 @@ export interface CustomField {
     | "date"
     | "dropdown"
     | "mileage"
-    | "percentage"
-    | "photo";
+    | "percentage";
   value: string;
   options?: string[];
 }

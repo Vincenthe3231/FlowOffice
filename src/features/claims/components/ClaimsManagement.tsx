@@ -23,7 +23,9 @@ import { Button } from "@/components/ui/button";
 export function ClaimsManagement() {
   const router = useRouter();
   const [filter, setFilter] = useState<ClaimFilter>("All");
-  const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(null);
+  const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(
+    null
+  );
 
   const { data: claimsData } = useClaims(filter);
   const { data: statsData } = useClaimsStats();
@@ -32,6 +34,10 @@ export function ClaimsManagement() {
   const { data: monthlySpend = [] } = useMonthlySpend();
 
   const filteredClaims = claimsData?.claims ?? [];
+  const selectedClaim =
+    selectedClaimIndex !== null
+      ? filteredClaims[selectedClaimIndex] ?? null
+      : null;
   const { approvedCount = 0, pendingCount = 0, totalAmount = 0, totalClaims = 0, sparkline = [] } =
     statsData ?? {};
 
@@ -108,8 +114,7 @@ export function ClaimsManagement() {
       </AnimatePresence>
 
       <ClaimDetailSheet
-        claims={filteredClaims}
-        selectedIndex={selectedClaimIndex}
+        claim={selectedClaim}
         onClose={() => setSelectedClaimIndex(null)}
       />
 

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, GripVertical, Car, Percent, Camera } from "lucide-react";
+import { Plus, Trash2, GripVertical, Car, Percent } from "lucide-react";
 import type { CustomField } from "@/features/claims/types";
 
 interface CustomFieldBuilderProps {
@@ -28,7 +28,6 @@ const typeIcons: Record<string, React.ReactNode> = {
   dropdown: <span className="text-[10px] font-bold">▾</span>,
   mileage: <Car className="h-3 w-3" />,
   percentage: <Percent className="h-3 w-3" />,
-  photo: <Camera className="h-3 w-3" />,
 };
 
 export function CustomFieldBuilder({
@@ -104,7 +103,6 @@ export function CustomFieldBuilder({
                 <SelectItem value="dropdown">Dropdown</SelectItem>
                 <SelectItem value="mileage">Mileage (km)</SelectItem>
                 <SelectItem value="percentage">Percentage (%)</SelectItem>
-                <SelectItem value="photo">Photo</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -201,22 +199,6 @@ export function CustomFieldBuilder({
                   %
                 </span>
               </div>
-            ) : field.type === "photo" ? (
-              <label className="group flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background cursor-pointer hover:bg-primary/5 transition-colors">
-                <Camera className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-sm text-muted-foreground group-hover:text-primary truncate">
-                  {field.value ? field.value.split("/").pop() : "Upload photo..."}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onUpdate(field.id, file.name);
-                  }}
-                />
-              </label>
             ) : (
               <Input
                 type={

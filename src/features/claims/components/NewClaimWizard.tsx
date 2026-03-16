@@ -32,6 +32,8 @@ import {
   Clock,
   AlertCircle,
   Settings,
+  UploadCloud,
+  X,
 } from "lucide-react";
 import { ReceiptClaimForm } from "@/features/claims/components/ReceiptClaimForm";
 import { MileageClaimForm } from "@/features/claims/components/MileageClaimForm";
@@ -49,7 +51,11 @@ import {
   useClaimCategories,
   useClaimById,
 } from "@/features/claims/hooks/useClaims";
-import { calculateDistance } from "@/shared/lib/api-client/claims";
+import {
+  calculateDistance,
+  uploadClaimAttachment,
+  submitDraftClaim,
+} from "@/shared/lib/api-client/claims";
 import type { Claim, ClaimType, ClaimApproval } from "@/features/claims/types";
 
 const steps = [
@@ -114,7 +120,7 @@ export function NewClaimWizard() {
   const displayClaimTypes = claimTypes ?? [];
   const selectedTypeData = displayClaimTypes.find((t) => t.id === draft.selectedTypeId);
 
-  // Resubmit: when claim is loaded, clear draft and populate from API (Claim shape; extend when API returns claimant/custom_fields)
+  // Resubmit: when claim is loaded, clear draft and populate from API (Claim has customFields from metadata.fields)
   useEffect(() => {
     if (
       resubmitIdValid == null ||
@@ -129,7 +135,6 @@ export function NewClaimWizard() {
       claimant_nickname?: string;
       claim_type_id?: string | number;
       subclaim_type_id?: string | number;
-      custom_fields?: Array<{ id: string; label: string; type: string; value: string; options?: string[] }>;
     };
     draft.setClaimant(
       c.claimant_name ?? "",
@@ -158,16 +163,8 @@ export function NewClaimWizard() {
       formData.distance = c.distance != null ? String(c.distance) : "";
     }
     draft.setFormData(formData);
-    if (Array.isArray(c.custom_fields))
-      draft.setCustomFields(
-        c.custom_fields.map((f) => ({
-          id: f.id,
-          label: f.label,
-          type: f.type as "text" | "number" | "date" | "dropdown" | "mileage" | "percentage" | "photo",
-          value: f.value,
-          options: f.options,
-        }))
-      );
+    if (Array.isArray(c.customFields))
+      draft.setCustomFields(c.customFields);
     draft.setStep(1);
     toast.info("Claim loaded for resubmission", {
       description: "Edit any step and resubmit.",
@@ -265,33 +262,74 @@ export function NewClaimWizard() {
     ];
 
     try {
-      await submitClaim.mutateAsync({
-        claim: {
-          claimantName: draft.claimantName,
-          claimantNickname: draft.claimantNickname,
-          claimTypeId: draft.selectedTypeId,
-          subclaimTypeId: draft.selectedSubclaimId || null,
-          title:
-            String(draft.formData.title ?? "").trim() ||
-            selectedTypeData?.label ||
-            "Claim",
-          description:
-            (draft.formData.description as string)?.trim() || null,
-          amount,
-          currency: "RM",
-          status: "pending_l1",
-          metadata: {
-            merchant: draft.formData.merchant,
-            category: draft.formData.category,
-            fromLocation: draft.formData.fromLocation,
-            toLocation: draft.formData.toLocation,
-            distance: draft.formData.distance,
-            receiptDate: draft.formData.receiptDate,
+      const customFieldsForSubmit = (draft.customFields ?? []).map((f) => ({
+        label: f.label,
+        type: f.type,
+        value: f.value ?? "",
+      }));
+
+      const hasAttachment = Boolean(draft.attachmentFile);
+
+      if (hasAttachment) {
+        const created = await submitClaim.mutateAsync({
+          claim: {
+            claimantName: draft.claimantName,
+            claimantNickname: draft.claimantNickname,
+            claimTypeId: draft.selectedTypeId,
+            subclaimTypeId: draft.selectedSubclaimId || null,
+            title:
+              String(draft.formData.title ?? "").trim() ||
+              selectedTypeData?.label ||
+              "Claim",
+            description:
+              (draft.formData.description as string)?.trim() || null,
+            amount,
+            currency: "RM",
+            status: "draft",
+            metadata: {
+              merchant: draft.formData.merchant,
+              category: draft.formData.category,
+              fromLocation: draft.formData.fromLocation,
+              toLocation: draft.formData.toLocation,
+              distance: draft.formData.distance,
+              receiptDate: draft.formData.receiptDate,
+            },
+            customFields: customFieldsForSubmit,
           },
-          customFields: draft.customFields,
-        },
-        approvalLevels,
-      });
+          approvalLevels: [],
+        });
+        await uploadClaimAttachment(created.id, draft.attachmentFile!);
+        await submitDraftClaim(created.id);
+      } else {
+        await submitClaim.mutateAsync({
+          claim: {
+            claimantName: draft.claimantName,
+            claimantNickname: draft.claimantNickname,
+            claimTypeId: draft.selectedTypeId,
+            subclaimTypeId: draft.selectedSubclaimId || null,
+            title:
+              String(draft.formData.title ?? "").trim() ||
+              selectedTypeData?.label ||
+              "Claim",
+            description:
+              (draft.formData.description as string)?.trim() || null,
+            amount,
+            currency: "RM",
+            status: "pending",
+            metadata: {
+              merchant: draft.formData.merchant,
+              category: draft.formData.category,
+              fromLocation: draft.formData.fromLocation,
+              toLocation: draft.formData.toLocation,
+              distance: draft.formData.distance,
+              receiptDate: draft.formData.receiptDate,
+            },
+            customFields: customFieldsForSubmit,
+          },
+          approvalLevels,
+        });
+      }
+
       draft.clearDraft();
       router.push("/dashboard/claims");
     } catch {
@@ -703,6 +741,73 @@ export function NewClaimWizard() {
                       />
                     )}
 
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Attachment
+                    </Label>
+                    {draft.attachmentFile ? (
+                      <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/20">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate flex-1 min-w-0">
+                          {draft.attachmentFile.name}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => draft.setAttachmentFile(null)}
+                          aria-label="Remove attachment"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="claim-attachment"
+                        className="flex flex-col items-center justify-center min-h-[140px] rounded-xl border-2 border-dashed border-border cursor-pointer transition-all hover:border-primary/60 bg-muted/20 hover:bg-muted/40"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.size <= 10 * 1024 * 1024)
+                            draft.setAttachmentFile(file);
+                          else if (file) toast.error("File must be 10MB or less");
+                        }}
+                      >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+                          <UploadCloud className="h-6 w-6" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-semibold text-primary">
+                            Click to upload
+                          </span>{" "}
+                          or drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground/80 mt-1">
+                          PNG, JPG, PDF or GIF (max. 10MB)
+                        </p>
+                        <input
+                          id="claim-attachment"
+                          type="file"
+                          accept="image/*,.pdf,.gif"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file && file.size <= 10 * 1024 * 1024)
+                              draft.setAttachmentFile(file);
+                            else if (file) toast.error("File must be 10MB or less");
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   <div className="border-t border-border/20 pt-4">
                     <CustomFieldBuilder
                       fields={draft.customFields}
@@ -736,6 +841,7 @@ export function NewClaimWizard() {
                     formData={draft.formData as Record<string, unknown>}
                     customFields={draft.customFields}
                     amount={getAmount()}
+                    attachmentFileName={draft.attachmentFile?.name}
                   />
 
                   <div className="rounded-xl p-4 glass-card">

@@ -10,6 +10,8 @@ interface ClaimReviewSummaryProps {
   formData: Record<string, unknown>;
   customFields: CustomField[];
   amount: number;
+  /** Attachment file name when user added a file on details step */
+  attachmentFileName?: string | null;
 }
 
 export function ClaimReviewSummary({
@@ -19,12 +21,14 @@ export function ClaimReviewSummary({
   formData,
   customFields,
   amount,
+  attachmentFileName,
 }: ClaimReviewSummaryProps) {
   const fieldDisplay = [
     { label: "Full Name", value: claimantName },
     { label: "Claim Type", value: claimTypeLabel },
     ...(subclaimLabel ? [{ label: "Subclaim", value: subclaimLabel }] : []),
     ...(formData.title ? [{ label: "Title", value: String(formData.title) }] : []),
+    ...(attachmentFileName ? [{ label: "Attachment", value: attachmentFileName }] : []),
     ...(formData.merchant ? [{ label: "Merchant", value: String(formData.merchant) }] : []),
     ...(formData.category ? [{ label: "Category", value: String(formData.category) }] : []),
     ...(formData.fromLocation ? [{ label: "From", value: String(formData.fromLocation) }] : []),
@@ -40,8 +44,6 @@ export function ClaimReviewSummary({
         return `${field.value} km (RM ${(parseFloat(field.value) * 0.8).toFixed(2)})`;
       case "percentage":
         return `${field.value}%`;
-      case "photo":
-        return `📷 ${field.value}`;
       default:
         return field.value;
     }
