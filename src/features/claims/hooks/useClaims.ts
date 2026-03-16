@@ -20,6 +20,7 @@ import {
   submitClaim as submitClaimApi,
   approveRejectClaim as approveRejectClaimApi,
   createSubclaimType as createSubclaimTypeApi,
+  deleteSubclaimType as deleteSubclaimTypeApi,
 } from "@/shared/lib/api-client/claims";
 import { CLAIM_PIE_COLORS } from "@/features/claims/data";
 import type {
@@ -310,6 +311,25 @@ export function useCreateSubclaim() {
     onError: (err) => {
       const apiError = extractError(err);
       toast.error(apiError.message ?? "Failed to create subclaim type");
+    },
+  });
+}
+
+export function useDeleteSubclaim() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      claimTypeId,
+      subclaimTypeId,
+    }: { claimTypeId: string; subclaimTypeId: string }) =>
+      deleteSubclaimTypeApi(claimTypeId, subclaimTypeId),
+    onSuccess: (_, { claimTypeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["subclaim-types", claimTypeId] });
+      toast.success("Subclaim type deleted");
+    },
+    onError: (err) => {
+      const apiError = extractError(err);
+      toast.error(apiError.message ?? "Failed to delete subclaim type");
     },
   });
 }

@@ -17,14 +17,25 @@ import { useCreateSubclaim } from "@/features/claims/hooks/useClaims";
 
 interface CreateSubclaimDialogProps {
   claimTypeId: string;
+  /** When provided with onOpenChange, dialog is controlled and no default trigger is rendered. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CreateSubclaimDialog({ claimTypeId }: CreateSubclaimDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CreateSubclaimDialog({
+  claimTypeId,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: CreateSubclaimDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [rate, setRate] = useState("");
   const createSubclaim = useCreateSubclaim();
+
+  const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
   const handleSubmit = async () => {
     if (!label.trim()) return;
@@ -47,15 +58,17 @@ export function CreateSubclaimDialog({ claimTypeId }: CreateSubclaimDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          className="w-full gap-2 border-dashed border-2 h-auto py-4 hover:bg-primary/5 transition-all"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="text-sm">Add Custom Subclaim</span>
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full gap-2 border-dashed border-2 h-auto py-4 hover:bg-primary/5 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="text-sm">Add Custom Subclaim</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md premium-shadow border-0">
         <DialogHeader>
           <DialogTitle className="text-foreground">
@@ -104,7 +117,7 @@ export function CreateSubclaimDialog({ claimTypeId }: CreateSubclaimDialogProps)
           </div>
 
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} type="button">
               Cancel
             </Button>
             <Button

@@ -470,3 +470,12 @@ export async function createSubclaimType(
   )
   return extractData<SubclaimTypeApi>(response)
 }
+
+export async function deleteSubclaimType(
+  claimTypeId: string,
+  subclaimTypeId: string
+): Promise<void> {
+  await laravelApi.delete(
+    `${PROXY}/${API_ROUTES.CLAIMS.TYPE_SUBCLAIM_DETAIL(claimTypeId, subclaimTypeId)}`
+  )
+}

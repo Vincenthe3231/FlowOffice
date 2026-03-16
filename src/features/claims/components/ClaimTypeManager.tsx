@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Trash2, Loader2 } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, List, ChevronRight } from "lucide-react";
 import { useClaimTypes, useCreateClaimType, useDeleteClaimType } from "@/features/claims/hooks/useClaims";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import type { ClaimType } from "@/features/claims/types";
@@ -50,7 +51,12 @@ const emptyForm = {
   color: "stat-blue",
 };
 
-export function ClaimTypeManager() {
+export interface ClaimTypeManagerProps {
+  /** When set, Subclaims opens the list on the same page (no route change). */
+  onSelectSubclaims?: (claimTypeId: string) => void;
+}
+
+export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = {}) {
   const { data: claimTypes = [], isLoading } = useClaimTypes();
   const { profile } = useProfile();
   const createMutation = useCreateClaimType();
@@ -123,17 +129,44 @@ export function ClaimTypeManager() {
                     </p>
                   )}
                 </div>
-                {isAdmin && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteTarget(ct)}
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {onSelectSubclaims ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={() => onSelectSubclaims(ct.id)}
+                    >
+                      <List className="h-3.5 w-3.5" />
+                      Subclaims
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                      asChild
+                    >
+                      <Link href={`/dashboard/settings/claim-types/${ct.id}/subclaims`}>
+                        <List className="h-3.5 w-3.5" />
+                        Subclaims
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteTarget(ct)}
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

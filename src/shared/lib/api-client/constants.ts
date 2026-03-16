@@ -34,6 +34,8 @@ export const API_ROUTES = {
     TYPES: 'claim-types',
     TYPE_DETAIL: (id: string | number) => `claim-types/${id}`,
     TYPE_SUBCLAIMS: (id: string | number) => `claim-types/${id}/subclaim-types`,
+    TYPE_SUBCLAIM_DETAIL: (claimTypeId: string | number, subclaimTypeId: string | number) =>
+      `claim-types/${claimTypeId}/subclaim-types/${subclaimTypeId}`,
     CLAIM_APPROVALS: (id: number) => `claims/${id}/approvals`,
     APPROVAL_THRESHOLD: 'claims/approval-threshold',
     APPROVAL_ACTION: (approvalId: number) => `claim-approvals/${approvalId}`,
