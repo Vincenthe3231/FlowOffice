@@ -34,6 +34,7 @@ import { logoutUser } from "@/shared/lib/api-client/laravel-client";
 import { AUTH_QUERY_KEYS } from "@/shared/lib/api-client/auth-constants";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { canSeeManageClaims, canSeeSettingsNav } from "@/shared/lib/role-utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import {
   DropdownMenu,
@@ -75,12 +76,11 @@ const baseSettingsNav = [
   { title: "Audit Trail", href: "/dashboard/settings/audit", icon: ScrollText },
 ];
 
-const navGroupsBase: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] = [
+const navGroupsWithoutSettings: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] = [
   { label: "Main", items: mainNav },
   { label: "Attendance", items: attendanceNav },
   { label: "Overtime", items: overtimeNav },
   { label: "Reports", items: reportNav },
-  { label: "Settings", items: baseSettingsNav },
 ];
 
 function MenuOption({
@@ -154,28 +154,27 @@ export function BottomNav() {
   const hasSearchQuery = findQuery.trim().length > 0;
   const isPanelOpen = isOpen || hasSearchQuery;
 
-  const isClaimTypesAdmin =
-    profile?.role === "hr_admin" || profile?.role === "super_admin";
-  const settingsNav = useMemo(
-    () =>
-      isClaimTypesAdmin
-        ? [
-            ...baseSettingsNav,
-            {
-              title: "Manage Claims",
-              href: "/dashboard/settings/claim-types",
-              icon: List,
-            },
-          ]
-        : baseSettingsNav,
-    [isClaimTypesAdmin]
-  );
+  const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
+  const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
+  const settingsNav = useMemo(() => {
+    if (!showSettingsNav) return [];
+    return showManageClaims
+      ? [
+          ...baseSettingsNav,
+          {
+            title: "Manage Claims",
+            href: "/dashboard/settings/claim-types",
+            icon: List,
+          },
+        ]
+      : baseSettingsNav;
+  }, [showSettingsNav, showManageClaims]);
   const navGroups = useMemo(
     () =>
-      navGroupsBase.map((g) =>
-        g.label === "Settings" ? { ...g, items: settingsNav } : g
-      ),
-    [settingsNav]
+      showSettingsNav
+        ? [...navGroupsWithoutSettings, { label: "Settings", items: settingsNav }]
+        : navGroupsWithoutSettings,
+    [showSettingsNav, settingsNav]
   );
   const pinnedGroups = useMemo(
     () => filterNavGroupsByQuery(navGroups, findQuery),

@@ -53,6 +53,7 @@ import {
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { canSeeManageClaims, canSeeSettingsNav } from "@/shared/lib/role-utils";
 
 const mainNav = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -132,22 +133,21 @@ export default function DashboardLayout({
   const logout = useAuthStore((s) => s.logout);
   const [viewMode, setViewMode] = React.useState<ViewMode>("website");
 
-  const isClaimTypesAdmin =
-    profile?.role === "hr_admin" || profile?.role === "super_admin";
-  const settingsNav = React.useMemo(
-    () =>
-      isClaimTypesAdmin
-        ? [
-            ...baseSettingsNav,
-            {
-              title: "Manage Claims",
-              href: "/dashboard/settings/claim-types",
-              icon: List,
-            },
-          ]
-        : baseSettingsNav,
-    [isClaimTypesAdmin]
-  );
+  const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
+  const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
+  const settingsNav = React.useMemo(() => {
+    if (!showSettingsNav) return [];
+    return showManageClaims
+      ? [
+          ...baseSettingsNav,
+          {
+            title: "Manage Claims",
+            href: "/dashboard/settings/claim-types",
+            icon: List,
+          },
+        ]
+      : baseSettingsNav;
+  }, [showSettingsNav, showManageClaims]);
 
   const handleLogout = async () => {
     try {
@@ -175,7 +175,9 @@ export default function DashboardLayout({
           <NavGroup label="Attendance" items={attendanceNav} />
           <NavGroup label="Overtime" items={overtimeNav} />
           <NavGroup label="Reports" items={reportNav} />
-          <NavGroup label="Settings" items={settingsNav} />
+          {showSettingsNav && (
+            <NavGroup label="Settings" items={settingsNav} />
+          )}
         </SidebarContent>
         <SidebarFooter className="p-2">
           <SidebarInput placeholder="Find…" className="h-9" />

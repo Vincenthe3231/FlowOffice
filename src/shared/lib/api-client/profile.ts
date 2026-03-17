@@ -8,7 +8,7 @@ export interface OfficeSummary {
   address: string | null
 }
 
-export type ProfileRole = "super_admin" | "hr_admin" | "manager" | "employee"
+export type ProfileRole = "super_admin" | "hr_admin" | "hod" | "manager" | "employee"
 
 export interface Profile {
   id: string
