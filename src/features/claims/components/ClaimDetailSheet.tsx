@@ -6,6 +6,7 @@ import {
   Car,
   Calendar,
   FileText,
+  Paperclip,
   X,
   MapPin,
   Navigation,
@@ -252,6 +253,53 @@ export function ClaimDetailSheet({ claim, onClose }: ClaimDetailSheetProps) {
                       </p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Attachments (from API) — show image inline, link for non-images */}
+              {(claim.attachments ?? []).length > 0 && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Paperclip size={16} className="text-blue-600" />{" "}
+                    Attachments
+                  </h3>
+                  <ul className="space-y-4">
+                    {claim.attachments!.map((a) => {
+                      const isImage =
+                        (a.mimeType?.startsWith("image/") ?? false) ||
+                        /\.(png|jpe?g|gif|webp)$/i.test(
+                          a.originalName ?? ""
+                        );
+                      return (
+                        <li key={a.id}>
+                          {isImage ? (
+                            <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                              <img
+                                src={a.url}
+                                alt={a.originalName ?? "Attachment"}
+                                className="w-full max-h-80 object-contain"
+                              />
+                              <p className="text-xs text-slate-500 px-3 py-2 border-t border-slate-100">
+                                {a.originalName ?? "Attachment"}
+                              </p>
+                            </div>
+                          ) : (
+                            <a
+                              href={a.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors text-slate-700 font-medium text-sm"
+                            >
+                              <FileText size={16} className="text-slate-500 shrink-0" />
+                              <span className="truncate flex-1 min-w-0">
+                                {a.originalName ?? "Attachment"}
+                              </span>
+                            </a>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
 

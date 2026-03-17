@@ -1,6 +1,7 @@
 import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
+import { keysToSnake } from './transform'
 import type { Claim, ClaimCategory, ClaimMonthlySpend, CustomField } from '@/features/claims/types'
 
 const PROXY = API_ROUTES.PROXY_PREFIX
@@ -157,6 +158,12 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     type: f.type as CustomField['type'],
     value: f.value != null ? String(f.value) : '',
   }))
+  const attachments = (row.attachments ?? []).map((a) => ({
+    id: a.id,
+    url: a.url ?? a.path,
+    originalName: a.originalName,
+    mimeType: a.mimeType,
+  }))
   const base = {
     id: row.id,
     title: row.title,
@@ -170,6 +177,7 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     claimTypeLabel: row.claimType?.label ?? undefined,
     subclaimTypeLabel: row.subclaimType?.label ?? undefined,
     customFields,
+    attachments,
   }
   if (row.type === 'mileage' && row.mileage) {
     return {
@@ -447,7 +455,22 @@ export interface SubmitClaimPayload {
 }
 
 export async function submitClaim(payload: SubmitClaimPayload): Promise<Claim> {
-  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, payload)
+  const { claim, approvalLevels } = payload
+  const rawAttachment = (claim as Record<string, unknown>)._attachmentFile
+  const attachmentFile: File | null = rawAttachment instanceof File ? rawAttachment : null
+
+  if (attachmentFile) {
+    const claimPayload = { ...claim }
+    delete (claimPayload as Record<string, unknown>)._attachmentFile
+    const formData = new FormData()
+    formData.append('claim', JSON.stringify(keysToSnake(claimPayload as Record<string, unknown>)))
+    formData.append('attachments[]', attachmentFile)
+    const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, formData)
+    const data = extractData<ClaimApiResponse>(response)
+    return mapClaimFromApi(data)
+  }
+
+  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, { claim, approvalLevels })
   const data = extractData<ClaimApiResponse>(response)
   return mapClaimFromApi(data)
 }

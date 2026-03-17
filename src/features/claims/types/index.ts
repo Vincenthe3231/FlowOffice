@@ -37,6 +37,13 @@ interface BaseClaim {
   subclaimTypeLabel?: string;
   /** Custom fields from API metadata.fields */
   customFields?: CustomField[];
+  /** Attachments from API (uploaded files) */
+  attachments?: Array<{
+    id: number;
+    url: string;
+    originalName?: string;
+    mimeType?: string;
+  }>;
 }
 
 export interface ReceiptClaim extends BaseClaim {
