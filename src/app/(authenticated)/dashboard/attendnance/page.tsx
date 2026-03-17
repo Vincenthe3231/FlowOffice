@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useFaceVerification } from "@/features/attendance/hooks/useFaceVerification";
-import { useProfile } from "@/features/profile/hooks/useProfile";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,19 +23,17 @@ import {
   Loader2,
   RefreshCw,
   X,
-  Building2,
   MessageSquare,
   ArrowRight,
-  LogIn,
-  LogOut,
-  Timer,
+  ArrowLeft,
+  Calendar,
+  ScanFace,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGeolocation } from "@/features/attendance/hooks/useGeolocation";
 import { useCamera } from "@/features/attendance/hooks/useCamera";
 import { useAttendance, formatDistance } from "@/features/attendance/hooks/useAttendance";
 import { useRoles } from "@/shared/hooks/useRoles";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useAdminAttendance } from "@/features/attendance/hooks/useAdminAttendance";
 import { DailyAttendanceChart } from "@/features/attendance/components/DailyAttendanceChart";
 import { LocationHeatmap } from "@/features/attendance/components/LocationHeatmap";
@@ -45,8 +41,6 @@ import { LatenessAlerts } from "@/features/attendance/components/LatenessAlerts"
 import { PhotoVerificationFeed } from "@/features/attendance/components/PhotoVerificationFeed";
 import { LocationManager } from "@/features/attendance/components/LocationManager";
 import { StaffDetailSheet } from "@/features/attendance/components/StaffDetailSheet";
-import { ProgressRing } from "@/components/ui/progress-ring";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -60,12 +54,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { FreeMode } from "swiper/modules";
-// @ts-ignore
-import "swiper/css";
-// @ts-ignore
-import "swiper/css/free-mode";
 
 type RoleChip = "my-attendance" | "superadmin" | "admin-hr" | "hod";
 
@@ -89,9 +77,7 @@ export default function Attendance() {
   const camera = useCamera();
   const attendance = useAttendance();
   const { isAdminOrManager } = useRoles();
-  const { profile } = useProfile();
   const faceVerification = useFaceVerification();
-  const isMobile = useIsMobile();
   const isAdminView = activeChip !== "my-attendance";
   const admin = useAdminAttendance(isAdminOrManager && isAdminView);
 
@@ -99,6 +85,58 @@ export default function Attendance() {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-invoke getLocation when staff view is active (mount or switch to My Attendance).
+  // Dependency array length must stay constant (React requirement); getLocation is stable from useCallback.
+  const getLocation = location.getLocation;
+  useEffect(() => {
+    if (activeChip === "my-attendance") {
+      getLocation();
+    }
+  }, [activeChip, getLocation]);
+
+  // Auto-select Work Location when location is obtained and user hasn't chosen one yet.
+  // Prefer office within radius; otherwise select nearest.
+  useEffect(() => {
+    if (
+      !location.hasLocation ||
+      location.latitude == null ||
+      location.longitude == null ||
+      selectedOfficeId !== "" ||
+      attendance.allOffices.length === 0
+    ) {
+      return;
+    }
+    const lat = location.latitude;
+    const lon = location.longitude;
+    const offices = attendance.allOffices;
+    const withinRadius = offices.find((o) => {
+      const d = attendance.calculateDistance(lat, lon, Number(o.latitude), Number(o.longitude));
+      return d <= o.radiusMeters;
+    });
+    if (withinRadius) {
+      setSelectedOfficeId(withinRadius.id);
+      return;
+    }
+    let nearest = offices[0];
+    let minDist = attendance.calculateDistance(lat, lon, Number(nearest.latitude), Number(nearest.longitude));
+    for (let i = 1; i < offices.length; i++) {
+      const o = offices[i];
+      const d = attendance.calculateDistance(lat, lon, Number(o.latitude), Number(o.longitude));
+      if (d < minDist) {
+        minDist = d;
+        nearest = o;
+      }
+    }
+    setSelectedOfficeId(nearest.id);
+  }, [
+    location.hasLocation,
+    location.latitude,
+    location.longitude,
+    selectedOfficeId,
+    attendance.allOffices,
+    attendance.calculateDistance,
+  ]);
 
   const selectedOffice = attendance.allOffices.find((o) => o.id === selectedOfficeId);
   const distanceToOffice = useMemo(() => {
@@ -109,7 +147,7 @@ export default function Attendance() {
       Number(selectedOffice.latitude),
       Number(selectedOffice.longitude)
     );
-  }, [location.latitude, location.longitude, selectedOffice, attendance.calculateDistance, location.hasLocation]);
+  }, [location.latitude, location.longitude, selectedOffice, attendance, location.hasLocation]);
 
   const isWithinRadius = distanceToOffice !== null && selectedOffice
     ? distanceToOffice <= selectedOffice.radiusMeters
@@ -170,474 +208,409 @@ export default function Attendance() {
     camera.openCamera();
   };
 
-  const isReady = !!selectedOfficeId && location.hasLocation && camera.hasPhoto && isWithinRadius && faceVerification.verificationPassed;
-  const actionLabel = attendance.isClockedIn ? "CLOCK OUT" : "CLOCK IN";
+  // ClockInOut-style time display
+  const h = currentTime.getHours() % 12 || 12;
+  const m = currentTime.getMinutes();
+  const s = currentTime.getSeconds();
+  const hStr = String(h).padStart(2, "0");
+  const mStr = String(m).padStart(2, "0");
+  const sStr = String(s).padStart(2, "0");
+  const ampm = currentTime.getHours() >= 12 ? "PM" : "AM";
+  const earliestIn = attendance.firstClockIn
+    ? new Date(attendance.firstClockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+    : "--:--";
+  const latestOut = attendance.lastClockOut
+    ? new Date(attendance.lastClockOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+    : "--:--";
+  const reversedLogs = [...(attendance.todayLogs ?? [])].reverse();
 
-  // Stepper steps (3-step: LOC, PHOTO, FINAL)
-  const steps = [
-    { label: "LOC", done: location.hasLocation && !!selectedOfficeId, icon: MapPin, active: !location.hasLocation || !selectedOfficeId },
-    { label: "PHOTO", done: camera.hasPhoto && faceVerification.verificationPassed, icon: Camera, active: location.hasLocation && !!selectedOfficeId && !(camera.hasPhoto && faceVerification.verificationPassed) },
-    { label: "FINAL", done: false, icon: ArrowRight, active: isReady },
-  ];
-  const currentStepIndex = steps.findIndex((s) => !s.done);
+  const clockButtonLabel =
+    !selectedOfficeId
+      ? "Select Office First"
+      : !location.hasLocation
+        ? "Get Location First"
+        : !isWithinRadius
+          ? "Outside Office Radius"
+          : !camera.hasPhoto
+            ? "Take Photo First"
+            : attendance.isClockedIn
+              ? "Clock Out"
+              : "Clock In Now";
 
-  // Compute work hours
-  const workMinutes = useMemo(() => {
-    if (!attendance.firstClockIn) return 0;
-    const start = new Date(attendance.firstClockIn).getTime();
-    const end = attendance.lastClockOut ? new Date(attendance.lastClockOut).getTime() : currentTime.getTime();
-    return Math.max(0, Math.floor((end - start) / 60000));
-  }, [attendance.firstClockIn, attendance.lastClockOut, currentTime]);
-
-  const seconds = currentTime.getSeconds();
-
-  // ─── STAFF VIEW ───
+  // ─── STAFF VIEW (ClockInOut design) ───
   const staffView = (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3 }}
-      className="space-y-4 md:space-y-5"
+      className="space-y-5"
     >
-      {/* ── Circular Clock Hero ── */}
-      <motion.div
-        className="flex flex-col items-center py-4 relative md:py-8"
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      >
-        {/* Soft radial gradient blob behind clock */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full pointer-events-none md:w-64 md:h-64"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04) 50%, transparent 70%)" }}
-        />
-        <div className="relative">
-          <ProgressRing
-            value={seconds}
-            max={60}
-            size={isMobile ? 140 : 180}
-            strokeWidth={3}
-            color="hsl(var(--primary))"
-            trackColor="hsl(var(--border))"
-            className="relative z-10"
+      {/* Hero Clock Panel */}
+      <div className="w-full rounded-2xl bg-gradient-to-br from-blue-50 via-white to-blue-50/50 p-8 lg:p-10 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 border border-blue-100 shadow-sm">
+        {/* Left: Live Time */}
+        <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left w-full lg:w-auto">
+          <div
+            className={cn(
+              "inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-6",
+              attendance.isClockedIn
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-slate-100 border-slate-200 text-slate-600"
+            )}
           >
-            <div className="text-center">
-              <p className="text-2xl font-bold tracking-tight text-foreground md:text-4xl">
-                {currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 md:text-xs">
-                {seconds}s
-              </p>
+            <div
+              className={cn(
+                "w-2 h-2 rounded-full",
+                attendance.isClockedIn ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+              )}
+            />
+            <span className="text-xs font-bold tracking-wide uppercase">
+              {attendance.isClockedIn ? "Active Shift" : "Off the Clock"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-2 mb-4">
+            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-slate-800 tracking-tighter tabular-nums drop-shadow-sm">
+              {hStr}
+            </span>
+            <span className="text-5xl sm:text-6xl lg:text-7xl text-blue-300 font-light mb-2 animate-pulse">:</span>
+            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-slate-800 tracking-tighter tabular-nums drop-shadow-sm">
+              {mStr}
+            </span>
+            <div className="flex flex-col ml-3 sm:ml-4 gap-1.5">
+              <span className="text-2xl sm:text-3xl font-bold text-slate-600 tabular-nums bg-white/80 px-2.5 py-0.5 rounded-lg border border-slate-200/60 shadow-sm text-center">
+                {sStr}
+              </span>
+              <span className="text-sm sm:text-base font-black text-blue-600 uppercase tracking-widest bg-blue-100/60 px-2.5 py-1 rounded-lg text-center">
+                {ampm}
+              </span>
             </div>
-          </ProgressRing>
+          </div>
+
+          <p className="text-slate-500 font-medium tracking-wide flex items-center gap-2">
+            <Calendar size={18} className="text-blue-500" />
+            {currentTime.toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
         </div>
-        <p className="text-xs font-semibold text-foreground mt-3 md:mt-4 md:text-sm">
-          {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        </p>
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5 font-medium md:mt-1 md:text-2xs">
-          SHIFT: GENERAL (08:00 – 17:00)
-        </p>
-      </motion.div>
 
-      {/* ── Summary Stats Swiper ── */}
-      <Swiper
-        modules={[FreeMode]}
-        slidesPerView={2}
-        spaceBetween={isMobile ? 8 : 12}
-        freeMode
-        className="w-full overflow-hidden"
-      >
-        <SwiperSlide>
-          <motion.div whileTap={{ scale: 0.97 }}>
-            <Card className="bg-card border-l-4 border-l-success shadow-card rounded-lg overflow-hidden md:rounded-xl">
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-1.5 mb-1.5 md:gap-2 md:mb-2">
-                  <div className="h-6 w-6 rounded-md bg-pastel-green flex items-center justify-center md:h-7 md:w-7 md:rounded-lg">
-                    <LogIn className="h-3 w-3 text-success md:h-3.5 md:w-3.5" />
-                  </div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold md:text-2xs">Clock In</span>
-                </div>
-                <p className="text-base font-bold text-foreground md:text-lg">
-                  {attendance.firstClockIn
-                    ? new Date(attendance.firstClockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-                    : "--:--"}
-                </p>
-                {attendance.firstClockIn && (
-                  <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/15 text-success font-medium md:mt-1 md:px-2 md:text-2xs">
-                    On Time
-                  </span>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </SwiperSlide>
-        <SwiperSlide>
-          <motion.div whileTap={{ scale: 0.97 }}>
-            <Card className="bg-card border-l-4 border-l-primary shadow-card rounded-lg overflow-hidden md:rounded-xl">
-              <CardContent className="p-2 md:p-4">
-                <div className="flex items-center gap-1.5 mb-1.5 md:gap-2 md:mb-2">
-                  <div className="h-6 w-6 rounded-md bg-pastel-blue flex items-center justify-center md:h-7 md:w-7 md:rounded-lg">
-                    <Timer className="h-3 w-3 text-primary md:h-3.5 md:w-3.5" />
-                  </div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold md:text-2xs">Work Hours</span>
-                </div>
-                <p className="text-base font-bold text-foreground md:text-lg">
-                  {`${Math.floor(workMinutes / 60)}h ${workMinutes % 60}m`}
-                </p>
-                <Progress value={Math.min((workMinutes / 540) * 100, 100)} className="h-1 mt-1.5 md:h-1.5 md:mt-2" />
-              </CardContent>
-            </Card>
-          </motion.div>
-        </SwiperSlide>
-      </Swiper>
-
-      {/* ── Clock Status Badge ── */}
-      <AnimatePresence>
-        {attendance.isClockedIn && attendance.firstClockIn && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="flex justify-center"
+        {/* Right: Action Area */}
+        <div className="relative z-10 w-full lg:w-[400px] flex flex-col gap-4 shrink-0">
+          <button
+            type="button"
+            className={cn(
+              "w-full h-16 rounded-xl flex items-center justify-center gap-3 text-lg font-bold transition-all duration-300 transform active:scale-[0.98]",
+              attendance.isClockedIn
+                ? "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25"
+            )}
+            onClick={handleClock}
+            disabled={
+              attendance.isClocking ||
+              attendance.logsLoading ||
+              !selectedOfficeId ||
+              (location.hasLocation && !isWithinRadius) ||
+              !camera.hasPhoto ||
+              !faceVerification.verificationPassed
+            }
           >
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pastel-green text-success md:gap-2 md:px-4 md:py-2">
-              <span className="relative flex h-2 w-2 md:h-2.5 md:w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-success md:h-2.5 md:w-2.5" />
-              </span>
-              <span className="text-xs font-medium md:text-sm">
-                Clocked in at{" "}
-                {new Date(attendance.firstClockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {attendance.isClocking ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : attendance.isClockedIn ? (
+              <ArrowLeft className="h-5 w-5" />
+            ) : (
+              <ArrowRight className="h-5 w-5" />
+            )}
+            {attendance.isClocking ? "..." : clockButtonLabel}
+          </button>
 
-      {/* ── Animated Stepper (3-step circles + lines) ── */}
-      <div className="flex items-center justify-center gap-0 px-4 md:px-6">
-        {steps.map((step, i) => (
-          <div key={step.label} className="flex items-center">
-            <motion.div
-              className="relative flex flex-col items-center"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: i * 0.1, type: "spring", stiffness: 300 }}
-            >
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col justify-center">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
+                <ArrowRight size={12} className="text-emerald-500" /> Earliest In
+              </p>
+              <p className="text-slate-700 font-bold">{earliestIn}</p>
+            </div>
+            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col justify-center">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
+                <ArrowLeft size={12} className="text-rose-500" /> Latest Out
+              </p>
+              <p className="text-slate-700 font-bold">{latestOut}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Work Location + Selfie Verification */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Location Selector */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col transition-colors">
+          <div className="mb-5 flex items-start justify-between">
+            <div>
+              <h3 className="font-bold text-slate-800 text-lg mb-1 flex items-center gap-2">
+                <MapPin size={20} className="text-blue-600" />
+                Work Location
+              </h3>
+              <p className="text-xs text-slate-500">Required for attendance logging.</p>
+            </div>
+          </div>
+          <div className="relative mt-auto space-y-2">
+            <Select value={selectedOfficeId} onValueChange={setSelectedOfficeId}>
+              <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-slate-200 text-slate-700 font-medium text-sm focus:ring-2 focus:ring-blue-500">
+                <SelectValue placeholder="Select your location..." />
+              </SelectTrigger>
+              <SelectContent>
+                {attendance.allOffices.map((office) => (
+                  <SelectItem key={office.id} value={office.id}>
+                    {office.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {distanceToOffice !== null && selectedOffice && (
               <div
                 className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 md:h-10 md:w-10 md:text-sm",
-                  step.done
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : step.active
-                    ? "border-2 border-primary text-primary"
-                    : "border-2 border-muted text-muted-foreground"
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs",
+                  isWithinRadius ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                 )}
               >
-                {step.done ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 md:h-4.5 md:w-4.5" />
-                ) : (
-                  <step.icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                )}
-              </div>
-              <span className={cn(
-                "text-[10px] mt-1 font-semibold uppercase tracking-wider md:text-2xs md:mt-1.5",
-                step.done ? "text-primary" : step.active ? "text-foreground" : "text-muted-foreground"
-              )}>
-                {step.label}
-              </span>
-            </motion.div>
-            {i < steps.length - 1 && (
-              <div className="w-8 h-[2px] mx-0.5 rounded-full bg-border overflow-hidden relative -mt-3 md:w-12 md:mx-1 md:-mt-4">
-                <motion.div
-                  className="h-full bg-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: step.done ? "100%" : "0%" }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Action Cards (Office + Verification) ── */}
-      <div className="grid grid-cols-2 gap-2 md:gap-3">
-        <motion.div whileTap={{ scale: 0.97 }}>
-          <Card className={cn(
-            "bg-card rounded-lg shadow-card overflow-hidden border-t-2 md:rounded-xl",
-            selectedOfficeId ? "border-t-success" : "border-t-muted"
-          )}>
-            <CardContent className="p-2.5 md:p-3.5">
-              <div className="flex items-center gap-1.5 mb-1.5 md:gap-2 md:mb-2">
-                <MapPin className="h-3.5 w-3.5 text-primary md:h-4 md:w-4" />
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground md:text-2xs">Office</span>
-              </div>
-              <p className="text-[11px] font-medium text-foreground truncate md:text-xs">
-                {selectedOffice?.name || "Not selected"}
-              </p>
-              {selectedOfficeId && isWithinRadius && (
-                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-success/15 text-success font-medium md:mt-1.5 md:px-2 md:text-2xs">
-                  LOCKED
-                </span>
-              )}
-              {selectedOfficeId && distanceToOffice !== null && !isWithinRadius && (
-                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium md:mt-1.5 md:px-2 md:text-2xs">
-                  OUT OF RANGE
-                </span>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div whileTap={{ scale: 0.97 }}>
-          <Card className={cn(
-            "bg-card rounded-lg shadow-card overflow-hidden border-t-2 md:rounded-xl",
-            faceVerification.verificationPassed ? "border-t-success" : camera.hasPhoto ? "border-t-warning" : "border-t-muted"
-          )}>
-            <CardContent className="p-2.5 md:p-3.5">
-              <div className="flex items-center gap-1.5 mb-1.5 md:gap-2 md:mb-2">
-                {faceVerification.verificationPassed ? (
-                  <ShieldCheck className="h-3.5 w-3.5 text-success md:h-4 md:w-4" />
-                ) : (
-                  <Camera className="h-3.5 w-3.5 text-primary md:h-4 md:w-4" />
-                )}
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground md:text-2xs">Verification</span>
-              </div>
-              <p className="text-[11px] font-medium text-foreground md:text-xs">
-                {faceVerification.verificationPassed
-                  ? `Verified (${faceVerification.verificationResult?.confidence}%)`
-                  : camera.hasPhoto
-                  ? faceVerification.isVerifying ? "Verifying..." : "Not verified"
-                  : "Not captured"}
-              </p>
-              {faceVerification.verificationPassed && (
-                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-success/15 text-success font-medium md:mt-1.5 md:px-2 md:text-2xs">
-                  VERIFIED
-                </span>
-              )}
-              {faceVerification.error && (
-                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium md:mt-1.5 md:px-2 md:text-2xs">
-                  FAILED
-                </span>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* ── Clock Card ── */}
-      <Card className="bg-card rounded-lg shadow-card border-0 md:rounded-xl">
-        <CardContent className="p-3 md:p-5">
-          <div className="space-y-2.5 md:space-y-3">
-            {/* Office Selection */}
-            <div className="space-y-1 md:space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 md:text-xs md:gap-1.5">
-                <Building2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                Select Working Location
-              </label>
-              <Select value={selectedOfficeId} onValueChange={setSelectedOfficeId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose your office..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {attendance.allOffices.map((office) => (
-                    <SelectItem key={office.id} value={office.id}>
-                      <span>{office.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedOffice?.address && (
-                <p className="text-[11px] text-muted-foreground pl-0.5 md:text-xs md:pl-1">{selectedOffice.address}</p>
-              )}
-            </div>
-
-            {/* Distance Indicator */}
-            {distanceToOffice !== null && selectedOffice && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs md:gap-2 md:px-3 md:py-2 md:text-sm",
-                  isWithinRadius ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                )}
-              >
-                <MapPin className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" />
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
                 <span>
                   {formatDistance(distanceToOffice)} from {selectedOffice.name}
                   {!isWithinRadius && ` — Must be within ${formatDistance(selectedOffice.radiusMeters)}`}
                 </span>
-              </motion.div>
+              </div>
             )}
-
-            {/* Location Status */}
             <motion.button
+              type="button"
               whileTap={{ scale: 0.97 }}
               onClick={() => location.getLocation()}
               disabled={location.loading}
               className={cn(
-                "w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors md:gap-3 md:p-3.5 md:rounded-xl",
-                location.hasLocation ? "bg-pastel-green text-success" : location.error ? "bg-destructive/10 text-destructive" : "bg-muted/50 hover:bg-muted"
+                "w-full flex items-center gap-2 p-2.5 rounded-xl text-left transition-colors",
+                location.hasLocation ? "bg-emerald-50 text-emerald-700" : location.error ? "bg-rose-50 text-rose-700" : "bg-slate-50 hover:bg-slate-100 text-slate-600"
               )}
             >
-              {location.loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0 md:h-5 md:w-5" /> : location.hasLocation ? <CheckCircle2 className="h-4 w-4 shrink-0 md:h-5 md:w-5" /> : location.error ? <XCircle className="h-4 w-4 shrink-0 md:h-5 md:w-5" /> : <MapPin className="h-4 w-4 text-muted-foreground shrink-0 md:h-5 md:w-5" />}
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-xs font-medium md:text-sm">{location.hasLocation ? "Location Captured" : "Location"}</p>
-                <p className="text-[11px] opacity-80 truncate md:text-xs">
-                  {location.loading ? "Getting your location..." : location.hasLocation ? location.locationName || "Location detected" : location.error || "Tap to get current location"}
-                </p>
-              </div>
-              {location.hasLocation && <RefreshCw className="h-3.5 w-3.5 opacity-60 shrink-0 md:h-4 md:w-4" />}
-            </motion.button>
-
-            {/* Photo Status */}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={handleOpenCamera}
-              className={cn(
-                "w-full flex items-center gap-2 p-2.5 rounded-lg transition-colors md:gap-3 md:p-3.5 md:rounded-xl",
-                camera.hasPhoto ? "bg-pastel-green text-success" : "bg-muted/50 hover:bg-muted"
+              {location.loading ? (
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              ) : location.hasLocation ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : location.error ? (
+                <XCircle className="h-4 w-4 shrink-0" />
+              ) : (
+                <MapPin className="h-4 w-4 shrink-0" />
               )}
-            >
-              {faceVerification.verificationPassed ? <ShieldCheck className="h-4 w-4 shrink-0 md:h-5 md:w-5" /> : camera.hasPhoto ? <CheckCircle2 className="h-4 w-4 shrink-0 md:h-5 md:w-5" /> : <Camera className="h-4 w-4 text-muted-foreground shrink-0 md:h-5 md:w-5" />}
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-xs font-medium md:text-sm">
-                  {faceVerification.verificationPassed ? "Face Verified" : camera.hasPhoto ? "Photo Captured" : "Photo"}
-                </p>
-                <p className="text-[11px] opacity-80 truncate md:text-xs">
-                  {faceVerification.verificationPassed
-                    ? `${faceVerification.verificationResult?.confidence}% confidence`
-                    : camera.hasPhoto ? "Tap to retake" : "Selfie required for clock-in"}
-                </p>
-              </div>
-              {camera.hasPhoto && (
-                <div className="h-8 w-8 rounded-md overflow-hidden shrink-0 md:h-10 md:w-10 md:rounded-lg">
-                  <img src={camera.photo!} alt="Selfie" className="h-full w-full object-cover" />
-                </div>
-              )}
+              <span className="text-xs font-medium truncate">
+                {location.loading
+                  ? "Getting your location..."
+                  : location.hasLocation
+                    ? location.locationName || "Location captured"
+                    : location.error || "Tap to get current location"}
+              </span>
+              {location.hasLocation && <RefreshCw className="h-3.5 w-3.5 opacity-60 shrink-0 ml-auto" />}
             </motion.button>
-
-            {/* Remark Field */}
-            <div className="space-y-1 md:space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 md:text-xs md:gap-1.5">
-                <MessageSquare className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                Remark (optional)
-              </label>
-              <Textarea
-                placeholder="Add a note for this entry..."
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-                className="min-h-[52px] text-xs resize-none md:min-h-[60px] md:text-sm"
-              />
-            </div>
-
-            {/* Clock Button */}
-            <motion.div whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.01 }}>
-              <Button
-                onClick={handleClock}
-                disabled={
-                  attendance.isClocking || attendance.logsLoading || !selectedOfficeId ||
-                  (location.hasLocation && !isWithinRadius)
-                }
-                className={cn(
-                  "w-full h-12 text-sm rounded-lg font-bold uppercase tracking-wider relative overflow-hidden text-primary-foreground shadow-sm md:h-14 md:text-lg md:rounded-xl",
-                  attendance.isClockedIn
-                    ? "bg-destructive hover:bg-destructive/90"
-                    : "bg-primary hover:bg-primary/90"
-                )}
-              >
-                {/* Shine sweep effect */}
-                <span className="absolute inset-0 pointer-events-none">
-                  <span className="absolute inset-0 animate-shine-sweep bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                </span>
-                <span className="relative flex items-center justify-center gap-1.5 md:gap-2">
-                  {attendance.isClocking ? (
-                    <Loader2 className="h-4 w-4 animate-spin md:h-5 md:w-5" />
-                  ) : (
-                    <Clock className="h-4 w-4 md:h-5 md:w-5" />
-                  )}
-                  {!selectedOfficeId
-                    ? "Select Office First"
-                    : !location.hasLocation
-                    ? "Get Location First"
-                    : !isWithinRadius
-                    ? "Outside Office Radius"
-                    : !camera.hasPhoto
-                    ? "Take Photo First"
-                    : actionLabel}
-                </span>
-              </Button>
-            </motion.div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Today's Timeline ── */}
-      <section>
-        <div className="flex items-center justify-between mb-2 md:mb-3">
-          <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider md:text-xs">Today's Timeline</h2>
-          <button className="text-[11px] text-primary font-medium hover:underline md:text-xs">VIEW HISTORY</button>
         </div>
-        {attendance.logsLoading ? (
-          <div className="flex justify-center py-3 md:py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground md:h-6 md:w-6" />
+
+        {/* Selfie Verification */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col transition-colors">
+          <div className="mb-5 flex items-start justify-between">
+            <div>
+              <h3 className="font-bold text-slate-800 text-lg mb-1 flex items-center gap-2">
+                <Camera size={20} className="text-blue-600" />
+                Selfie Verification
+              </h3>
+              <p className="text-xs text-slate-500">Identity check required.</p>
+            </div>
           </div>
-        ) : attendance.todayLogs && attendance.todayLogs.length > 0 ? (
-          <div className="space-y-1.5 md:space-y-2">
-            {[...attendance.todayLogs].reverse().map((log, i) => (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.08, type: "spring", stiffness: 300, damping: 25 }}
+          {camera.hasPhoto ? (
+            <div className="relative rounded-xl overflow-hidden border border-slate-200 mt-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element -- ClockInOut design uses img for selfie preview */}
+              <img src={camera.photo!} alt="Verification" className="w-full h-32 object-cover" />
+              {faceVerification.verificationPassed && (
+                <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/90 text-white text-[10px] font-bold uppercase">
+                  <ShieldCheck size={12} /> Verified
+                </span>
+              )}
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 h-7 w-7 rounded-full"
+                onClick={() => {
+                  camera.clearPhoto();
+                  faceVerification.reset();
+                }}
               >
-                <Card className={cn(
-                  "bg-card rounded-lg shadow-card overflow-hidden border-l-4 md:rounded-xl",
-                  i === 0 ? "border-l-accent" : log.type === "clock_in" ? "border-l-success" : "border-l-muted"
-                )}>
-                  <CardContent className="p-2.5 flex items-center justify-between gap-2 md:p-3 md:gap-3">
-                    <div className="flex items-center gap-2 min-w-0 md:gap-3">
-                      <div className={cn(
-                        "h-6 w-6 rounded-md flex items-center justify-center shrink-0 md:h-8 md:w-8 md:rounded-lg",
-                        log.type === "clock_in" ? "bg-pastel-green" : "bg-pastel-orange"
-                      )}>
-                        {log.type === "clock_in" ? (
-                          <LogIn className="h-3 w-3 text-success md:h-4 md:w-4" />
-                        ) : (
-                          <LogOut className="h-3 w-3 text-accent md:h-4 md:w-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground md:text-sm">
-                          {log.type === "clock_in" ? "Clock In" : "Clock Out"}
-                        </p>
-                        {log.distanceMeters && (
-                          <p className="text-[11px] text-muted-foreground md:text-xs">
-                            {formatDistance(log.distanceMeters)} from office
-                          </p>
-                        )}
-                        {log.notes && (
-                          <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate md:text-xs">"{log.notes}"</p>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs font-semibold text-foreground shrink-0 md:text-sm">
-                      {new Date(log.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="border-2 border-dashed border-slate-300 rounded-xl h-[52px] flex items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all text-center mt-auto group w-full"
+              onClick={handleOpenCamera}
+            >
+              <div className="flex items-center gap-2 text-slate-500 font-medium text-sm group-hover:text-blue-600">
+                <ScanFace size={18} />
+                Click to scan face
+              </div>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Additional Remarks */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageSquare size={20} className="text-blue-600" />
+          <h3 className="font-bold text-slate-800 text-lg">Additional Remarks</h3>
+        </div>
+        <Textarea
+          placeholder="Optional notes regarding today's shift..."
+          value={remark}
+          onChange={(e) => setRemark(e.target.value)}
+          className="w-full h-24 bg-slate-50 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
+        />
+      </div>
+
+      {/* Activity Log */}
+      {attendance.logsLoading ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 flex justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      ) : reversedLogs.length > 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 p-6 pb-4">
+            <div className="bg-blue-50 rounded-xl p-2">
+              <Clock size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-lg">Activity Log</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {reversedLogs.length} ACTIVITIES
+              </p>
+            </div>
           </div>
-        ) : (
-          <Card className="bg-card rounded-lg shadow-card md:rounded-xl">
-            <CardContent className="py-4 md:py-6">
-              <p className="text-xs text-muted-foreground text-center md:text-sm">No clock-in record for today</p>
-            </CardContent>
-          </Card>
-        )}
-      </section>
+          <div className="px-4 pb-4 space-y-3">
+            {reversedLogs.map((log, idx) => {
+              const isIn = log.type === "clock_in";
+              const isLatest = idx === 0;
+              const timeStr = new Date(log.timestamp).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              });
+              const timeParts = timeStr.split(" ");
+              const pTime = timeParts[0] ?? "";
+              const pAmPm = timeParts[1] ?? "";
+              const officeName = log.officeId
+                ? attendance.allOffices.find((o) => o.id === log.officeId)?.name
+                : undefined;
+
+              return (
+                <div
+                  key={log.id}
+                  className={cn(
+                    "group relative flex items-start gap-4 p-4 rounded-2xl transition-all duration-300",
+                    isLatest
+                      ? "bg-white border border-blue-100 shadow-[0_8px_30px_rgb(37,99,235,0.08)] ring-1 ring-blue-50"
+                      : "bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-sm"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "absolute left-0 top-1/2 -translate-y-1/2 w-1.5 rounded-r-full transition-all duration-300",
+                      isLatest
+                        ? isIn
+                          ? "bg-blue-500 h-12"
+                          : "bg-rose-500 h-12"
+                        : isIn
+                          ? "bg-blue-200 h-8 group-hover:bg-blue-300"
+                          : "bg-rose-200 h-8 group-hover:bg-rose-300"
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ml-1 transition-colors duration-300",
+                      isLatest
+                        ? isIn
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-rose-100 text-rose-600"
+                        : isIn
+                          ? "bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-500"
+                          : "bg-rose-50 text-rose-400 group-hover:bg-rose-100 group-hover:text-rose-500"
+                    )}
+                  >
+                    {isIn ? (
+                      <ArrowRight size={20} strokeWidth={2.5} className="rotate-45" />
+                    ) : (
+                      <ArrowLeft size={20} strokeWidth={2.5} className="-rotate-45" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col py-0.5">
+                    <div className="flex justify-between items-center mb-1">
+                      <span
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest",
+                          isLatest ? (isIn ? "text-blue-600" : "text-rose-600") : isIn ? "text-blue-400" : "text-rose-400"
+                        )}
+                      >
+                        {isIn ? "Clocked In" : "Clocked Out"}
+                      </span>
+                      {isLatest && (
+                        <span className="flex h-2 w-2 relative">
+                          <span
+                            className={cn(
+                              "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                              isIn ? "bg-blue-400" : "bg-rose-400"
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "relative inline-flex rounded-full h-2 w-2",
+                              isIn ? "bg-blue-500" : "bg-rose-500"
+                            )}
+                          />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className={cn(
+                          "text-2xl font-black tabular-nums tracking-tighter",
+                          isLatest ? "text-slate-800" : "text-slate-600"
+                        )}
+                      >
+                        {pTime}
+                      </span>
+                      {pAmPm && (
+                        <span className={cn("text-sm font-bold", isLatest ? "text-blue-600" : "text-slate-400")}>
+                          {pAmPm}
+                        </span>
+                      )}
+                    </div>
+                    {officeName && (
+                      <div
+                        className={cn(
+                          "mt-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider w-fit px-2 py-1 rounded-md",
+                          isLatest ? "bg-blue-50 text-blue-600" : "bg-slate-200/50 text-slate-500"
+                        )}
+                      >
+                        <MapPin size={10} strokeWidth={2.5} />
+                        {officeName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </motion.div>
   );
 
@@ -724,8 +697,6 @@ export default function Attendance() {
 
   // Determine what to show based on chip
   const showStaffView = activeChip === "my-attendance";
-  const showAdminView = activeChip !== "my-attendance";
-  // For superadmin chip, show both staff + admin
   const showBoth = activeChip === "superadmin";
 
   return (
@@ -799,6 +770,7 @@ export default function Attendance() {
               </div>
             ) : camera.photo ? (
               <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Camera capture preview */}
                 <img src={camera.photo} alt="Captured" className="w-full h-full object-cover" />
                 {/* Verification overlay */}
                 <AnimatePresence>

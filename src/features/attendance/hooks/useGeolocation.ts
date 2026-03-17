@@ -1,11 +1,18 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { reverseGeocode } from "@/shared/lib/api-client/geocode";
+
+const REVERSE_GEOCODE_STALE_MS = 5 * 60 * 1000; // 5 minutes
+
+function roundCoord(value: number, decimals = 4): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
 
 interface GeolocationState {
   latitude: number | null;
   longitude: number | null;
   accuracy: number | null;
-  locationName: string | null;
   error: string | null;
   loading: boolean;
 }
@@ -15,9 +22,34 @@ export function useGeolocation() {
     latitude: null,
     longitude: null,
     accuracy: null,
-    locationName: null,
     error: null,
     loading: false,
+  });
+
+  const { latitude, longitude } = state;
+
+  const roundedCoords = useMemo(() => {
+    if (latitude == null || longitude == null) return null;
+    return { lat: roundCoord(latitude), lng: roundCoord(longitude) };
+  }, [latitude, longitude]);
+
+  const {
+    data: locationName,
+    isLoading: locationNameLoading,
+  } = useQuery({
+    queryKey: ["reverseGeocode", roundedCoords?.lat, roundedCoords?.lng],
+    queryFn: () => {
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[reverseGeocode] API call (cache miss)", {
+          lat: roundedCoords?.lat,
+          lng: roundedCoords?.lng,
+        });
+      }
+      return reverseGeocode(latitude!, longitude!);
+    },
+    enabled: latitude != null && longitude != null,
+    staleTime: REVERSE_GEOCODE_STALE_MS,
+    gcTime: REVERSE_GEOCODE_STALE_MS * 2,
   });
 
   const getLocation = useCallback(() => {
@@ -33,18 +65,13 @@ export function useGeolocation() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
-
-        const locationName =
-          (await reverseGeocode(lat, lon)) ?? "Location detected";
-
         setState({
           latitude: lat,
           longitude: lon,
           accuracy: position.coords.accuracy,
-          locationName,
           error: null,
           loading: false,
         });
@@ -66,7 +93,6 @@ export function useGeolocation() {
           latitude: null,
           longitude: null,
           accuracy: null,
-          locationName: null,
           error: errorMessage,
           loading: false,
         });
@@ -84,7 +110,6 @@ export function useGeolocation() {
       latitude: null,
       longitude: null,
       accuracy: null,
-      locationName: null,
       error: null,
       loading: false,
     });
@@ -92,6 +117,8 @@ export function useGeolocation() {
 
   return {
     ...state,
+    locationName: locationName ?? null,
+    locationNameLoading: locationNameLoading && latitude != null && longitude != null,
     getLocation,
     clearLocation,
     hasLocation: state.latitude !== null && state.longitude !== null,
