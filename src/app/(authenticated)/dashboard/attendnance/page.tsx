@@ -29,6 +29,7 @@ import {
   Calendar,
   ScanFace,
 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useGeolocation } from "@/features/attendance/hooks/useGeolocation";
 import { useCamera } from "@/features/attendance/hooks/useCamera";
@@ -65,6 +66,7 @@ const roleChips: { id: RoleChip; label: string }[] = [
 ];
 
 export default function Attendance() {
+  const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [cameraOpen, setCameraOpen] = useState(false);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>("");
@@ -173,31 +175,82 @@ export default function Attendance() {
 
   const handleClock = async () => {
     if (!selectedOfficeId) return;
-    if (!location.hasLocation) {
+
+    if (!attendance.isClockedIn && !location.hasLocation) {
       location.getLocation();
       return;
     }
+
     if (!camera.hasPhoto) {
       await handleOpenCamera();
       return;
     }
+
     try {
       if (attendance.isClockedIn) {
+        let latitude: number;
+        let longitude: number;
+        try {
+          const coords = await location.getLocationAsync();
+          latitude = coords.latitude;
+          longitude = coords.longitude;
+        } catch (err) {
+          toast({
+            title: "Location failed",
+            description: err instanceof Error ? err.message : "Failed to get location",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const office = attendance.allOffices.find((o) => o.id === selectedOfficeId);
+        if (!office) {
+          toast({
+            title: "Clock out failed",
+            description: "Please select a working location",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const distance = attendance.calculateDistance(
+          latitude,
+          longitude,
+          Number(office.latitude),
+          Number(office.longitude)
+        );
+        if (distance > office.radiusMeters) {
+          toast({
+            title: "Outside office radius",
+            description: `You are ${formatDistance(distance)} from ${office.name}. You must be within ${formatDistance(office.radiusMeters)} to clock out.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         await attendance.clockOut(
-          location.latitude!, location.longitude!, selectedOfficeId,
-          camera.photo || undefined, remark || undefined
+          latitude,
+          longitude,
+          selectedOfficeId,
+          camera.photo || undefined,
+          remark || undefined
         );
       } else {
         await attendance.clockIn(
-          location.latitude!, location.longitude!, selectedOfficeId,
-          camera.photo || undefined, remark || undefined
+          location.latitude!,
+          location.longitude!,
+          selectedOfficeId,
+          camera.photo || undefined,
+          remark || undefined
         );
       }
       location.clearLocation();
       camera.clearPhoto();
       faceVerification.reset();
       setRemark("");
-    } catch { /* Error handled in hook */ }
+    } catch {
+      /* Error handled in hook */
+    }
   };
 
   const handleConfirmPhoto = () => handleCloseCamera();
@@ -224,18 +277,20 @@ export default function Attendance() {
     : "--:--";
   const reversedLogs = [...(attendance.todayLogs ?? [])].reverse();
 
-  const clockButtonLabel =
-    !selectedOfficeId
-      ? "Select Office First"
-      : !location.hasLocation
-        ? "Get Location First"
-        : !isWithinRadius
-          ? "Outside Office Radius"
-          : !camera.hasPhoto
-            ? "Take Photo First"
-            : attendance.isClockedIn
-              ? "Clock Out"
-              : "Clock In Now";
+  const clockButtonLabel = (() => {
+    if (!selectedOfficeId) return "Select Office First";
+    if (attendance.isClockedIn) {
+      if (!camera.hasPhoto) return "Take Photo First";
+      if (!faceVerification.verificationPassed) return "Verify Face First";
+      if (location.loading) return "Getting location...";
+      return "Clock Out";
+    }
+    if (!location.hasLocation) return "Get Location First";
+    if (!isWithinRadius) return "Outside Office Radius";
+    if (!camera.hasPhoto) return "Take Photo First";
+    if (!faceVerification.verificationPassed) return "Verify Face First";
+    return "Clock In Now";
+  })();
 
   // ─── STAFF VIEW (ClockInOut design) ───
   const staffView = (
@@ -313,19 +368,20 @@ export default function Attendance() {
               attendance.isClocking ||
               attendance.logsLoading ||
               !selectedOfficeId ||
-              (location.hasLocation && !isWithinRadius) ||
               !camera.hasPhoto ||
-              !faceVerification.verificationPassed
+              !faceVerification.verificationPassed ||
+              location.loading ||
+              (!attendance.isClockedIn && location.hasLocation && !isWithinRadius)
             }
           >
-            {attendance.isClocking ? (
+            {attendance.isClocking || location.loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : attendance.isClockedIn ? (
               <ArrowLeft className="h-5 w-5" />
             ) : (
               <ArrowRight className="h-5 w-5" />
             )}
-            {attendance.isClocking ? "..." : clockButtonLabel}
+            {attendance.isClocking || location.loading ? "..." : clockButtonLabel}
           </button>
 
           <div className="grid grid-cols-2 gap-3 w-full">

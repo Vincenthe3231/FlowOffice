@@ -4,6 +4,12 @@ import { reverseGeocode } from "@/shared/lib/api-client/geocode";
 
 const REVERSE_GEOCODE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
+const GEO_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 0,
+};
+
 function roundCoord(value: number, decimals = 4): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
@@ -97,12 +103,60 @@ export function useGeolocation() {
           loading: false,
         });
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      GEO_OPTIONS
     );
+  }, []);
+
+  /** Fresh GPS fix; await in one tap (e.g. clock-out). Updates state on success like getLocation. */
+  const getLocationAsync = useCallback((): Promise<{ latitude: number; longitude: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const msg = "Geolocation is not supported by your browser";
+        setState((prev) => ({ ...prev, error: msg, loading: false }));
+        reject(new Error(msg));
+        return;
+      }
+
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          setState({
+            latitude: lat,
+            longitude: lon,
+            accuracy: position.coords.accuracy,
+            error: null,
+            loading: false,
+          });
+          resolve({ latitude: lat, longitude: lon });
+        },
+        (error) => {
+          let errorMessage = "Failed to get location";
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Location permission denied. Please enable location access.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Location information unavailable";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Location request timed out";
+              break;
+          }
+          setState({
+            latitude: null,
+            longitude: null,
+            accuracy: null,
+            error: errorMessage,
+            loading: false,
+          });
+          reject(new Error(errorMessage));
+        },
+        GEO_OPTIONS
+      );
+    });
   }, []);
 
   const clearLocation = useCallback(() => {
@@ -120,6 +174,7 @@ export function useGeolocation() {
     locationName: locationName ?? null,
     locationNameLoading: locationNameLoading && latitude != null && longitude != null,
     getLocation,
+    getLocationAsync,
     clearLocation,
     hasLocation: state.latitude !== null && state.longitude !== null,
   };
