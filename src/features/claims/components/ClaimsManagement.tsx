@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   useClaimCategories,
   useClaimCategoriesForChart,
@@ -12,7 +12,7 @@ import {
   useMonthlySpend,
 } from "@/features/claims/hooks/useClaims";
 import { BudgetUtilization } from "@/features/claims/components/BudgetUtilization";
-import { ClaimDetailSheet } from "@/features/claims/components/ClaimDetailSheet";
+import { buildClaimDetailHref } from "@/features/claims/lib/claimUrlParams";
 import { ClaimsByCategoryChart } from "@/features/claims/components/ClaimsByCategoryChart";
 import { ClaimsStatCards } from "@/features/claims/components/ClaimsStatCards";
 import { ClaimsTable } from "@/features/claims/components/ClaimsTable";
@@ -23,9 +23,6 @@ import { Button } from "@/components/ui/button";
 export function ClaimsManagement() {
   const router = useRouter();
   const [filter, setFilter] = useState<ClaimFilter>("All");
-  const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(
-    null
-  );
 
   const { data: claimsData } = useClaims(filter);
   const { data: statsData } = useClaimsStats();
@@ -34,16 +31,11 @@ export function ClaimsManagement() {
   const { data: monthlySpend = [] } = useMonthlySpend();
 
   const filteredClaims = claimsData?.claims ?? [];
-  const selectedClaim =
-    selectedClaimIndex !== null
-      ? filteredClaims[selectedClaimIndex] ?? null
-      : null;
   const { approvedCount = 0, pendingCount = 0, totalAmount = 0, totalClaims = 0, sparkline = [] } =
     statsData ?? {};
 
   function handleClaimSelect(claim: Claim) {
-    const idx = filteredClaims.findIndex((c) => c.id === claim.id);
-    setSelectedClaimIndex(idx >= 0 ? idx : null);
+    router.push(buildClaimDetailHref(claim.id));
   }
 
   return (
@@ -112,11 +104,6 @@ export function ClaimsManagement() {
           />
         </motion.div>
       </AnimatePresence>
-
-      <ClaimDetailSheet
-        claim={selectedClaim}
-        onClose={() => setSelectedClaimIndex(null)}
-      />
 
       <Button
         onClick={() => router.push("/dashboard/claims/new")}

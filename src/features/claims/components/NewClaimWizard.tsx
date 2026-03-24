@@ -40,7 +40,6 @@ import { MileageClaimForm } from "@/features/claims/components/MileageClaimForm"
 import { CustomFieldBuilder } from "@/features/claims/components/CustomFieldBuilder";
 import { ClaimReviewSummary } from "@/features/claims/components/ClaimReviewSummary";
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
-import { CreateSubclaimDialog } from "@/features/claims/components/CreateSubclaimDialog";
 import { useClaimDraftStore } from "@/features/claims/stores/useClaimDraftStore";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import {
@@ -640,11 +639,6 @@ export function NewClaimWizard() {
                           );
                         })}
                       </div>
-                      {draft.selectedTypeId && (
-                        <CreateSubclaimDialog
-                          claimTypeId={draft.selectedTypeId}
-                        />
-                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -656,14 +650,9 @@ export function NewClaimWizard() {
                           No subclaim types available
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          You can create a custom one or skip this step.
+                          You can skip this step.
                         </p>
                       </div>
-                      {draft.selectedTypeId && (
-                        <CreateSubclaimDialog
-                          claimTypeId={draft.selectedTypeId}
-                        />
-                      )}
                     </div>
                   )}
                 </div>
