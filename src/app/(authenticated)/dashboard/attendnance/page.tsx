@@ -302,7 +302,7 @@ export default function Attendance() {
       className="space-y-5"
     >
       {/* Hero Clock Panel */}
-      <div className="w-full rounded-2xl bg-gradient-to-br from-blue-50 via-white to-blue-50/50 p-8 lg:p-10 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 border border-blue-100 shadow-sm">
+      <div className="w-full rounded-2xl bg-gradient-to-br from-primary/10 via-background to-primary/5 p-8 lg:p-10 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 border border-border shadow-sm">
         {/* Left: Live Time */}
         <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left w-full lg:w-auto">
           <div
@@ -310,13 +310,13 @@ export default function Attendance() {
               "inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-6",
               attendance.isClockedIn
                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : "bg-slate-100 border-slate-200 text-slate-600"
+                : "bg-muted border-border text-muted-foreground"
             )}
           >
             <div
               className={cn(
                 "w-2 h-2 rounded-full",
-                attendance.isClockedIn ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                attendance.isClockedIn ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
               )}
             />
             <span className="text-xs font-bold tracking-wide uppercase">
@@ -325,15 +325,15 @@ export default function Attendance() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 mb-4">
-            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-slate-800 tracking-tighter tabular-nums drop-shadow-sm">
+            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm">
               {hStr}
             </span>
             <span className="text-5xl sm:text-6xl lg:text-7xl text-blue-300 font-light mb-2 animate-pulse">:</span>
-            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-slate-800 tracking-tighter tabular-nums drop-shadow-sm">
+            <span className="text-6xl sm:text-7xl lg:text-8xl font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm">
               {mStr}
             </span>
             <div className="flex flex-col ml-3 sm:ml-4 gap-1.5">
-              <span className="text-2xl sm:text-3xl font-bold text-slate-600 tabular-nums bg-white/80 px-2.5 py-0.5 rounded-lg border border-slate-200/60 shadow-sm text-center">
+              <span className="text-2xl sm:text-3xl font-bold text-muted-foreground tabular-nums bg-card/90 px-2.5 py-0.5 rounded-lg border border-border shadow-sm text-center">
                 {sStr}
               </span>
               <span className="text-sm sm:text-base font-black text-blue-600 uppercase tracking-widest bg-blue-100/60 px-2.5 py-1 rounded-lg text-center">
@@ -342,7 +342,7 @@ export default function Attendance() {
             </div>
           </div>
 
-          <p className="text-slate-500 font-medium tracking-wide flex items-center gap-2">
+          <p className="text-muted-foreground font-medium tracking-wide flex items-center gap-2">
             <Calendar size={18} className="text-blue-500" />
             {currentTime.toLocaleDateString("en-US", {
               weekday: "long",
@@ -385,17 +385,17 @@ export default function Attendance() {
           </button>
 
           <div className="grid grid-cols-2 gap-3 w-full">
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col justify-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
+            <div className="bg-card border border-border shadow-sm rounded-xl p-3 flex flex-col justify-center">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
                 <ArrowRight size={12} className="text-emerald-500" /> Earliest In
               </p>
-              <p className="text-slate-700 font-bold">{earliestIn}</p>
+              <p className="text-foreground font-bold">{earliestIn}</p>
             </div>
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col justify-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
+            <div className="bg-card border border-border shadow-sm rounded-xl p-3 flex flex-col justify-center">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mb-1 flex items-center gap-1">
                 <ArrowLeft size={12} className="text-rose-500" /> Latest Out
               </p>
-              <p className="text-slate-700 font-bold">{latestOut}</p>
+              <p className="text-foreground font-bold">{latestOut}</p>
             </div>
           </div>
         </div>
@@ -404,19 +404,19 @@ export default function Attendance() {
       {/* Work Location + Selfie Verification */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Location Selector */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col transition-colors">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex flex-col transition-colors">
           <div className="mb-5 flex items-start justify-between">
             <div>
-              <h3 className="font-bold text-slate-800 text-lg mb-1 flex items-center gap-2">
+              <h3 className="font-bold text-foreground text-lg mb-1 flex items-center gap-2">
                 <MapPin size={20} className="text-blue-600" />
                 Work Location
               </h3>
-              <p className="text-xs text-slate-500">Required for attendance logging.</p>
+              <p className="text-xs text-muted-foreground">Required for attendance logging.</p>
             </div>
           </div>
           <div className="relative mt-auto space-y-2">
             <Select value={selectedOfficeId} onValueChange={setSelectedOfficeId}>
-              <SelectTrigger className="rounded-xl h-12 bg-slate-50 border-slate-200 text-slate-700 font-medium text-sm focus:ring-2 focus:ring-blue-500">
+              <SelectTrigger className="rounded-xl h-12 bg-muted border-border text-foreground font-medium text-sm focus:ring-2 focus:ring-primary">
                 <SelectValue placeholder="Select your location..." />
               </SelectTrigger>
               <SelectContent>
@@ -448,7 +448,11 @@ export default function Attendance() {
               disabled={location.loading}
               className={cn(
                 "w-full flex items-center gap-2 p-2.5 rounded-xl text-left transition-colors",
-                location.hasLocation ? "bg-emerald-50 text-emerald-700" : location.error ? "bg-rose-50 text-rose-700" : "bg-slate-50 hover:bg-slate-100 text-slate-600"
+                location.hasLocation
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  : location.error
+                    ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
               )}
             >
               {location.loading ? (
@@ -473,18 +477,18 @@ export default function Attendance() {
         </div>
 
         {/* Selfie Verification */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col transition-colors">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex flex-col transition-colors">
           <div className="mb-5 flex items-start justify-between">
             <div>
-              <h3 className="font-bold text-slate-800 text-lg mb-1 flex items-center gap-2">
+              <h3 className="font-bold text-foreground text-lg mb-1 flex items-center gap-2">
                 <Camera size={20} className="text-blue-600" />
                 Selfie Verification
               </h3>
-              <p className="text-xs text-slate-500">Identity check required.</p>
+              <p className="text-xs text-muted-foreground">Identity check required.</p>
             </div>
           </div>
           {camera.hasPhoto ? (
-            <div className="relative rounded-xl overflow-hidden border border-slate-200 mt-auto">
+            <div className="relative rounded-xl overflow-hidden border border-border mt-auto">
               {/* eslint-disable-next-line @next/next/no-img-element -- ClockInOut design uses img for selfie preview */}
               <img src={camera.photo!} alt="Verification" className="w-full h-32 object-cover" />
               {faceVerification.verificationPassed && (
@@ -507,10 +511,10 @@ export default function Attendance() {
           ) : (
             <button
               type="button"
-              className="border-2 border-dashed border-slate-300 rounded-xl h-[52px] flex items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all text-center mt-auto group w-full"
+              className="border-2 border-dashed border-border rounded-xl h-[52px] flex items-center justify-center cursor-pointer hover:bg-muted hover:border-primary/60 transition-all text-center mt-auto group w-full"
               onClick={handleOpenCamera}
             >
-              <div className="flex items-center gap-2 text-slate-500 font-medium text-sm group-hover:text-blue-600">
+              <div className="flex items-center gap-2 text-muted-foreground font-medium text-sm group-hover:text-primary">
                 <ScanFace size={18} />
                 Click to scan face
               </div>
@@ -520,33 +524,33 @@ export default function Attendance() {
       </div>
 
       {/* Additional Remarks */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col">
+      <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex flex-col">
         <div className="flex items-center gap-2 mb-4">
           <MessageSquare size={20} className="text-blue-600" />
-          <h3 className="font-bold text-slate-800 text-lg">Additional Remarks</h3>
+          <h3 className="font-bold text-foreground text-lg">Additional Remarks</h3>
         </div>
         <Textarea
           placeholder="Optional notes regarding today's shift..."
           value={remark}
           onChange={(e) => setRemark(e.target.value)}
-          className="w-full h-24 bg-slate-50 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
+          className="w-full h-24 bg-muted border border-border text-foreground font-medium text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-background transition-all resize-none"
         />
       </div>
 
       {/* Activity Log */}
       {attendance.logsLoading ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 flex justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-6 flex justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : reversedLogs.length > 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 p-6 pb-4">
-            <div className="bg-blue-50 rounded-xl p-2">
+            <div className="bg-primary/10 rounded-xl p-2">
               <Clock size={20} className="text-blue-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 text-lg">Activity Log</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <h3 className="font-bold text-foreground text-lg">Activity Log</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 {reversedLogs.length} ACTIVITIES
               </p>
             </div>
@@ -573,8 +577,8 @@ export default function Attendance() {
                   className={cn(
                     "group relative flex items-start gap-4 p-4 rounded-2xl transition-all duration-300",
                     isLatest
-                      ? "bg-white border border-blue-100 shadow-[0_8px_30px_rgb(37,99,235,0.08)] ring-1 ring-blue-50"
-                      : "bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-sm"
+                      ? "bg-card border border-primary/20 shadow-[0_8px_30px_rgb(37,99,235,0.08)] ring-1 ring-primary/10"
+                      : "bg-muted/40 border border-border hover:bg-card hover:shadow-sm"
                   )}
                 >
                   <div
@@ -597,7 +601,7 @@ export default function Attendance() {
                           ? "bg-blue-100 text-blue-600"
                           : "bg-rose-100 text-rose-600"
                         : isIn
-                          ? "bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-500"
+                          ? "bg-primary/10 text-primary/70 group-hover:bg-primary/20 group-hover:text-primary"
                           : "bg-rose-50 text-rose-400 group-hover:bg-rose-100 group-hover:text-rose-500"
                     )}
                   >
@@ -638,13 +642,13 @@ export default function Attendance() {
                       <span
                         className={cn(
                           "text-2xl font-black tabular-nums tracking-tighter",
-                          isLatest ? "text-slate-800" : "text-slate-600"
+                          isLatest ? "text-foreground" : "text-muted-foreground"
                         )}
                       >
                         {pTime}
                       </span>
                       {pAmPm && (
-                        <span className={cn("text-sm font-bold", isLatest ? "text-blue-600" : "text-slate-400")}>
+                        <span className={cn("text-sm font-bold", isLatest ? "text-blue-600" : "text-muted-foreground")}>
                           {pAmPm}
                         </span>
                       )}
@@ -653,7 +657,7 @@ export default function Attendance() {
                       <div
                         className={cn(
                           "mt-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider w-fit px-2 py-1 rounded-md",
-                          isLatest ? "bg-blue-50 text-blue-600" : "bg-slate-200/50 text-slate-500"
+                          isLatest ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                         )}
                       >
                         <MapPin size={10} strokeWidth={2.5} />
