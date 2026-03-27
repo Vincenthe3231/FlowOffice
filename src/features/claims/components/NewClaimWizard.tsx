@@ -57,8 +57,9 @@ const steps = [
   { id: 1, label: "Claimant", icon: User },
   { id: 2, label: "Claim Type", icon: Layers },
   { id: 3, label: "Subclaim", icon: GitBranch },
-  { id: 4, label: "Details", icon: FileText },
-  { id: 5, label: "Review", icon: ShieldCheck },
+  { id: 4, label: "Route", icon: Route },
+  { id: 5, label: "Details", icon: FileText },
+  { id: 6, label: "Review", icon: ShieldCheck },
 ];
 
 const typeIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -230,7 +231,7 @@ export function NewClaimWizard() {
       toast.error("Please select a claim type.");
       return;
     }
-    if (currentStep < 5) draft.setStep(currentStep + 1);
+    if (currentStep < 6) draft.setStep(currentStep + 1);
   };
 
   const handleBack = () => {
@@ -387,7 +388,7 @@ export function NewClaimWizard() {
               {resubmitIdValid != null ? "Resubmit Claim" : "Submit New Claim"}
             </h1>
             <p className="text-sm text-white/80 mt-0.5">
-              Step {currentStep} of 5
+              Step {currentStep} of 6
             </p>
           </div>
         </div>
@@ -662,6 +663,24 @@ export function NewClaimWizard() {
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">
+                      Route
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Configure route in this step before filling claim details.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Route setup is ready for the next implementation phase.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 5 && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">
                       Claim Details
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -778,7 +797,7 @@ export function NewClaimWizard() {
                 </div>
               )}
 
-              {currentStep === 5 && (
+              {currentStep === 6 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">
@@ -846,7 +865,7 @@ export function NewClaimWizard() {
                 Skip
               </Button>
             )}
-          {currentStep < 5 ? (
+          {currentStep < 6 ? (
             <Button
               onClick={handleNext}
               disabled={!canNext()}

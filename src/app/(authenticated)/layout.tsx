@@ -32,7 +32,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import FullLogo from "@/components/shared/FullLogo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -120,8 +119,6 @@ function NavGroup({
   );
 }
 
-type ViewMode = "website" | "tablet" | "mobile";
-
 export default function DashboardLayout({
   children,
 }: {
@@ -131,8 +128,6 @@ export default function DashboardLayout({
   const { profile } = useProfile();
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
-  const [viewMode, setViewMode] = React.useState<ViewMode>("website");
-
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
   const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
   const settingsNav = React.useMemo(() => {
@@ -200,23 +195,6 @@ export default function DashboardLayout({
               <Bell className="h-5 w-5" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="hidden md:inline-flex h-8 px-3 text-xs font-medium"
-              onClick={() =>
-                setViewMode((prev) =>
-                  prev === "website" ? "tablet" : prev === "tablet" ? "mobile" : "website",
-                )
-              }
-            >
-              {viewMode === "website"
-                ? "Website view"
-                : viewMode === "tablet"
-                ? "Tablet view"
-                : "Mobile view"}
-            </Button>
             <div className="hidden lg:flex">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -247,22 +225,7 @@ export default function DashboardLayout({
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 lg:pb-6 overflow-x-hidden min-w-0">
-          {viewMode === "website" ? (
-            <div className="w-full min-w-0">{children}</div>
-          ) : (
-            <div className="flex justify-center min-w-0">
-              <div
-                className={cn(
-                  "w-full min-w-0",
-                  viewMode === "tablet"
-                    ? "max-w-[834px]"
-                    : "max-w-[430px]"
-                )}
-              >
-                {children}
-              </div>
-            </div>
-          )}
+          <div className="w-full min-w-0">{children}</div>
         </div>
         <BottomNav />
       </SidebarInset>
