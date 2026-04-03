@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,18 +40,23 @@ import { MileageClaimForm } from "@/features/claims/components/MileageClaimForm"
 import { CustomFieldBuilder } from "@/features/claims/components/CustomFieldBuilder";
 import { ClaimReviewSummary } from "@/features/claims/components/ClaimReviewSummary";
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
-import { useClaimDraftStore } from "@/features/claims/stores/useClaimDraftStore";
+import { RouteStepMap } from "@/features/claims/components/RouteStepMap";
+import {
+  useClaimDraftStore,
+  CLAIM_DRAFT_MAX_ATTACHMENT_FILES,
+} from "@/features/claims/stores/useClaimDraftStore";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import {
   useClaimTypes,
   useSubclaimTypes,
   useSubmitClaim,
   useApprovalThreshold,
-  useClaimCategories,
   useClaimById,
 } from "@/features/claims/hooks/useClaims";
 import { calculateDistance } from "@/shared/lib/api-client/claims";
 import type { Claim, ClaimType, ClaimApproval } from "@/features/claims/types";
+import { cn } from "@/lib/utils";
+import { isTransportClaimTypeKey } from "@/features/claims/lib/claim-type-groups";
 
 const steps = [
   { id: 1, label: "Claimant", icon: User },
@@ -86,6 +91,192 @@ const typeColorMap: Record<string, string> = {
   "stat-cyan": "bg-stat-cyan text-stat-cyan-icon",
 };
 
+function isImageAttachmentFile(file: File): boolean {
+  return file.type.startsWith("image/");
+}
+
+/** Scroll to the first invalid details field so the user is not left at the Next button. */
+function scrollToFirstInvalidClaimDetail(
+  titleOk: boolean,
+  amountOk: boolean,
+  attachOk: boolean
+) {
+  const opts: ScrollIntoViewOptions = { behavior: "smooth", block: "center" };
+  const focusAfterScroll = (el: Element | null) => {
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      window.setTimeout(() => el.focus({ preventScroll: true }), 400);
+    }
+  };
+
+  window.requestAnimationFrame(() => {
+    if (!titleOk) {
+      const el = document.getElementById("claim-details-title");
+      el?.scrollIntoView(opts);
+      focusAfterScroll(el);
+      return;
+    }
+    if (!amountOk) {
+      const el = document.getElementById("claim-details-amount");
+      el?.scrollIntoView(opts);
+      window.setTimeout(() => {
+        const direct = document.getElementById("claim-details-amount");
+        if (direct instanceof HTMLInputElement) {
+          direct.focus({ preventScroll: true });
+          return;
+        }
+        document.getElementById("mc-from")?.focus({ preventScroll: true });
+      }, 400);
+      return;
+    }
+    if (!attachOk) {
+      document.getElementById("claim-details-attachments")?.scrollIntoView(opts);
+    }
+  });
+}
+
+function AttachmentDraftCard({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const showPreview = isImageAttachmentFile(file);
+  const previewUrl = useMemo(
+    () => (showPreview ? URL.createObjectURL(file) : null),
+    [file, showPreview]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  return (
+    <div className="relative aspect-square min-h-0 w-full overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+      {showPreview && previewUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- local File blob preview */
+        <img
+          src={previewUrl}
+          alt=""
+          className="h-full w-full object-contain"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-muted/50 p-4">
+          <FileText className="h-14 w-14 text-muted-foreground sm:h-16 sm:w-16" />
+        </div>
+      )}
+      <span className="sr-only">{file.name}</span>
+      <button
+        type="button"
+        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white shadow-md backdrop-blur-sm transition-colors hover:bg-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onRemove}
+        aria-label={`Remove ${file.name}`}
+      >
+        <X className="h-4 w-4" strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+}
+
+function ClaimTypePickCard({
+  type,
+  isSelected,
+  onSelect,
+}: {
+  type: ClaimType;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const iconKey = type.icon?.toLowerCase().replace(/-/g, "") ?? type.key;
+  const Icon =
+    typeIconMap[iconKey] ?? typeIconMap[type.key] ?? FileTextIcon;
+  const colorClass =
+    type.color && typeColorMap[type.color]
+      ? typeColorMap[type.color]
+      : "bg-blue-500/10 text-blue-600 dark:text-blue-400";
+  const description =
+    type.description ??
+    (type.key === "receipt"
+      ? "Submit receipts for reimbursement."
+      : type.key === "mileage"
+        ? "Claim mileage expenses."
+        : null);
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={onSelect}
+      className={cn(
+        "relative flex cursor-pointer items-center gap-4 rounded-2xl border p-5 transition-colors",
+        isSelected
+          ? "border-primary/50 bg-primary/5 shadow-sm ring-2 ring-primary"
+          : "border-border/80 bg-card hover:border-border hover:bg-muted/40"
+      )}
+    >
+      {isSelected && (
+        <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+          <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </div>
+      )}
+      <div
+        className={cn(
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+          colorClass
+        )}
+      >
+        <Icon className="h-6 w-6" />
+      </div>
+      <div className="min-w-0 flex-1 pr-7">
+        <p className="truncate text-base font-semibold text-foreground">
+          {type.label}
+        </p>
+        {description ? (
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+    </motion.div>
+  );
+}
+
+function ClaimTypeSection({
+  title,
+  types,
+  selectedTypeId,
+  onSelectType,
+}: {
+  title: string;
+  types: ClaimType[];
+  selectedTypeId: string | null;
+  onSelectType: (id: string, key: string) => void;
+}) {
+  if (types.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="whitespace-nowrap text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {types.map((type) => (
+          <ClaimTypePickCard
+            key={type.id}
+            type={type}
+            isSelected={selectedTypeId === type.id}
+            onSelect={() => onSelectType(type.id, type.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function NewClaimWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -101,7 +292,30 @@ export function NewClaimWizard() {
   const resubmitLoadedRef = useRef(false);
   const draftPromptShownRef = useRef(false);
   const prevStepRef = useRef<number>(0);
-  const attachmentFileRef = useRef<File | null>(null);
+  const attachmentFilesRef = useRef<File[]>([]);
+
+  useEffect(() => {
+    attachmentFilesRef.current = draft.attachmentFiles;
+  }, [draft.attachmentFiles]);
+
+  const tryAddFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList?.length) return;
+    const maxBytes = 10 * 1024 * 1024;
+    for (const file of Array.from(fileList)) {
+      const len = useClaimDraftStore.getState().attachmentFiles.length;
+      if (len >= CLAIM_DRAFT_MAX_ATTACHMENT_FILES) {
+        toast.error(
+          `You can upload at most ${CLAIM_DRAFT_MAX_ATTACHMENT_FILES} files.`
+        );
+        break;
+      }
+      if (file.size > maxBytes) {
+        toast.error(`${file.name} must be 10MB or less`);
+        continue;
+      }
+      useClaimDraftStore.getState().addAttachmentFile(file);
+    }
+  }, []);
 
   const isClaimTypesAdmin =
     profile?.role === "hr_admin" || profile?.role === "super_admin";
@@ -109,13 +323,19 @@ export function NewClaimWizard() {
   const { data: claimTypes, isLoading: typesLoading } = useClaimTypes();
   const { data: subclaimTypes } = useSubclaimTypes(draft.selectedTypeId);
   const { data: threshold } = useApprovalThreshold();
-  const { data: categories = [] } = useClaimCategories();
   const submitClaim = useSubmitClaim();
   const { data: resubmitClaim } = useClaimById(resubmitIdValid);
 
   const currentStep = draft.currentStep;
   const displayClaimTypes = claimTypes ?? [];
   const selectedTypeData = displayClaimTypes.find((t) => t.id === draft.selectedTypeId);
+
+  const isTransportType = isTransportClaimTypeKey(draft.selectedTypeKey ?? "");
+  const displayStep = (step: number) =>
+    !isTransportType && step >= 5 ? step - 1 : step;
+  const visibleSteps = isTransportType
+    ? steps
+    : steps.filter((s) => s.id !== 4);
 
   // Resubmit: when claim is loaded, clear draft and populate from API (Claim has customFields from metadata.fields)
   useEffect(() => {
@@ -218,11 +438,27 @@ export function NewClaimWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when URL or claimTypes change, not on every draft update
   }, [typeParam, claimTypes]);
 
+  const [detailsValidationAttempted, setDetailsValidationAttempted] =
+    useState(false);
+
+  useEffect(() => {
+    if (currentStep !== 5) setDetailsValidationAttempted(false);
+  }, [currentStep]);
+
+  const getAmount = (): number => {
+    return parseFloat(String(draft.formData.amount ?? "0")) || 0;
+  };
+
   const canNext = () => {
     if (currentStep === 1) return draft.claimantName.trim().length > 0;
     if (currentStep === 2) return draft.selectedTypeId !== null;
     if (currentStep === 3)
       return !subclaimTypes?.length || draft.selectedSubclaimId !== null;
+    if (currentStep === 4 && draft.selectedTypeKey === "mileage") {
+      const from = String(draft.formData.fromLocation ?? "").trim();
+      const to = String(draft.formData.toLocation ?? "").trim();
+      return from.length > 0 && to.length > 0;
+    }
     return true;
   };
 
@@ -231,20 +467,66 @@ export function NewClaimWizard() {
       toast.error("Please select a claim type.");
       return;
     }
+    if (currentStep === 3 && !isTransportType) {
+      draft.setStep(5);
+      return;
+    }
+    if (currentStep === 5) {
+      setDetailsValidationAttempted(true);
+      const titleOk = String(draft.formData.title ?? "").trim().length > 0;
+      const amountOk = getAmount() > 0;
+      const attachOk = draft.attachmentFiles.length >= 1;
+      if (!titleOk || !amountOk || !attachOk) {
+        const missing: string[] = [];
+        if (!titleOk) missing.push("title");
+        if (!amountOk) missing.push("amount");
+        if (!attachOk) missing.push("at least one attachment");
+        toast.error(
+          `Please complete: ${missing.join(", ")} before continuing.`
+        );
+        scrollToFirstInvalidClaimDetail(titleOk, amountOk, attachOk);
+        return;
+      }
+    }
     if (currentStep < 6) draft.setStep(currentStep + 1);
   };
 
+  function handleSelectType(id: string, key: string) {
+    draft.setType(id, key);
+    window.setTimeout(() => draft.setStep(currentStep + 1), 150);
+  }
+
+  function handleSelectSubclaim(id: string) {
+    draft.setSubclaim(id);
+    const next = isTransportType ? 4 : 5;
+    window.setTimeout(() => draft.setStep(next), 150);
+  }
+
   const handleBack = () => {
+    if (currentStep === 5 && !isTransportType) {
+      draft.setStep(3);
+      return;
+    }
     if (currentStep > 1) draft.setStep(currentStep - 1);
     else router.push("/dashboard/claims");
   };
 
-  const getAmount = (): number => {
-    return parseFloat(String(draft.formData.amount ?? "0")) || 0;
-  };
-
   const thresholdAmount = threshold?.level3Min ?? threshold?.level2Max ?? 500;
   const needsL3 = getAmount() >= thresholdAmount;
+
+  const detailsTitleError =
+    detailsValidationAttempted &&
+    String(draft.formData.title ?? "").trim().length === 0
+      ? "Please enter a title for this claim."
+      : undefined;
+  const detailsAmountError =
+    detailsValidationAttempted && getAmount() <= 0
+      ? "Enter an amount greater than zero."
+      : undefined;
+  const detailsAttachmentError =
+    detailsValidationAttempted && draft.attachmentFiles.length === 0
+      ? "Upload at least one attachment (e.g. receipt or proof)."
+      : undefined;
 
   const handleSubmit = async () => {
     if (!draft.selectedTypeId) return;
@@ -289,12 +571,12 @@ export function NewClaimWizard() {
             receiptDate: draft.formData.receiptDate,
           },
           customFields: customFieldsForSubmit,
-          _attachmentFile: attachmentFileRef.current ?? null,
+          _attachmentFiles: attachmentFilesRef.current,
         },
         approvalLevels,
       });
 
-      attachmentFileRef.current = null;
+      attachmentFilesRef.current = [];
       draft.clearDraft();
       router.push("/dashboard/claims");
     } catch {
@@ -337,8 +619,6 @@ export function NewClaimWizard() {
     subclaimTypes?.find((s) => s.id === draft.selectedSubclaimId)?.rate ??
     0.8;
 
-  const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
-
   const runMileageDistanceCalculation = useCallback(() => {
     const from = String(draft.formData.fromLocation ?? "").trim();
     const to = String(draft.formData.toLocation ?? "").trim();
@@ -371,7 +651,7 @@ export function NewClaimWizard() {
   ]);
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="w-full space-y-6">
       <div className="relative overflow-hidden rounded-2xl gradient-modernize-blue p-6 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         <div className="relative flex items-center gap-3">
@@ -388,14 +668,14 @@ export function NewClaimWizard() {
               {resubmitIdValid != null ? "Resubmit Claim" : "Submit New Claim"}
             </h1>
             <p className="text-sm text-white/80 mt-0.5">
-              Step {currentStep} of 6
+              Step {displayStep(currentStep)} of {isTransportType ? 6 : 5}
             </p>
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between px-2">
-        {steps.map((step, i) => {
+        {visibleSteps.map((step, i) => {
           const isCompleted = currentStep > step.id;
           const isActive = currentStep === step.id;
           const StepIcon = step.icon;
@@ -426,7 +706,7 @@ export function NewClaimWizard() {
                   {step.label}
                 </span>
               </div>
-              {i < steps.length - 1 && (
+              {i < visibleSteps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-3 mt-[-20px] rounded-full transition-all duration-300 ${currentStep > step.id ? "gradient-modernize-blue" : "bg-border/30"}`}
                 />
@@ -456,7 +736,7 @@ export function NewClaimWizard() {
                       Fetched from your profile.
                     </p>
                   </div>
-                  <div className="space-y-4 max-w-md">
+                  <div className="w-full max-w-3xl space-y-4">
                     <div className="space-y-1.5">
                       <Label
                         htmlFor="claimant-name"
@@ -516,58 +796,23 @@ export function NewClaimWizard() {
                       .
                     </p>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {displayClaimTypes.map((type: ClaimType) => {
-                        const isSelected = draft.selectedTypeId === type.id;
-                        const iconKey = type.icon?.toLowerCase().replace(/-/g, "") ?? type.key;
-                        const Icon =
-                          typeIconMap[iconKey] ?? typeIconMap[type.key] ?? FileTextIcon;
-                        const colorClass =
-                          type.color && typeColorMap[type.color]
-                            ? typeColorMap[type.color]
-                            : "bg-blue-500/10 text-blue-600";
-                        const description =
-                          type.description ??
-                          (type.key === "receipt"
-                            ? "Submit receipts for reimbursement."
-                            : type.key === "mileage"
-                              ? "Claim mileage expenses."
-                              : null);
-                        return (
-                          <motion.div
-                            key={type.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => draft.setType(type.id, type.key)}
-                            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all glass-card ${
-                              isSelected
-                                ? "border-blue-500/50 shadow-lg animate-glow-blue"
-                                : "border-border/30 hover:border-border/60"
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full gradient-modernize-blue shadow-md">
-                                <Check className="h-3 w-3 text-white" />
-                              </div>
-                            )}
-                            <div
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colorClass}`}
-                            >
-                              <Icon className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {type.label}
-                              </p>
-                              {description && (
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                  {description}
-                                </p>
-                              )}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
+                    <div className="space-y-8">
+                      <ClaimTypeSection
+                        title="Standard expenses"
+                        types={displayClaimTypes.filter(
+                          (t) => !isTransportClaimTypeKey(t.key)
+                        )}
+                        selectedTypeId={draft.selectedTypeId}
+                        onSelectType={handleSelectType}
+                      />
+                      <ClaimTypeSection
+                        title="Transport & mileage"
+                        types={displayClaimTypes.filter((t) =>
+                          isTransportClaimTypeKey(t.key)
+                        )}
+                        selectedTypeId={draft.selectedTypeId}
+                        onSelectType={handleSelectType}
+                      />
                     </div>
                   )}
                 </div>
@@ -596,7 +841,7 @@ export function NewClaimWizard() {
                               key={sub.id}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              onClick={() => draft.setSubclaim(sub.id)}
+                              onClick={() => handleSelectSubclaim(sub.id)}
                               className={`relative flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all glass-card ${
                                 isSelected
                                   ? "border-blue-500/50 shadow-lg animate-glow-blue"
@@ -660,21 +905,7 @@ export function NewClaimWizard() {
               )}
 
               {currentStep === 4 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">
-                      Route
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Configure route in this step before filling claim details.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-muted/20 p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Route setup is ready for the next implementation phase.
-                    </p>
-                  </div>
-                </div>
+                <RouteStepMap mileageRate={Number(mileageRate)} />
               )}
 
               {currentStep === 5 && (
@@ -690,9 +921,10 @@ export function NewClaimWizard() {
 
                   {draft.selectedTypeKey === "receipt" && (
                     <ReceiptClaimForm
-                      categories={categoryOptions}
                       formData={draft.formData as Record<string, unknown>}
                       onUpdate={draft.updateFormField}
+                      titleError={detailsTitleError}
+                      amountError={detailsAmountError}
                     />
                   )}
 
@@ -703,6 +935,8 @@ export function NewClaimWizard() {
                       onUpdate={draft.updateFormField}
                       onFromBlur={runMileageDistanceCalculation}
                       onToBlur={runMileageDistanceCalculation}
+                      titleError={detailsTitleError}
+                      amountError={detailsAmountError}
                     />
                   )}
 
@@ -711,37 +945,53 @@ export function NewClaimWizard() {
                       <GenericClaimForm
                         formData={draft.formData as Record<string, unknown>}
                         onUpdate={draft.updateFormField}
+                        titleError={detailsTitleError}
+                        amountError={detailsAmountError}
                       />
                     )}
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Attachment
-                    </Label>
-                    {draft.attachmentFile ? (
-                      <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/20">
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm truncate flex-1 min-w-0">
-                          {draft.attachmentFile.name}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => {
-                            draft.setAttachmentFile(null);
-                            attachmentFileRef.current = null;
-                          }}
-                          aria-label="Remove attachment"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
+                  <div id="claim-details-attachments" className="space-y-2 scroll-mt-24">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Attachment
+                      </Label>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "font-mono text-[11px] font-normal normal-case tabular-nums",
+                          draft.attachmentFiles.length >=
+                            CLAIM_DRAFT_MAX_ATTACHMENT_FILES &&
+                            "border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100"
+                        )}
+                      >
+                        {draft.attachmentFiles.length} /{" "}
+                        {CLAIM_DRAFT_MAX_ATTACHMENT_FILES} files
+                      </Badge>
+                    </div>
+                    {detailsAttachmentError ? (
+                      <p className="text-sm text-destructive">
+                        {detailsAttachmentError}
+                      </p>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-3">
+                      {draft.attachmentFiles.map((file, i) => (
+                        <AttachmentDraftCard
+                          key={`${i}-${file.name}-${file.size}`}
+                          file={file}
+                          onRemove={() => draft.removeAttachmentFile(i)}
+                        />
+                      ))}
+                    </div>
+                    {draft.attachmentFiles.length <
+                      CLAIM_DRAFT_MAX_ATTACHMENT_FILES && (
                       <label
                         htmlFor="claim-attachment"
-                        className="flex flex-col items-center justify-center min-h-[140px] rounded-xl border-2 border-dashed border-border cursor-pointer transition-all hover:border-primary/60 bg-muted/20 hover:bg-muted/40"
+                        className={cn(
+                          "flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-muted/20 transition-all hover:border-primary/60 hover:bg-muted/40",
+                          detailsAttachmentError
+                            ? "border-destructive"
+                            : "border-border"
+                        )}
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -749,14 +999,10 @@ export function NewClaimWizard() {
                         onDrop={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          const file = e.dataTransfer.files?.[0];
-                          if (file && file.size <= 10 * 1024 * 1024) {
-                            draft.setAttachmentFile(file);
-                            attachmentFileRef.current = file;
-                          } else if (file) toast.error("File must be 10MB or less");
+                          tryAddFiles(e.dataTransfer.files);
                         }}
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <UploadCloud className="h-6 w-6" />
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -765,20 +1011,18 @@ export function NewClaimWizard() {
                           </span>{" "}
                           or drag and drop
                         </p>
-                        <p className="text-xs text-muted-foreground/80 mt-1">
-                          PNG, JPG, PDF or GIF (max. 10MB)
+                        <p className="mt-1 text-xs text-muted-foreground/80">
+                          PNG, JPG, PDF or GIF (max. 10MB each, up to{" "}
+                          {CLAIM_DRAFT_MAX_ATTACHMENT_FILES} files)
                         </p>
                         <input
                           id="claim-attachment"
                           type="file"
+                          multiple
                           accept="image/*,.pdf,.gif"
                           className="sr-only"
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && file.size <= 10 * 1024 * 1024) {
-                              draft.setAttachmentFile(file);
-                              attachmentFileRef.current = file;
-                            } else if (file) toast.error("File must be 10MB or less");
+                            tryAddFiles(e.target.files);
                             e.target.value = "";
                           }}
                         />
@@ -819,7 +1063,9 @@ export function NewClaimWizard() {
                     formData={draft.formData as Record<string, unknown>}
                     customFields={draft.customFields}
                     amount={getAmount()}
-                    attachmentFileName={attachmentFileRef.current?.name ?? draft.attachmentFile?.name}
+                    attachmentFileNames={draft.attachmentFiles.map(
+                      (f) => f.name
+                    )}
                   />
 
                   <div className="rounded-xl p-4 glass-card">
@@ -865,7 +1111,7 @@ export function NewClaimWizard() {
                 Skip
               </Button>
             )}
-          {currentStep < 6 ? (
+          {currentStep < 6 && currentStep !== 2 && currentStep !== 3 ? (
             <Button
               onClick={handleNext}
               disabled={!canNext()}
@@ -874,7 +1120,7 @@ export function NewClaimWizard() {
               Next
               <ChevronRight className="h-4 w-4" />
             </Button>
-          ) : (
+          ) : currentStep === 6 ? (
             <Button
               onClick={handleSubmit}
               disabled={submitClaim.isPending}
@@ -882,7 +1128,7 @@ export function NewClaimWizard() {
             >
               {submitClaim.isPending ? "Submitting..." : "Submit Claim"}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -892,36 +1138,60 @@ export function NewClaimWizard() {
 function GenericClaimForm({
   formData,
   onUpdate,
+  titleError,
+  amountError,
 }: {
   formData: Record<string, unknown>;
   onUpdate: (key: string, value: unknown) => void;
+  titleError?: string;
+  amountError?: string;
 }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Label
+          htmlFor="claim-details-title"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Title
         </Label>
         <Input
+          id="claim-details-title"
           value={String(formData.title ?? "")}
           onChange={(e) => onUpdate("title", e.target.value)}
           placeholder="Claim title"
-          className="h-10"
+          className={cn(
+            "h-10 scroll-mt-24",
+            titleError && "border-destructive"
+          )}
         />
+        {titleError ? (
+          <p className="mt-1 text-sm text-destructive">{titleError}</p>
+        ) : null}
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Label
+          htmlFor="claim-details-amount"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Amount (RM)
         </Label>
         <Input
+          id="claim-details-amount"
           type="number"
           value={String(formData.amount ?? "")}
           onChange={(e) => onUpdate("amount", e.target.value)}
           placeholder="0.00"
           min={0}
           step={0.01}
-          className="h-10"
+          className={cn(
+            "h-10 scroll-mt-24",
+            amountError && "border-destructive"
+          )}
         />
+        {amountError ? (
+          <p className="mt-1 text-sm text-destructive">{amountError}</p>
+        ) : null}
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

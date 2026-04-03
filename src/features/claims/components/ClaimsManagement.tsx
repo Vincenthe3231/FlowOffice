@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  useApproveRejectClaim,
   useClaimCategories,
   useClaimCategoriesForChart,
   useClaims,
@@ -15,6 +16,7 @@ import { BudgetUtilization } from "@/features/claims/components/BudgetUtilizatio
 import { buildClaimDetailHref } from "@/features/claims/lib/claimUrlParams";
 import { ClaimsByCategoryChart } from "@/features/claims/components/ClaimsByCategoryChart";
 import { ClaimsStatCards } from "@/features/claims/components/ClaimsStatCards";
+import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
 import { ClaimsTable } from "@/features/claims/components/ClaimsTable";
 import { MonthlySpendChart } from "@/features/claims/components/MonthlySpendChart";
 import type { Claim, ClaimFilter } from "@/features/claims/types";
@@ -23,12 +25,14 @@ import { Button } from "@/components/ui/button";
 export function ClaimsManagement() {
   const router = useRouter();
   const [filter, setFilter] = useState<ClaimFilter>("All");
+  const [claimToReject, setClaimToReject] = useState<Claim | null>(null);
 
   const { data: claimsData } = useClaims(filter);
   const { data: statsData } = useClaimsStats();
   const { data: categories = [] } = useClaimCategories();
   const pieData = useClaimCategoriesForChart();
   const { data: monthlySpend = [] } = useMonthlySpend();
+  const rejectClaim = useApproveRejectClaim();
 
   const filteredClaims = claimsData?.claims ?? [];
   const { approvedCount = 0, pendingCount = 0, totalAmount = 0, totalClaims = 0, sparkline = [] } =
@@ -36,6 +40,10 @@ export function ClaimsManagement() {
 
   function handleClaimSelect(claim: Claim) {
     router.push(buildClaimDetailHref(claim.id));
+  }
+
+  function handleReject(claim: Claim) {
+    setClaimToReject(claim);
   }
 
   return (
@@ -101,9 +109,36 @@ export function ClaimsManagement() {
             claims={filteredClaims}
             onClaimSelect={handleClaimSelect}
             onResubmit={(c) => router.push(`/dashboard/claims/new?resubmit=${c.id}`)}
+            onReject={handleReject}
           />
         </motion.div>
       </AnimatePresence>
+
+      <RejectClaimDialog
+        claim={
+          claimToReject
+            ? {
+                id: claimToReject.id,
+                title: claimToReject.title,
+                amount: claimToReject.amount,
+                categoryLabel: claimToReject.claimTypeLabel ?? claimToReject.category,
+                date: claimToReject.date
+                  ? new Date(claimToReject.date).toLocaleDateString()
+                  : undefined,
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) setClaimToReject(null);
+        }}
+        isPending={rejectClaim.isPending}
+        onReject={({ claimId, reason }) => {
+          rejectClaim.mutate(
+            { claimId, level: 1, action: "rejected", reason },
+            { onSuccess: () => setClaimToReject(null) }
+          );
+        }}
+      />
 
       <Button
         onClick={() => router.push("/dashboard/claims/new")}

@@ -10,8 +10,8 @@ interface ClaimReviewSummaryProps {
   formData: Record<string, unknown>;
   customFields: CustomField[];
   amount: number;
-  /** Attachment file name when user added a file on details step */
-  attachmentFileName?: string | null;
+  /** Attachment file names when user added files on details step */
+  attachmentFileNames?: string[] | null;
 }
 
 export function ClaimReviewSummary({
@@ -21,14 +21,26 @@ export function ClaimReviewSummary({
   formData,
   customFields,
   amount,
-  attachmentFileName,
+  attachmentFileNames,
 }: ClaimReviewSummaryProps) {
+  const attachmentSummary =
+    attachmentFileNames?.filter(Boolean).join(", ") ?? "";
   const fieldDisplay = [
     { label: "Full Name", value: claimantName },
     { label: "Claim Type", value: claimTypeLabel },
     ...(subclaimLabel ? [{ label: "Subclaim", value: subclaimLabel }] : []),
     ...(formData.title ? [{ label: "Title", value: String(formData.title) }] : []),
-    ...(attachmentFileName ? [{ label: "Attachment", value: attachmentFileName }] : []),
+    ...(attachmentSummary
+      ? [
+          {
+            label:
+              attachmentFileNames && attachmentFileNames.length > 1
+                ? "Attachments"
+                : "Attachment",
+            value: attachmentSummary,
+          },
+        ]
+      : []),
     ...(formData.merchant ? [{ label: "Merchant", value: String(formData.merchant) }] : []),
     ...(formData.category ? [{ label: "Category", value: String(formData.category) }] : []),
     ...(formData.fromLocation ? [{ label: "From", value: String(formData.fromLocation) }] : []),

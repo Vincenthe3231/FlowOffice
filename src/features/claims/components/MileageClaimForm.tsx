@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Car } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MileageClaimFormProps {
   mileageRate: number;
@@ -11,6 +12,8 @@ interface MileageClaimFormProps {
   onUpdate?: (key: string, value: unknown) => void;
   onFromBlur?: () => void;
   onToBlur?: () => void;
+  titleError?: string;
+  amountError?: string;
 }
 
 export function MileageClaimForm({
@@ -19,6 +22,8 @@ export function MileageClaimForm({
   onUpdate,
   onFromBlur,
   onToBlur,
+  titleError,
+  amountError,
 }: MileageClaimFormProps) {
   const distance = formData.distance ?? "";
   const calculatedAmount = distance
@@ -36,19 +41,25 @@ export function MileageClaimForm({
     <div className="space-y-4">
       <div className="space-y-1.5">
         <Label
-          htmlFor="mc-title"
+          htmlFor="claim-details-title"
           className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
         >
           Title
         </Label>
         <Input
-          id="mc-title"
+          id="claim-details-title"
           placeholder="e.g. Site visit"
           maxLength={100}
           value={String(formData.title ?? "")}
           onChange={(e) => update("title", e.target.value)}
-          className="h-10 focus-visible:ring-primary/40"
+          className={cn(
+            "h-10 scroll-mt-24 focus-visible:ring-primary/40",
+            titleError && "border-destructive"
+          )}
         />
+        {titleError ? (
+          <p className="mt-1 text-sm text-destructive">{titleError}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
@@ -100,7 +111,10 @@ export function MileageClaimForm({
         </div>
       </div>
 
-      <div className="p-4 rounded-xl border border-border/50 bg-card">
+      <div
+        id="claim-details-amount"
+        className="scroll-mt-24 rounded-xl border border-border/50 bg-card p-4"
+      >
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label
@@ -136,11 +150,19 @@ export function MileageClaimForm({
             <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Amount
             </Label>
-            <div className="flex h-10 items-center rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-md">
+            <div
+              className={cn(
+                "flex h-10 items-center rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-md",
+                amountError && "ring-2 ring-destructive ring-offset-2"
+              )}
+            >
               RM {calculatedAmount}
             </div>
           </div>
         </div>
+        {amountError ? (
+          <p className="mt-2 text-sm text-destructive">{amountError}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">

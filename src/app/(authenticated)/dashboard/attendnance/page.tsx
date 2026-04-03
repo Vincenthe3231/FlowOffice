@@ -121,9 +121,11 @@ export default function Attendance() {
       return;
     }
     let nearest = offices[0];
+    if (!nearest) return;
     let minDist = attendance.calculateDistance(lat, lon, Number(nearest.latitude), Number(nearest.longitude));
     for (let i = 1; i < offices.length; i++) {
       const o = offices[i];
+      if (!o) continue;
       const d = attendance.calculateDistance(lat, lon, Number(o.latitude), Number(o.longitude));
       if (d < minDist) {
         minDist = d;

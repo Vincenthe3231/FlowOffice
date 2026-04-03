@@ -1,15 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClaimDetailView } from "@/features/claims/components/ClaimDetailView";
-import { useClaimApprovals, useClaimById } from "@/features/claims/hooks/useClaims";
+import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
+import { RejectDiscIcon } from "@/features/claims/components/RejectDiscIcon";
+import {
+  useApproveRejectClaim,
+  useClaimApprovals,
+  useClaimById,
+} from "@/features/claims/hooks/useClaims";
 import type { ClaimApproval } from "@/features/claims/types";
 
 export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
   const { data: claim, isLoading, isError } = useClaimById(claimId);
   const { data: approvals } = useClaimApprovals(claimId);
+  const rejectClaim = useApproveRejectClaim();
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
   const fallbackApprovals: ClaimApproval[] =
     claim != null
@@ -45,6 +54,8 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
     );
   }
 
+  const canReject = claim.status === "Pending" || claim.status === "Approved";
+
   return (
     <div className="w-full space-y-8 pb-8">
       <ClaimDetailView
@@ -57,6 +68,53 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
             </Link>
           </Button>
         }
+        headerTrailingActions={
+          canReject ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="default"
+              className="h-10 gap-2.5 border-border/70 bg-card px-4 text-sm font-semibold text-destructive shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow-md active:scale-[0.98]"
+              onClick={() => setRejectDialogOpen(true)}
+            >
+              <RejectDiscIcon size="md" />
+              Reject
+            </Button>
+          ) : null
+        }
+      />
+
+      <RejectClaimDialog
+        claim={
+          rejectDialogOpen
+            ? {
+                id: claim.id,
+                title: claim.title,
+                amount: claim.amount,
+                categoryLabel: claim.claimTypeLabel ?? claim.category,
+                date: claim.date
+                  ? (() => {
+                      const d = new Date(claim.date);
+                      return Number.isNaN(d.getTime())
+                        ? claim.date
+                        : d.toLocaleDateString();
+                    })()
+                  : undefined,
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) setRejectDialogOpen(false);
+        }}
+        isPending={rejectClaim.isPending}
+        onReject={({ claimId: id, reason }) => {
+          const pending = approvalsToShow.find((a) => a.status === "pending");
+          const level = pending?.level ?? 1;
+          rejectClaim.mutate(
+            { claimId: id, level, action: "rejected", reason },
+            { onSuccess: () => setRejectDialogOpen(false) }
+          );
+        }}
       />
     </div>
   );

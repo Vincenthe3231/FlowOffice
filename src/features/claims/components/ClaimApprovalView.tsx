@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/dialog";
 import { useAllClaimsForApproval, useApproveRejectClaim } from "@/features/claims/hooks/useClaims";
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
-import { ShieldCheck, Check, X, Eye } from "lucide-react";
+import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
+import { ShieldCheck, Check, Eye } from "lucide-react";
+import { RejectDiscIcon } from "@/features/claims/components/RejectDiscIcon";
 import type { ClaimApproval } from "@/features/claims/types";
 import type { ClaimWithApprovalsApi } from "@/shared/lib/api-client/claims";
 
@@ -62,9 +64,9 @@ function mapApprovals(approvals: unknown): ClaimApproval[] {
 export function ClaimApprovalView() {
   const { data: claims, isLoading } = useAllClaimsForApproval();
   const approveReject = useApproveRejectClaim();
-  const [selectedClaim, setSelectedClaim] = useState<ClaimWithApprovalsApi | null>(null);
-  const [reason, setReason] = useState("");
-  const [actionType, setActionType] = useState<"approved" | "rejected" | null>(null);
+  const [approveTarget, setApproveTarget] = useState<ClaimWithApprovalsApi | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ClaimWithApprovalsApi | null>(null);
+  const [approveReason, setApproveReason] = useState("");
   const [detailClaim, setDetailClaim] = useState<ClaimWithApprovalsApi | null>(null);
   const [filter, setFilter] = useState<ApprovalFilter>("All");
 
@@ -79,22 +81,21 @@ export function ClaimApprovalView() {
 
   const isPending = (status: string) => String(status).startsWith("pending_");
 
-  const handleAction = async (action: "approved" | "rejected") => {
-    if (!selectedClaim) return;
-    const status = String(selectedClaim.status);
+  const handleApproveConfirm = async () => {
+    if (!approveTarget) return;
+    const status = String(approveTarget.status);
     const currentLevel =
       status === "pending_l1" ? 1 : status === "pending_l2" ? 2 : 3;
 
     try {
       await approveReject.mutateAsync({
-        claimId: Number(selectedClaim.id),
+        claimId: Number(approveTarget.id),
         level: currentLevel,
-        action,
-        reason: reason.trim() || undefined,
+        action: "approved",
+        reason: approveReason.trim() || undefined,
       });
-      setSelectedClaim(null);
-      setReason("");
-      setActionType(null);
+      setApproveTarget(null);
+      setApproveReason("");
     } catch {
       // toast in mutation
     }
@@ -103,8 +104,8 @@ export function ClaimApprovalView() {
   const detailApprovals = detailClaim?.claimApprovals
     ? mapApprovals(detailClaim.claimApprovals)
     : [];
-  const selectedApprovals = selectedClaim?.claimApprovals
-    ? mapApprovals(selectedClaim.claimApprovals)
+  const approveTargetApprovals = approveTarget?.claimApprovals
+    ? mapApprovals(approveTarget.claimApprovals)
     : [];
 
   return (
@@ -211,23 +212,18 @@ export function ClaimApprovalView() {
                                 size="sm"
                                 variant="outline"
                                 className="h-7 text-xs gap-1 text-emerald-600 border-emerald-200/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                                onClick={() => {
-                                  setSelectedClaim(claim);
-                                  setActionType("approved");
-                                }}
+                                onClick={() => setApproveTarget(claim)}
                               >
                                 <Check className="h-3 w-3" /> Approve
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/5"
-                                onClick={() => {
-                                  setSelectedClaim(claim);
-                                  setActionType("rejected");
-                                }}
+                                className="h-9 gap-2 px-3 text-sm font-medium text-destructive border-border/70 shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow active:scale-[0.98]"
+                                onClick={() => setRejectTarget(claim)}
                               >
-                                <X className="h-3 w-3" /> Reject
+                                <RejectDiscIcon size="sm" />
+                                Reject
                               </Button>
                             </>
                           )}
@@ -322,41 +318,38 @@ export function ClaimApprovalView() {
       </Dialog>
 
       <Dialog
-        open={!!actionType && !!selectedClaim}
+        open={!!approveTarget}
         onOpenChange={() => {
-          setActionType(null);
-          setSelectedClaim(null);
-          setReason("");
+          setApproveTarget(null);
+          setApproveReason("");
         }}
       >
         <DialogContent className="sm:max-w-md premium-shadow border-0">
           <DialogHeader>
-            <DialogTitle>
-              {actionType === "approved" ? "Approve Claim" : "Reject Claim"}
-            </DialogTitle>
+            <DialogTitle>Approve Claim</DialogTitle>
           </DialogHeader>
-          {selectedClaim && (
+          {approveTarget && (
             <div className="space-y-4">
-              <div className="p-3 rounded-lg border border-border/50 space-y-2">
+              <div className="space-y-2 rounded-lg border border-border/50 p-3">
                 <div className="flex justify-between">
                   <span className="text-xs text-muted-foreground">Title</span>
-                  <span className="text-sm font-medium">{selectedClaim.title}</span>
+                  <span className="text-sm font-medium">{approveTarget.title}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-muted-foreground">Amount</span>
                   <span className="text-sm font-bold">
-                    RM {Number(selectedClaim.amount).toFixed(2)}
+                    RM {Number(approveTarget.amount).toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              {selectedApprovals.length > 0 && (
+              {approveTargetApprovals.length > 0 && (
                 <ApprovalTimeline
-                  approvals={selectedApprovals}
-                  claimStatus={String(selectedClaim.status)}
+                  approvals={approveTargetApprovals}
+                  claimStatus={String(approveTarget.status)}
                   submittedDate={
-                    selectedClaim.createdAt
-                      ? new Date(selectedClaim.createdAt).toLocaleDateString()
+                    approveTarget.createdAt
+                      ? new Date(approveTarget.createdAt).toLocaleDateString()
                       : undefined
                   }
                 />
@@ -364,16 +357,12 @@ export function ClaimApprovalView() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Reason {actionType === "rejected" && <span className="text-destructive">*</span>}
+                  Comment
                 </label>
                 <Textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={
-                    actionType === "rejected"
-                      ? "Reason for rejection..."
-                      : "Optional comment..."
-                  }
+                  value={approveReason}
+                  onChange={(e) => setApproveReason(e.target.value)}
+                  placeholder="Optional comment..."
                   rows={2}
                   className="resize-none"
                 />
@@ -383,36 +372,57 @@ export function ClaimApprovalView() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setActionType(null);
-                    setSelectedClaim(null);
-                    setReason("");
+                    setApproveTarget(null);
+                    setApproveReason("");
                   }}
                 >
                   Cancel
                 </Button>
                 <Button
-                  className={
-                    actionType === "rejected"
-                      ? "bg-destructive text-destructive-foreground"
-                      : "bg-green-600 text-white hover:bg-green-700"
-                  }
-                  onClick={() => handleAction(actionType!)}
-                  disabled={
-                    approveReject.isPending ||
-                    (actionType === "rejected" && !reason.trim())
-                  }
+                  className="bg-green-600 text-white hover:bg-green-700"
+                  onClick={() => void handleApproveConfirm()}
+                  disabled={approveReject.isPending}
                 >
-                  {approveReject.isPending
-                    ? "Processing..."
-                    : actionType === "approved"
-                      ? "Confirm Approve"
-                      : "Confirm Reject"}
+                  {approveReject.isPending ? "Processing..." : "Confirm Approve"}
                 </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <RejectClaimDialog
+        claim={
+          rejectTarget
+            ? {
+                id: Number(rejectTarget.id),
+                title: rejectTarget.title,
+                amount: Number(rejectTarget.amount),
+                categoryLabel: rejectTarget.claimTypes?.label ?? rejectTarget.type,
+                date: rejectTarget.createdAt
+                  ? new Date(rejectTarget.createdAt).toLocaleDateString()
+                  : rejectTarget.claimDate
+                    ? new Date(rejectTarget.claimDate).toLocaleDateString()
+                    : undefined,
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) setRejectTarget(null);
+        }}
+        isPending={approveReject.isPending}
+        onReject={({ claimId, reason }) => {
+          const c = rejectTarget;
+          if (!c) return;
+          const status = String(c.status);
+          const level =
+            status === "pending_l1" ? 1 : status === "pending_l2" ? 2 : 3;
+          approveReject.mutate(
+            { claimId, level, action: "rejected", reason },
+            { onSuccess: () => setRejectTarget(null) }
+          );
+        }}
+      />
     </div>
   );
 }

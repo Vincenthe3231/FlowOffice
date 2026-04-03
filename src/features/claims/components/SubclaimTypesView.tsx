@@ -150,7 +150,7 @@ export function SubclaimTypesView({ claimTypeId, onBack }: SubclaimTypesViewProp
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredSubclaims.map((sub, idx) => {
-              const Icon = SUBCLAIM_ICONS[idx % SUBCLAIM_ICONS.length];
+              const Icon = SUBCLAIM_ICONS[idx % SUBCLAIM_ICONS.length] ?? Plane;
               return (
                 <SubclaimCard
                   key={sub.id}

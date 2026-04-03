@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useHydration } from "@/shared/hooks/useHydration";
-import { useCreateClaim, useUploadClaimAttachment } from "@/features/claims/hooks/useClaims";
+import { useCreateClaim } from "@/features/claims/hooks/useClaims";
 import type { ClaimCategory } from "@/features/claims/types";
 import { format } from "date-fns";
 import { ReceiptClaimForm } from "@/features/claims/components/ReceiptClaimForm";
@@ -20,6 +20,7 @@ import { ReceiptClaimForm } from "@/features/claims/components/ReceiptClaimForm"
 interface ReceiptClaimDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Used only to resolve API categoryId on submit (first category). */
   categories: ClaimCategory[];
 }
 
@@ -30,10 +31,8 @@ export function ReceiptClaimDialog({
 }: ReceiptClaimDialogProps) {
   const isHydrated = useHydration();
   const [formData, setFormData] = useState<Record<string, unknown>>({});
-  const [file, setFile] = useState<File | null>(null);
 
   const createClaim = useCreateClaim();
-  const uploadAttachment = useUploadClaimAttachment();
 
   const updateField = (key: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -42,15 +41,15 @@ export function ReceiptClaimDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const title = String(formData.title ?? "").trim();
-    const categoryId = formData.category;
     const amount = formData.amount;
     const receiptDate = formData.receiptDate;
-    if (!title || !categoryId || !amount || !receiptDate) return;
+    const categoryId = categories[0]?.id;
+    if (!title || !amount || !receiptDate || categoryId == null) return;
     const numAmount = parseFloat(String(amount));
     if (Number.isNaN(numAmount) || numAmount <= 0) return;
 
     try {
-      const claim = await createClaim.mutateAsync({
+      await createClaim.mutateAsync({
         type: "receipt",
         title,
         categoryId: Number(categoryId),
@@ -63,12 +62,8 @@ export function ReceiptClaimDialog({
         description: String(formData.description ?? "").trim() || undefined,
         status: "pending",
       });
-      if (file) {
-        await uploadAttachment.mutateAsync({ claimId: claim.id, file });
-      }
       onOpenChange(false);
       setFormData({});
-      setFile(null);
     } catch {
       // toast handled in mutation
     }
@@ -90,7 +85,7 @@ export function ReceiptClaimDialog({
             <div>
               <h2 className="text-lg font-bold text-white">New Receipt Claim</h2>
               <p className="text-blue-100 text-xs mt-0.5">
-                Upload receipt and fill in the details
+                Fill in the details for your receipt claim
               </p>
             </div>
           </div>
@@ -100,10 +95,8 @@ export function ReceiptClaimDialog({
           <div className="px-6 py-5 space-y-4">
             {isHydrated ? (
               <ReceiptClaimForm
-                categories={categories}
                 formData={formData}
                 onUpdate={updateField}
-                onFileChange={setFile}
               />
             ) : (
               <div className="h-64 rounded-xl border border-border/60 bg-muted/20 animate-pulse" aria-hidden />
@@ -120,17 +113,14 @@ export function ReceiptClaimDialog({
               type="submit"
               disabled={
                 createClaim.isPending ||
-                uploadAttachment.isPending ||
                 !formData.title ||
-                !formData.category ||
                 !formData.amount ||
-                !formData.receiptDate
+                !formData.receiptDate ||
+                categories.length === 0
               }
               className="border-0 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:from-blue-600 hover:to-indigo-700"
             >
-              {createClaim.isPending || uploadAttachment.isPending
-                ? "Submitting…"
-                : "Submit Claim"}
+              {createClaim.isPending ? "Submitting…" : "Submit Claim"}
             </Button>
           </DialogFooter>
         </form>

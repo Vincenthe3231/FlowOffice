@@ -46,4 +46,5 @@ export const API_ROUTES = {
   /** Geocode (Google Maps via backend; relative to PROXY_PREFIX) */
   GEOCODE: 'geocode',
   REVERSE_GEOCODE: 'reverse-geocode',
+  MAPS_CONFIG: 'maps-config',
 } as const

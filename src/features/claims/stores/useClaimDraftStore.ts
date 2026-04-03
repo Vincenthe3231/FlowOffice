@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CustomField } from "@/features/claims/types";
 
+const MAX_ATTACHMENT_FILES = 5;
+
 interface ClaimDraftState {
   currentStep: number;
   claimantName: string;
@@ -13,13 +15,15 @@ interface ClaimDraftState {
   selectedSubclaimId: string | null;
   formData: Record<string, unknown>;
   customFields: CustomField[];
-  /** Single attachment file for post-submit upload; not persisted */
-  attachmentFile: File | null;
+  /** Staged files for create submit; not persisted */
+  attachmentFiles: File[];
   lastSaved: number;
   hasDraft: boolean;
 
   setStep: (step: number) => void;
-  setAttachmentFile: (file: File | null) => void;
+  addAttachmentFile: (file: File) => void;
+  removeAttachmentFile: (index: number) => void;
+  clearAttachmentFiles: () => void;
   setClaimant: (name: string, nickname: string) => void;
   setType: (id: string | null, key: string | null) => void;
   setSubclaim: (id: string | null) => void;
@@ -42,7 +46,7 @@ const initialState = {
   selectedSubclaimId: null as string | null,
   formData: {} as Record<string, unknown>,
   customFields: [] as CustomField[],
-  attachmentFile: null as File | null,
+  attachmentFiles: [] as File[],
   lastSaved: 0,
   hasDraft: false,
 };
@@ -101,13 +105,24 @@ export const useClaimDraftStore = create<ClaimDraftState>()(
           lastSaved: Date.now(),
           hasDraft: true,
         })),
-      setAttachmentFile: (file) =>
-        set({
-          attachmentFile: file,
+      addAttachmentFile: (file) =>
+        set((s) => {
+          if (s.attachmentFiles.length >= MAX_ATTACHMENT_FILES) return s;
+          return {
+            attachmentFiles: [...s.attachmentFiles, file],
+            lastSaved: Date.now(),
+            hasDraft: true,
+          };
+        }),
+      removeAttachmentFile: (index) =>
+        set((s) => ({
+          attachmentFiles: s.attachmentFiles.filter((_, i) => i !== index),
           lastSaved: Date.now(),
           hasDraft: true,
-        }),
-      clearDraft: () => set({ ...initialState, attachmentFile: null }),
+        })),
+      clearAttachmentFiles: () =>
+        set({ attachmentFiles: [], lastSaved: Date.now(), hasDraft: true }),
+      clearDraft: () => set({ ...initialState }),
       markDraft: () => set({ hasDraft: true, lastSaved: Date.now() }),
     }),
     {
@@ -123,8 +138,10 @@ export const useClaimDraftStore = create<ClaimDraftState>()(
         customFields: s.customFields,
         lastSaved: s.lastSaved,
         hasDraft: s.hasDraft,
-        // attachmentFile omitted (not serializable)
+        // attachmentFiles omitted (not serializable)
       }),
     }
   )
 );
+
+export const CLAIM_DRAFT_MAX_ATTACHMENT_FILES = MAX_ATTACHMENT_FILES;

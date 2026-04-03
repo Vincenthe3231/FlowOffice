@@ -52,9 +52,16 @@ export interface ClaimDetailViewProps {
   approvalsToShow: ClaimApproval[];
   /** e.g. back button — shown before claim id / status row */
   leadingAction?: ReactNode;
+  /** e.g. Reject — top-right on larger screens */
+  headerTrailingActions?: ReactNode;
 }
 
-export function ClaimDetailView({ claim, approvalsToShow, leadingAction }: ClaimDetailViewProps) {
+export function ClaimDetailView({
+  claim,
+  approvalsToShow,
+  leadingAction,
+  headerTrailingActions,
+}: ClaimDetailViewProps) {
   const amountStr = claim.amount.toFixed(2);
   const [amountInt, amountDec] = amountStr.split(".");
   const sc = statusColors[claim.status] ?? DEFAULT_STATUS_COLOR;
@@ -64,7 +71,7 @@ export function ClaimDetailView({ claim, approvalsToShow, leadingAction }: Claim
     <div className="w-full space-y-8">
       {/* Top bar — same pattern as AttendanceLogDetailView (full width, not a modal card) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
           {leadingAction}
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -97,6 +104,11 @@ export function ClaimDetailView({ claim, approvalsToShow, leadingAction }: Claim
             </div>
           </div>
         </div>
+        {headerTrailingActions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            {headerTrailingActions}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

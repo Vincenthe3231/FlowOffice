@@ -36,6 +36,7 @@ import type {
   CreateClaimTypePayload,
 } from "@/shared/lib/api-client/claims";
 import { extractError } from "@/shared/lib/api-client/response-handler";
+import { fetchMapsConfig } from "@/shared/lib/api-client/maps";
 
 export const CLAIM_QUERY_KEYS = {
   claims: (filter?: ClaimFilter, page?: number) => ["claims", filter, page] as const,
@@ -50,6 +51,7 @@ export const CLAIM_QUERY_KEYS = {
   allClaimsApproval: () => ["all-claims-approval"] as const,
   pendingApprovals: () => ["pending-approvals"] as const,
   approvalThreshold: () => ["approval-threshold"] as const,
+  mapsConfig: () => ["maps-config"] as const,
 };
 
 export function useClaims(filter: ClaimFilter, page = 1, perPage = 50) {
@@ -112,6 +114,14 @@ export function useMileageRate() {
     queryKey: CLAIM_QUERY_KEYS.mileageRate(),
     queryFn: fetchMileageRate,
     placeholderData: 0.8,
+  });
+}
+
+export function useMapsConfig() {
+  return useQuery({
+    queryKey: CLAIM_QUERY_KEYS.mapsConfig(),
+    queryFn: fetchMapsConfig,
+    staleTime: 1000 * 60 * 30,
   });
 }
 
@@ -283,11 +293,12 @@ export function useApproveRejectClaim() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ApproveRejectPayload) => approveRejectClaimApi(payload),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["claims"] });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["claim-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+      queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claim(variables.claimId) });
       toast.success("Action saved");
     },
     onError: (err) => {

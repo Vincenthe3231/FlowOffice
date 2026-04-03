@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Car, FileText, RotateCcw } from "lucide-react";
+import { Car, Eye, FileText, RotateCcw } from "lucide-react";
+import { RejectDiscIcon } from "@/features/claims/components/RejectDiscIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,6 +15,7 @@ interface ClaimsTableProps {
   claims: Claim[];
   onClaimSelect: (claim: Claim) => void;
   onResubmit?: (claim: Claim) => void;
+  onReject?: (claim: Claim) => void;
 }
 
 export function ClaimsTable({
@@ -22,6 +24,7 @@ export function ClaimsTable({
   claims,
   onClaimSelect,
   onResubmit,
+  onReject,
 }: ClaimsTableProps) {
   const handleFilterSelect = (value: ClaimFilter) => {
     if (value !== filter) {
@@ -98,7 +101,7 @@ export function ClaimsTable({
                   <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
                     Status
                   </TableHead>
-                  <TableHead className="h-9 w-[80px] px-3 text-right text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                  <TableHead className="h-9 w-[140px] px-3 text-right text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -142,20 +145,51 @@ export function ClaimsTable({
                       <StatusBadge status={claim.status} className="px-2 py-0.5 text-[9px] sm:text-[10px]" />
                     </TableCell>
                     <TableCell className="px-3 py-2.5 text-right sm:px-4 sm:py-3">
-                      {claim.status === "Rejected" && onResubmit && (
+                      <div className="flex items-center justify-end gap-1">
                         <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 gap-1 text-[10px] sm:text-xs"
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onResubmit(claim);
+                            onClaimSelect(claim);
                           }}
+                          aria-label="View claim"
                         >
-                          <RotateCcw className="h-3 w-3" />
-                          Resubmit
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
+                        {(claim.status === "Pending" || claim.status === "Approved") && onReject && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 shrink-0 text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReject(claim);
+                            }}
+                            aria-label="Reject claim"
+                          >
+                            <RejectDiscIcon size="sm" />
+                          </Button>
+                        )}
+                        {claim.status === "Rejected" && onResubmit && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 text-[10px] sm:text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onResubmit(claim);
+                            }}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Resubmit
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

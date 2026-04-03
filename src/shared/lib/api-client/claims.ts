@@ -273,7 +273,7 @@ export async function createClaim(payload: CreateClaimPayload): Promise<Claim> {
   return mapClaimFromApi(data)
 }
 
-export interface UpdateClaimPayload extends Partial<CreateClaimPayload> {
+export type UpdateClaimPayload = Partial<CreateClaimPayload> & {
   metadata?: {
     fields: Array<{ label: string; type: string; value: string | number | null }>
   } | null
@@ -456,21 +456,29 @@ export interface SubmitClaimPayload {
 
 export async function submitClaim(payload: SubmitClaimPayload): Promise<Claim> {
   const { claim, approvalLevels } = payload
-  const rawAttachment = (claim as Record<string, unknown>)._attachmentFile
-  const attachmentFile: File | null = rawAttachment instanceof File ? rawAttachment : null
+  const rawFiles = (claim as Record<string, unknown>)._attachmentFiles
+  const attachmentFiles: File[] = Array.isArray(rawFiles)
+    ? rawFiles.filter((f): f is File => f instanceof File)
+    : []
 
-  if (attachmentFile) {
+  if (attachmentFiles.length > 0) {
     const claimPayload = { ...claim }
-    delete (claimPayload as Record<string, unknown>)._attachmentFile
+    delete (claimPayload as Record<string, unknown>)._attachmentFiles
     const formData = new FormData()
     formData.append('claim', JSON.stringify(keysToSnake(claimPayload as Record<string, unknown>)))
-    formData.append('attachments[]', attachmentFile)
+    attachmentFiles.forEach((f) => formData.append('attachments[]', f))
     const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, formData)
     const data = extractData<ClaimApiResponse>(response)
     return mapClaimFromApi(data)
   }
 
-  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, { claim, approvalLevels })
+  const jsonClaim = { ...claim }
+  delete (jsonClaim as Record<string, unknown>)._attachmentFiles
+
+  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, {
+    claim: jsonClaim,
+    approvalLevels,
+  })
   const data = extractData<ClaimApiResponse>(response)
   return mapClaimFromApi(data)
 }
