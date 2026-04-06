@@ -6,6 +6,7 @@ import {
   forwardSetCookies,
   getSetCookieValues,
 } from '@/shared/lib/laravel-csrf'
+import { clientAuthPayloadFromLaravel } from '@/shared/lib/sanitize-auth-client-payload'
 
 const LARAVEL_API_URL =
   process.env.LARAVEL_API_URL ||
@@ -14,7 +15,7 @@ const LARAVEL_API_URL =
 
 type LaravelLarkCallbackResponse = {
   message?: string
-  data?: { user?: unknown; token?: string }
+  data?: Record<string, unknown> & { user?: unknown; token?: string }
   token?: string
   user?: unknown
 }
@@ -127,11 +128,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const user = data.data?.user ?? data.user
-    const response = NextResponse.json(
-      { data: { user } },
-      { status: 200 },
-    )
+    const payload = clientAuthPayloadFromLaravel(data)
+    if (payload.data.user == null) {
+      return NextResponse.json(
+        { message: 'Lark callback succeeded but user payload was missing' },
+        { status: 502 },
+      )
+    }
+
+    const response = NextResponse.json(payload, { status: 200 })
 
     forwardSetCookies(allSetCookies, response)
     response.cookies.set(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)

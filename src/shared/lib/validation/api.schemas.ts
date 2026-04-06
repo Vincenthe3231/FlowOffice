@@ -46,6 +46,41 @@ export const authResponseSchema = z.object({
  */
 export type AuthResponse = z.infer<typeof authResponseSchema>
 
+/** Access gate from Laravel user/me envelope (camelCase after axios transform). */
+export const accessStatusSchema = z.enum([
+  'granted',
+  'pending',
+  'rejected',
+  'deactivated',
+])
+
+export type AccessStatus = z.infer<typeof accessStatusSchema>
+
+export function coerceAccessStatus(value: unknown): AccessStatus {
+  if (
+    value === 'granted' ||
+    value === 'pending' ||
+    value === 'rejected' ||
+    value === 'deactivated'
+  ) {
+    return value
+  }
+  return 'granted'
+}
+
+/**
+ * Session returned from GET /api/auth/me (and optimistic cache after login).
+ * `accessStatus` defaults to granted when the backend omits it (legacy APIs).
+ */
+export const meSessionSchema = z.object({
+  user: userSchema,
+  accessStatus: accessStatusSchema,
+  rejectionReason: z.string().nullable().optional(),
+  onboarding: z.unknown().optional().nullable(),
+})
+
+export type MeSession = z.infer<typeof meSessionSchema>
+
 /**
  * API Error Schema
  * 

@@ -5,6 +5,7 @@
 
 const SETTINGS_NAV_ROLES = ['hod', 'hr_admin', 'super_admin'] as const
 const MANAGE_CLAIMS_ROLES = ['hr_admin', 'super_admin'] as const
+const ONBOARDING_ADMIN_ROLES = ['super_admin'] as const
 
 function hasRole(
   role: string | undefined | null,
@@ -42,4 +43,17 @@ export function canSeeManageClaims(
   roles?: string[] | null
 ): boolean {
   return hasRole(role, MANAGE_CLAIMS_ROLES) || hasAnyRole(roles, MANAGE_CLAIMS_ROLES)
+}
+
+/**
+ * Onboarding admin queue (approve / reject). Super admin only.
+ */
+export function canSeeOnboardingAdmin(
+  role?: string | null,
+  roles?: string[] | null
+): boolean {
+  return (
+    hasRole(role, ONBOARDING_ADMIN_ROLES) ||
+    hasAnyRole(roles, ONBOARDING_ADMIN_ROLES)
+  )
 }

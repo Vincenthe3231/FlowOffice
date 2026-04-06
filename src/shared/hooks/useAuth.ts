@@ -5,8 +5,12 @@ import axios from 'axios'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import { useHydration } from './useHydration'
 import { getCurrentUser } from '@/shared/lib/api-client/laravel-client'
-import { parseUserResponse } from '@/shared/lib/api-client/response-handler'
-import { userSchema } from '@/shared/lib/validation/api.schemas'
+import { parseMeResponse } from '@/shared/lib/api-client/response-handler'
+import {
+  coerceAccessStatus,
+  meSessionSchema,
+  userSchema,
+} from '@/shared/lib/validation/api.schemas'
 import { AUTH_QUERY_KEYS, AUTH_CONFIG } from '@/shared/lib/api-client/auth-constants'
 
 /**
@@ -17,8 +21,17 @@ export const authQueryOptions = queryOptions({
   queryKey: AUTH_QUERY_KEYS.ME,
   queryFn: async () => {
     const body = await getCurrentUser()
-    const user = parseUserResponse(body)
-    return userSchema.parse(user)
+    const parsed = parseMeResponse(body)
+    if (parsed.user == null) {
+      throw new Error('Not authenticated')
+    }
+    const user = userSchema.parse(parsed.user)
+    return meSessionSchema.parse({
+      user,
+      accessStatus: coerceAccessStatus(parsed.accessStatus),
+      rejectionReason: parsed.rejectionReason ?? null,
+      onboarding: parsed.onboarding ?? null,
+    })
   },
   retry: AUTH_CONFIG.RETRY,
   staleTime: AUTH_CONFIG.STALE_TIME,
@@ -71,16 +84,18 @@ export function useAuth() {
 
   // Sync query data with store when it updates
   useEffect(() => {
-    if (query.data && query.data !== storedUser) {
-      setUser(query.data)
-      // Also update query cache to keep it in sync
+    if (query.data?.user) {
+      setUser(query.data.user)
       queryClient.setQueryData(AUTH_QUERY_KEYS.ME, query.data)
     }
-  }, [query.data, storedUser, setUser, queryClient])
+  }, [query.data, setUser, queryClient])
 
   return {
     // Use query data if available, fallback to stored user
-    user: query.data ?? storedUser,
+    user: query.data?.user ?? storedUser,
+    accessStatus: query.data?.accessStatus ?? 'granted',
+    rejectionReason: query.data?.rejectionReason ?? null,
+    onboarding: query.data?.onboarding,
     // Loading if not hydrated, query is loading, or query is fetching
     isLoading: !isHydrated || query.isLoading || query.isFetching,
     // Authenticated if we have a user (from query or store)

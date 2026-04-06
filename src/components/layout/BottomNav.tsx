@@ -26,6 +26,7 @@ import {
   FileText,
   List,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -34,7 +35,11 @@ import { logoutUser } from "@/shared/lib/api-client/laravel-client";
 import { AUTH_QUERY_KEYS } from "@/shared/lib/api-client/auth-constants";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
-import { canSeeManageClaims, canSeeSettingsNav } from "@/shared/lib/role-utils";
+import {
+  canSeeManageClaims,
+  canSeeOnboardingAdmin,
+  canSeeSettingsNav,
+} from "@/shared/lib/role-utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import {
   DropdownMenu,
@@ -46,15 +51,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // Same nav structure as the sidebar (existing sidebar content)
-const mainNav = [
+const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Onboarding", href: "/dashboard/onboarding", icon: Sparkles },
   { title: "Attendance", href: "/dashboard/attendnance", icon: ClipboardList },
   { title: "Leave", href: "/dashboard/leave", icon: Calendar },
   { title: "Claims", href: "/dashboard/claims", icon: FileText },
-];
-
-const dashboardNav = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
 ];
 
 const attendanceNav = [
@@ -76,12 +78,16 @@ const baseSettingsNav = [
   { title: "Audit Trail", href: "/dashboard/settings/audit", icon: ScrollText },
 ];
 
-const navGroupsWithoutSettings: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] = [
-  { label: "Main", items: mainNav },
+function buildNavGroupsWithoutSettings(
+  mainItems: { title: string; href: string; icon: LucideIcon }[]
+): { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] {
+  return [
+  { label: "Main", items: mainItems },
   { label: "Attendance", items: attendanceNav },
   { label: "Overtime", items: overtimeNav },
   { label: "Reports", items: reportNav },
 ];
+}
 
 function MenuOption({
   icon: Icon,
@@ -156,6 +162,14 @@ export function BottomNav() {
 
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
   const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
+  const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
+  const mainNav = useMemo(
+    () =>
+      showOnboardingNav
+        ? [...mainNavAll]
+        : mainNavAll.filter((item) => item.href !== "/dashboard/onboarding"),
+    [showOnboardingNav]
+  );
   const settingsNav = useMemo(() => {
     if (!showSettingsNav) return [];
     return showManageClaims
@@ -169,12 +183,16 @@ export function BottomNav() {
         ]
       : baseSettingsNav;
   }, [showSettingsNav, showManageClaims]);
+  const navGroupsWithoutSettings = useMemo(
+    () => buildNavGroupsWithoutSettings(mainNav),
+    [mainNav]
+  );
   const navGroups = useMemo(
     () =>
       showSettingsNav
         ? [...navGroupsWithoutSettings, { label: "Settings", items: settingsNav }]
         : navGroupsWithoutSettings,
-    [showSettingsNav, settingsNav]
+    [showSettingsNav, settingsNav, navGroupsWithoutSettings]
   );
   const pinnedGroups = useMemo(
     () => filterNavGroupsByQuery(navGroups, findQuery),
@@ -236,7 +254,7 @@ export function BottomNav() {
       </AnimatePresence>
 
       <nav
-        className="fixed bottom-3 left-1/2 z-[70] w-[92%] max-w-[200px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[380px] md:bottom-6 md:w-[90%] md:max-w-[440px] md:bottom-8 lg:hidden"
+        className="fixed bottom-3 left-1/2 z-[70] w-[92%] max-w-[200px] -translate-x-1/2 pb-[env(safe-area-inset-bottom)] sm:bottom-4 sm:max-w-[380px] md:bottom-8 md:w-[90%] md:max-w-[440px] lg:hidden"
         aria-label="Mobile navigation"
       >
         <AnimatePresence>

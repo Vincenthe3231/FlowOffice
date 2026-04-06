@@ -6,6 +6,7 @@ import {
   forwardSetCookies,
   getSetCookieValues,
 } from '@/shared/lib/laravel-csrf'
+import { clientAuthPayloadFromLaravel } from '@/shared/lib/sanitize-auth-client-payload'
 
 const LARAVEL_API_URL =
   process.env.LARAVEL_API_URL ||
@@ -14,7 +15,7 @@ const LARAVEL_API_URL =
 
 type LaravelLoginResponse = {
   message?: string
-  data?: { user?: unknown; token?: string }
+  data?: Record<string, unknown> & { user?: unknown; token?: string }
   token?: string
   user?: unknown
 }
@@ -126,11 +127,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const user = data.data?.user ?? data.user
-    const response = NextResponse.json(
-      { data: { user } },
-      { status: 200 },
-    )
+    const payload = clientAuthPayloadFromLaravel(data)
+    if (payload.data.user == null) {
+      return NextResponse.json(
+        { message: 'Login succeeded but user payload was missing' },
+        { status: 502 },
+      )
+    }
+
+    const response = NextResponse.json(payload, { status: 200 })
 
     // Forward all Laravel cookies (CSRF + session + any login updates) to the browser
     const loginSetCookies = getSetCookieValues(loginRes)

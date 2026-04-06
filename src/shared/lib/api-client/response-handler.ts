@@ -142,6 +142,47 @@ export function parseUserResponse(body: unknown): unknown {
   return (body as { user?: unknown })?.user ?? body
 }
 
+/** Raw fields from Laravel `data` envelope (already camelCase from axios on client). */
+export interface MeEnvelope {
+  user: unknown
+  accessStatus?: string | null
+  rejectionReason?: string | null
+  onboarding?: unknown | null
+}
+
+/**
+ * Parse GET /user (or login) JSON body into user + access gate fields.
+ * Supports `{ data: { user, accessStatus, ... } }` and legacy `{ user }`.
+ */
+export function parseMeResponse(body: unknown): MeEnvelope {
+  let data: Record<string, unknown> | null = null
+
+  if (body && typeof body === 'object' && 'data' in body) {
+    const inner = (body as { data?: Record<string, unknown> }).data
+    if (inner && typeof inner === 'object') {
+      data = inner as Record<string, unknown>
+    }
+  } else if (body && typeof body === 'object') {
+    data = body as Record<string, unknown>
+  }
+
+  if (!data) {
+    return { user: null }
+  }
+
+  return {
+    user: data.user ?? null,
+    accessStatus:
+      (data.accessStatus as string | null | undefined) ??
+      (data.access_status as string | null | undefined),
+    rejectionReason:
+      (data.rejectionReason as string | null | undefined) ??
+      (data.rejection_reason as string | null | undefined) ??
+      null,
+    onboarding: data.onboarding ?? null,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // validateAndExtract
 // ---------------------------------------------------------------------------

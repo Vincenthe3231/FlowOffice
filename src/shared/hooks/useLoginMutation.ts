@@ -1,9 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { loginWithEmail } from '@/shared/lib/api-client/laravel-client'
-import { parseAuthSuccess } from '@/shared/lib/api-client/response-handler'
+import { parseMeResponse } from '@/shared/lib/api-client/response-handler'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import type { LoginFormData } from '@/shared/lib/validation/auth.schemas'
-import { userSchema } from '@/shared/lib/validation/api.schemas'
+import {
+  coerceAccessStatus,
+  meSessionSchema,
+  userSchema,
+} from '@/shared/lib/validation/api.schemas'
 import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
 
 /**
@@ -21,11 +25,17 @@ export function useLoginMutation() {
       return body
     },
     onSuccess: (body) => {
-      const { user } = parseAuthSuccess(body)
-      if (!user) return
-      const validated = userSchema.parse(user)
-      setUser(validated, 'email')
-      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, validated)
+      const parsed = parseMeResponse(body)
+      if (!parsed.user) return
+      const validatedUser = userSchema.parse(parsed.user)
+      const session = meSessionSchema.parse({
+        user: validatedUser,
+        accessStatus: coerceAccessStatus(parsed.accessStatus),
+        rejectionReason: parsed.rejectionReason ?? null,
+        onboarding: parsed.onboarding ?? null,
+      })
+      setUser(validatedUser, 'email')
+      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, session)
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     },
     onError: (error: unknown) => {

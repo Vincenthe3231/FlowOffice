@@ -14,6 +14,7 @@ import {
   Calendar,
   FileText,
   List,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,14 +53,19 @@ import {
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useProfile } from "@/features/profile/hooks/useProfile";
-import { canSeeManageClaims, canSeeSettingsNav } from "@/shared/lib/role-utils";
+import {
+  canSeeManageClaims,
+  canSeeOnboardingAdmin,
+  canSeeSettingsNav,
+} from "@/shared/lib/role-utils";
 
-const mainNav = [
+const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Onboarding", href: "/dashboard/onboarding", icon: Sparkles },
   { title: "Attendance", href: "/dashboard/attendnance", icon: ClipboardList },
   { title: "Leave", href: "/dashboard/leave", icon: Calendar },
   { title: "Claims", href: "/dashboard/claims", icon: FileText },
-];
+] as const;
 
 const attendanceNav = [
   { title: "Attendance Log", href: "/dashboard/log", icon: ClipboardList },
@@ -130,6 +136,14 @@ export default function DashboardLayout({
   const logout = useAuthStore((s) => s.logout);
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
   const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
+  const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
+  const mainNav = React.useMemo(
+    () =>
+      showOnboardingNav
+        ? [...mainNavAll]
+        : mainNavAll.filter((item) => item.href !== "/dashboard/onboarding"),
+    [showOnboardingNav]
+  );
   const settingsNav = React.useMemo(() => {
     if (!showSettingsNav) return [];
     return showManageClaims
