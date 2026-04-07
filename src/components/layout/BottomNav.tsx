@@ -27,6 +27,8 @@ import {
   List,
   ChevronRight,
   Sparkles,
+  Users,
+  Building2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -35,6 +37,7 @@ import { logoutUser } from "@/shared/lib/api-client/laravel-client";
 import { AUTH_QUERY_KEYS } from "@/shared/lib/api-client/auth-constants";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { isRouteActive } from "@/shared/lib/nav-active";
 import {
   canSeeManageClaims,
   canSeeOnboardingAdmin,
@@ -76,6 +79,8 @@ const baseSettingsNav = [
   { title: "Work Mode", href: "/dashboard/settings/work-mode", icon: Monitor },
   { title: "Shift Scheduling", href: "/dashboard/settings/shifts", icon: Calendar },
   { title: "Audit Trail", href: "/dashboard/settings/audit", icon: ScrollText },
+  { title: "User Management", href: "/dashboard/settings/users", icon: Users },
+  { title: "Departments", href: "/dashboard/settings/departments", icon: Building2 },
 ];
 
 function buildNavGroupsWithoutSettings(
@@ -280,7 +285,7 @@ export function BottomNav() {
                             icon={item.icon}
                             label={item.title}
                             href={item.href}
-                            isActive={pathname === item.href}
+                            isActive={isRouteActive(pathname, item.href)}
                             onNavigate={closeMenu}
                           />
                         ))}
@@ -292,7 +297,7 @@ export function BottomNav() {
                           icon={item.icon}
                           label={item.title}
                           href={item.href}
-                          isActive={pathname === item.href}
+                          isActive={isRouteActive(pathname, item.href)}
                           onNavigate={closeMenu}
                         />
                       ))

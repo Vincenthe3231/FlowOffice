@@ -4,7 +4,6 @@ import { API_ROUTES } from "./constants";
 import { extractData } from "./response-handler";
 import {
   approvalRoleOptionSchema,
-  departmentSchema,
   onboardingSchema,
 } from "@/features/onboarding/schemas/onboarding.schemas";
 import type { OnboardingRole } from "@/features/onboarding/schemas/onboarding.schemas";
@@ -12,8 +11,9 @@ import type { OnboardingRole } from "@/features/onboarding/schemas/onboarding.sc
 const PROXY = API_ROUTES.PROXY_PREFIX;
 
 const onboardingListSchema = z.array(onboardingSchema);
-const departmentListSchema = z.array(departmentSchema);
 const approvalRoleListSchema = z.array(approvalRoleOptionSchema);
+
+export { fetchDepartments } from "@/shared/lib/api-client/departments";
 
 function normalizeListPayload(raw: unknown): unknown {
   if (Array.isArray(raw)) return raw;
@@ -31,15 +31,6 @@ export async function fetchOnboardings(): Promise<
   const raw = extractData<unknown>(res);
   const list = normalizeListPayload(raw);
   return onboardingListSchema.parse(list);
-}
-
-export async function fetchDepartments(): Promise<
-  z.infer<typeof departmentListSchema>
-> {
-  const res = await laravelApi.get(`${PROXY}/departments`);
-  const raw = extractData<unknown>(res);
-  const list = normalizeListPayload(raw);
-  return departmentListSchema.parse(list);
 }
 
 export async function fetchApprovalRoles(): Promise<

@@ -3,16 +3,19 @@ import { toast } from "sonner";
 import {
   approveOnboarding,
   fetchApprovalRoles,
-  fetchDepartments,
   fetchOnboardings,
   rejectOnboarding,
 } from "@/shared/lib/api-client/onboarding";
+import {
+  DEPARTMENTS_LIST_QUERY_KEY,
+  fetchDepartments,
+} from "@/shared/lib/api-client/departments";
 import { extractError } from "@/shared/lib/api-client/response-handler";
 import type { OnboardingRole } from "@/features/onboarding/schemas/onboarding.schemas";
 
 export const ONBOARDING_QUERY_KEYS = {
   list: ["onboarding", "list"] as const,
-  departments: ["departments", "list"] as const,
+  departments: DEPARTMENTS_LIST_QUERY_KEY,
   approvalRoles: ["onboarding", "approval-roles"] as const,
 };
 
@@ -23,10 +26,11 @@ export function useOnboardings() {
   });
 }
 
-export function useDepartments() {
+export function useDepartments(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ONBOARDING_QUERY_KEYS.departments,
     queryFn: fetchDepartments,
+    enabled: options?.enabled ?? true,
   });
 }
 

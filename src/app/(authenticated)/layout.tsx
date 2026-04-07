@@ -15,6 +15,8 @@ import {
   FileText,
   List,
   Sparkles,
+  Users,
+  Building2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +55,7 @@ import {
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { isRouteActive } from "@/shared/lib/nav-active";
 import {
   canSeeManageClaims,
   canSeeOnboardingAdmin,
@@ -84,6 +87,8 @@ const baseSettingsNav = [
   { title: "Work Mode", href: "/dashboard/settings/work-mode", icon: Monitor },
   { title: "Shift Scheduling", href: "/dashboard/settings/shifts", icon: Calendar },
   { title: "Audit Trail", href: "/dashboard/settings/audit", icon: ScrollText },
+  { title: "User Management", href: "/dashboard/settings/users", icon: Users },
+  { title: "Departments", href: "/dashboard/settings/departments", icon: Building2 },
 ];
 
 function NavGroup({
@@ -108,7 +113,10 @@ function NavGroup({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton asChild isActive={pathname === item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={isRouteActive(pathname, item.href)}
+              >
                 <Link
                   href={item.href}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:font-semibold"

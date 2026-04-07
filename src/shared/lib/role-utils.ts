@@ -6,6 +6,7 @@
 const SETTINGS_NAV_ROLES = ['hod', 'hr_admin', 'super_admin'] as const
 const MANAGE_CLAIMS_ROLES = ['hr_admin', 'super_admin'] as const
 const ONBOARDING_ADMIN_ROLES = ['super_admin'] as const
+const DEPARTMENT_MANAGE_ROLES = ['super_admin'] as const
 
 function hasRole(
   role: string | undefined | null,
@@ -55,5 +56,18 @@ export function canSeeOnboardingAdmin(
   return (
     hasRole(role, ONBOARDING_ADMIN_ROLES) ||
     hasAnyRole(roles, ONBOARDING_ADMIN_ROLES)
+  )
+}
+
+/**
+ * Create / update departments (including activate & deactivate). Super admin only.
+ */
+export function canManageDepartments(
+  role?: string | null,
+  roles?: string[] | null
+): boolean {
+  return (
+    hasRole(role, DEPARTMENT_MANAGE_ROLES) ||
+    hasAnyRole(roles, DEPARTMENT_MANAGE_ROLES)
   )
 }
