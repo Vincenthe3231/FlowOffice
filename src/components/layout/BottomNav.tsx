@@ -24,7 +24,6 @@ import {
   ScrollText,
   Calendar,
   FileText,
-  List,
   ChevronRight,
   Sparkles,
   Users,
@@ -39,9 +38,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { isRouteActive } from "@/shared/lib/nav-active";
 import {
-  canSeeManageClaims,
   canSeeOnboardingAdmin,
   canSeeSettingsNav,
+  formatUserRoleForDisplay,
 } from "@/shared/lib/role-utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import {
@@ -166,7 +165,6 @@ export function BottomNav() {
   const isPanelOpen = isOpen || hasSearchQuery;
 
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
-  const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
   const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
   const mainNav = useMemo(
     () =>
@@ -177,17 +175,12 @@ export function BottomNav() {
   );
   const settingsNav = useMemo(() => {
     if (!showSettingsNav) return [];
-    return showManageClaims
-      ? [
-          ...baseSettingsNav,
-          {
-            title: "Manage Claims",
-            href: "/dashboard/settings/claim-types",
-            icon: List,
-          },
-        ]
-      : baseSettingsNav;
-  }, [showSettingsNav, showManageClaims]);
+    return baseSettingsNav;
+  }, [showSettingsNav]);
+  const mobileRoleLabel = useMemo(
+    () => formatUserRoleForDisplay(profile?.role, user?.roles),
+    [profile?.role, user?.roles]
+  );
   const navGroupsWithoutSettings = useMemo(
     () => buildNavGroupsWithoutSettings(mainNav),
     [mainNav]
@@ -361,6 +354,9 @@ export function BottomNav() {
                     </p>
                     <p className="truncate text-[11px] font-normal text-muted-foreground">
                       {user?.email ?? ""}
+                    </p>
+                    <p className="truncate text-[11px] font-medium text-muted-foreground/90">
+                      {mobileRoleLabel}
                     </p>
                   </div>
                 </div>

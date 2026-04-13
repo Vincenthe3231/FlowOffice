@@ -9,15 +9,24 @@ import {
   Phone,
   BadgeCheck,
   Briefcase,
-  Building2,
   Camera,
   ChevronRight,
   ScanFace,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { useAuth } from "@/shared/hooks/useAuth";
+import { formatUserRoleForDisplay } from "@/shared/lib/role-utils";
+import type { User as AuthUser } from "@/shared/stores/auth-store";
+
+function larkOpenIdFromUser(user: AuthUser | null | undefined): string | null {
+  if (!user) return null;
+  const u = user as Record<string, unknown>;
+  const v = u.larkOpenId ?? u.lark_open_id;
+  return typeof v === "string" && v.trim() !== "" ? v : null;
+}
 
 export function ProfileScreen() {
   const customizer = useContext(CustomizerContext);
@@ -33,10 +42,16 @@ export function ProfileScreen() {
   const fullName = profile?.fullName ?? user?.name ?? "User";
   const email = profile?.email ?? user?.email ?? "unknown@example.com";
   const phone = profile?.phone ?? "Not set";
-  const employeeId = profile?.employeeId ?? "—";
+
+  const employeeIdFromProfile =
+    profile?.employeeId != null && String(profile.employeeId).trim() !== ""
+      ? String(profile.employeeId).trim()
+      : null;
+  /** Prefer Laravel `employee_id`; fallback to Lark open id from `/me` when profile field not yet synced. */
+  const employeeId =
+    employeeIdFromProfile ?? larkOpenIdFromUser(user) ?? "—";
   const department = profile?.department ?? "Not set";
-  const officeName = profile?.office?.name ?? "Not assigned";
-  const officeAddress = profile?.office?.address ?? "";
+  const roleDisplay = formatUserRoleForDisplay(profile?.role, user?.roles);
   const avatarUrl =
     profile?.avatarUrl ??
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop";
@@ -164,11 +179,10 @@ export function ProfileScreen() {
                 />
                 <Divider />
                 <InfoRow
-                  icon={<Building2 size={20} className="text-primary" />}
-                  iconBg="bg-primary/10 dark:bg-primary/20"
-                  label="Office"
-                  value={officeName}
-                  subValue={officeAddress}
+                  icon={<Shield size={20} className="text-sky-500 dark:text-sky-400" />}
+                  iconBg="bg-sky-500/10 dark:bg-sky-400/15"
+                  label="Role"
+                  value={roleDisplay}
                   badge="Read-only"
                 />
               </div>

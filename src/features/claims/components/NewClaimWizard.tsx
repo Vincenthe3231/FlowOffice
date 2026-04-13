@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +57,7 @@ import { calculateDistance } from "@/shared/lib/api-client/claims";
 import type { Claim, ClaimType, ClaimApproval } from "@/features/claims/types";
 import { cn } from "@/lib/utils";
 import { isTransportClaimTypeKey } from "@/features/claims/lib/claim-type-groups";
+import { isTopManagementSlug } from "@/shared/constants/roles";
 
 const steps = [
   { id: 1, label: "Claimant", icon: User },
@@ -142,16 +143,19 @@ function AttachmentDraftCard({
   onRemove: () => void;
 }) {
   const showPreview = isImageAttachmentFile(file);
-  const previewUrl = useMemo(
-    () => (showPreview ? URL.createObjectURL(file) : null),
-    [file, showPreview]
-  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!showPreview) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      URL.revokeObjectURL(url);
     };
-  }, [previewUrl]);
+  }, [file, showPreview]);
 
   return (
     <div className="relative aspect-square min-h-0 w-full overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
@@ -318,7 +322,7 @@ export function NewClaimWizard() {
   }, []);
 
   const isClaimTypesAdmin =
-    profile?.role === "hr_admin" || profile?.role === "super_admin";
+    profile?.role === "hr_admin" || isTopManagementSlug(profile?.role);
 
   const { data: claimTypes, isLoading: typesLoading } = useClaimTypes();
   const { data: subclaimTypes } = useSubclaimTypes(draft.selectedTypeId);
@@ -536,7 +540,7 @@ export function NewClaimWizard() {
       { level: 1, approverRole: "HOD", status: "pending" },
       { level: 2, approverRole: "Admin/HR", status: "pending" },
       ...(needsL3
-        ? [{ level: 3, approverRole: "Superadmin", status: "pending" }]
+        ? [{ level: 3, approverRole: "Top Management", status: "pending" }]
         : []),
     ];
 
@@ -771,11 +775,11 @@ export function NewClaimWizard() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push("/dashboard/settings/claim-types")}
+                        onClick={() => router.push("/dashboard/claims/types")}
                         className="shrink-0 gap-1.5"
                       >
                         <Settings className="h-3.5 w-3.5" />
-                        Manage Claims
+                        Manage Claim Types
                       </Button>
                     )}
                   </div>
@@ -788,10 +792,10 @@ export function NewClaimWizard() {
                       No claim types available. Ask an admin to add them in{" "}
                       <button
                         type="button"
-                        onClick={() => router.push("/dashboard/settings/claim-types")}
+                        onClick={() => router.push("/dashboard/claims/types")}
                         className="underline text-primary hover:no-underline"
                       >
-                        Manage Claims
+                        Manage Claim Types
                       </button>
                       .
                     </p>
@@ -976,7 +980,7 @@ export function NewClaimWizard() {
                     <div className="grid grid-cols-2 gap-3">
                       {draft.attachmentFiles.map((file, i) => (
                         <AttachmentDraftCard
-                          key={`${i}-${file.name}-${file.size}`}
+                          key={`${file.name}-${file.size}-${file.lastModified}`}
                           file={file}
                           onRemove={() => draft.removeAttachmentFile(i)}
                         />
@@ -1075,7 +1079,7 @@ export function NewClaimWizard() {
                         Your claim will go through{" "}
                         {getAmount() >= thresholdAmount ? "3-level" : "2-level"}{" "}
                         approval: HOD → Admin/HR
-                        {getAmount() >= thresholdAmount ? " → Superadmin" : ""}.
+                        {getAmount() >= thresholdAmount ? " → Top Management" : ""}.
                       </p>
                     </div>
                     <ApprovalTimeline

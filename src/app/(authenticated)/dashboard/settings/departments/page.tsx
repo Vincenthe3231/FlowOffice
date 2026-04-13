@@ -8,7 +8,7 @@ export default function DepartmentsSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Departments</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Organize teams by department. Super admins can create, edit, and activate or deactivate
+          Organize teams by department. Top Management can create, edit, and activate or deactivate
           departments.
         </p>
       </div>

@@ -17,20 +17,46 @@ import { useDepartments } from '@/features/onboarding/hooks/useOnboarding'
 import {
   useAdminUserDetail,
   usePatchAdminUserDepartment,
+  usePatchAdminUserRole,
 } from '@/features/user-management/hooks/useAdminUserDetail'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useProfile } from '@/features/profile/hooks/useProfile'
 import {
+  type AdminUserDirectoryRole,
   formatAdminUserDepartmentLabel,
   getAdminUserDisplayName,
   getAdminUserLastLoginIso,
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
-import { canManageDepartments } from '@/shared/lib/role-utils'
+import { isTopManagement } from '@/shared/lib/role-utils'
+
+const ADMIN_ROLE_OPTIONS: { value: AdminUserDirectoryRole; label: string }[] = [
+  { value: 'top_management', label: 'Top Management' },
+  { value: 'hr_admin', label: 'HR' },
+  { value: 'hod', label: 'HOD' },
+  { value: 'staff', label: 'Staff' },
+]
+
+function normalizeEditableRole(
+  r: string | null | undefined
+): AdminUserDirectoryRole {
+  const normalized =
+    r === 'super_admin' ? 'top_management' : r
+  const allowed: AdminUserDirectoryRole[] = [
+    'top_management',
+    'hr_admin',
+    'hod',
+    'staff',
+  ]
+  if (normalized && (allowed as string[]).includes(normalized))
+    return normalized as AdminUserDirectoryRole
+  return 'staff'
+}
 
 function displayRole(role: string): string {
   const map: Record<string, string> = {
-    super_admin: 'Super Admin',
+    top_management: 'Top Management',
+    super_admin: 'Top Management',
     hr_admin: 'HR Admin',
     hod: 'HOD',
     staff: 'Staff',
@@ -95,17 +121,20 @@ function DetailField({
 export function UserDetailView({ userUuid }: { userUuid: string }) {
   const { user } = useAuth()
   const { profile } = useProfile()
-  const canEditDepartment = canManageDepartments(profile?.role, user?.roles)
+  const canEditAsTopManagement = isTopManagement(profile?.role, user?.roles)
 
   const { data, isLoading, isError, error, refetch } = useAdminUserDetail(userUuid)
   const patchDept = usePatchAdminUserDepartment(userUuid)
+  const patchRole = usePatchAdminUserRole(userUuid)
 
   const { data: departments = [], isLoading: deptLoading } = useDepartments({
-    enabled: canEditDepartment,
+    enabled: canEditAsTopManagement,
   })
 
   const [deptEditorOpen, setDeptEditorOpen] = useState(false)
   const [selectedDeptId, setSelectedDeptId] = useState<string>('')
+  const [roleEditorOpen, setRoleEditorOpen] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<AdminUserDirectoryRole>('staff')
 
   const currentDeptId = useMemo(() => {
     const id = data?.department?.id
@@ -116,6 +145,20 @@ export function UserDetailView({ userUuid }: { userUuid: string }) {
   function openDeptEditor() {
     setSelectedDeptId(currentDeptId || 'none')
     setDeptEditorOpen(true)
+  }
+
+  function openRoleEditor() {
+    if (!data) return
+    setSelectedRole(normalizeEditableRole(data.role))
+    setRoleEditorOpen(true)
+  }
+
+  function saveRole() {
+    patchRole.mutate(selectedRole, {
+      onSuccess: () => {
+        setRoleEditorOpen(false)
+      },
+    })
   }
 
   function saveDepartment() {
@@ -186,7 +229,80 @@ export function UserDetailView({ userUuid }: { userUuid: string }) {
 
         <div className="grid gap-0 sm:grid-cols-2 sm:gap-x-8">
           <div>
-            <DetailField label="Role" value={displayRole(data.role)} />
+            <div className="space-y-2 py-3 border-b border-border/60">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Role
+              </p>
+              {roleEditorOpen ? (
+                <div className="flex flex-col gap-3">
+                  <Select
+                    value={selectedRole}
+                    onValueChange={(v) =>
+                      setSelectedRole(v as AdminUserDirectoryRole)
+                    }
+                  >
+                    <SelectTrigger className="max-w-md">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ADMIN_ROLE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={saveRole}
+                      disabled={
+                        patchRole.isPending ||
+                        selectedRole === normalizeEditableRole(data.role)
+                      }
+                    >
+                      {patchRole.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Save'
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRoleEditorOpen(false)}
+                      disabled={patchRole.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-foreground">
+                    {displayRole(data.role ?? '')}
+                  </p>
+                  {canEditAsTopManagement ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 w-fit"
+                      onClick={openRoleEditor}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit role
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Only Top Management can change role.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
             <div className="space-y-2 py-3 border-b border-border/60">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Department
@@ -239,7 +355,7 @@ export function UserDetailView({ userUuid }: { userUuid: string }) {
                   <p className="text-sm font-medium text-foreground">
                     {formatAdminUserDepartmentLabel(data)}
                   </p>
-                  {canEditDepartment ? (
+                  {canEditAsTopManagement ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -252,7 +368,7 @@ export function UserDetailView({ userUuid }: { userUuid: string }) {
                     </Button>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Only super admins can change department.
+                      Only Top Management can change department.
                     </p>
                   )}
                 </>

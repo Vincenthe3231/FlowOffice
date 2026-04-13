@@ -56,11 +56,11 @@ import {
 } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
 
-type RoleChip = "my-attendance" | "superadmin" | "admin-hr" | "hod";
+type RoleChip = "my-attendance" | "top_management" | "admin-hr" | "hod";
 
 const roleChips: { id: RoleChip; label: string }[] = [
   { id: "my-attendance", label: "My Attendance" },
-  { id: "superadmin", label: "Superadmin" },
+  { id: "top_management", label: "Top Management" },
   { id: "admin-hr", label: "Admin / HR" },
   { id: "hod", label: "HOD" },
 ];
@@ -759,7 +759,7 @@ export default function Attendance() {
 
   // Determine what to show based on chip
   const showStaffView = activeChip === "my-attendance";
-  const showBoth = activeChip === "superadmin";
+  const showBoth = activeChip === "top_management";
 
   return (
     <>
@@ -795,7 +795,7 @@ export default function Attendance() {
         {/* ── Content ── */}
         <AnimatePresence mode="wait">
           {showBoth ? (
-            <motion.div key="superadmin" className="space-y-4 md:space-y-6">
+            <motion.div key="top_management" className="space-y-4 md:space-y-6">
               <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 md:text-xs md:mb-4">Admin Console</h3>
               {adminView}
             </motion.div>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CustomizerContextProvider } from "@/app/context/CustomizerContext";
@@ -29,6 +30,9 @@ export const metadata: Metadata = {
   description: "FlowOffice - HR Management System",
 };
 
+const enableServiceWorker =
+  process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "true";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,6 +44,19 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
+        {!enableServiceWorker && (
+          <Script id="flowoffice-unregister-stale-sw" strategy="beforeInteractive">
+            {`(function () {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    if (!regs.length) return;
+    return Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
+      window.location.reload();
+    });
+  });
+})();`}
+          </Script>
+        )}
         <QueryProvider>
           <QueryErrorBoundary>
             <StoreHydrationProvider>

@@ -10,16 +10,7 @@ import {
   ExternalLink,
   MoreVertical,
   Trash2,
-  Plane,
-  Car,
-  Hotel,
-  Utensils,
-  TrainFront,
-  ShieldCheck,
-  CreditCard,
-  Briefcase,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,18 +29,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useClaimTypes, useSubclaimTypes, useDeleteSubclaim } from "@/features/claims/hooks/useClaims";
 import { CreateSubclaimDialog } from "@/features/claims/components/CreateSubclaimDialog";
+import { getSubclaimTypeLucideIcon } from "@/features/claims/lib/subclaim-icons";
 import type { SubclaimType } from "@/features/claims/types";
-
-const SUBCLAIM_ICONS: LucideIcon[] = [
-  Plane,
-  Car,
-  Hotel,
-  Utensils,
-  TrainFront,
-  ShieldCheck,
-  CreditCard,
-  Briefcase,
-];
 
 export interface SubclaimTypesViewProps {
   claimTypeId: string;
@@ -149,18 +130,14 @@ export function SubclaimTypesView({ claimTypeId, onBack }: SubclaimTypesViewProp
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredSubclaims.map((sub, idx) => {
-              const Icon = SUBCLAIM_ICONS[idx % SUBCLAIM_ICONS.length] ?? Plane;
-              return (
-                <SubclaimCard
-                  key={sub.id}
-                  claimTypeId={claimTypeId}
-                  sub={sub}
-                  icon={Icon}
-                  index={idx}
-                />
-              );
-            })}
+            {filteredSubclaims.map((sub, idx) => (
+              <SubclaimCard
+                key={sub.id}
+                claimTypeId={claimTypeId}
+                sub={sub}
+                index={idx}
+              />
+            ))}
             {/* Create New Block */}
             <motion.button
               type="button"
@@ -200,14 +177,13 @@ export function SubclaimTypesView({ claimTypeId, onBack }: SubclaimTypesViewProp
 function SubclaimCard({
   claimTypeId,
   sub,
-  icon: Icon,
   index,
 }: {
   claimTypeId: string;
   sub: SubclaimType;
-  icon: LucideIcon;
   index: number;
 }) {
+  const Icon = getSubclaimTypeLucideIcon(sub);
   const deleteSubclaim = useDeleteSubclaim();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 

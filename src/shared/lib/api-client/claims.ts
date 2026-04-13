@@ -423,12 +423,39 @@ export async function fetchClaimApprovals(claimId: number): Promise<ClaimApprova
   return Array.isArray(data) ? data : []
 }
 
-export async function fetchAllClaimsForApproval(): Promise<ClaimWithApprovalsApi[]> {
-  const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.LIST}`, {
-    params: { for_approval: 1 },
+/** Roles allowed to call Laravel `GET /api/claims/all` (org-wide). */
+const CLAIMS_ALL_VIEWER_ROLES = new Set([
+  'hod',
+  'hr_admin',
+  'top_management',
+  'super_admin',
+])
+
+/**
+ * Approval dashboard (Manage Claims hub + `/claims/approval`).
+ * - `hod` / `hr_admin` / `top_management`: `GET .../claims/all` (all org claims).
+ * - Others: `GET .../claims` (scoped to auth user on backend).
+ */
+export async function fetchAllClaimsForApproval(
+  viewerRole?: string | null,
+): Promise<ClaimWithApprovalsApi[]> {
+  const params: Record<string, string | number> = { per_page: 200 }
+  const useOrgWide =
+    viewerRole != null && CLAIMS_ALL_VIEWER_ROLES.has(viewerRole)
+  const path = `${PROXY}/${
+    useOrgWide ? API_ROUTES.CLAIMS.ALL : API_ROUTES.CLAIMS.LIST
+  }`
+
+  const response = await laravelApi.get(path, {
+    params,
   })
-  const data = extractData<ClaimWithApprovalsApi[]>(response)
-  return Array.isArray(data) ? data : []
+  const body = response.data as ClaimsListResponse | ClaimWithApprovalsApi[]
+
+  if (Array.isArray(body)) {
+    return body
+  }
+  const list = body.data ?? (extractData<ClaimWithApprovalsApi[]>(response) as ClaimWithApprovalsApi[])
+  return Array.isArray(list) ? list : []
 }
 
 export async function fetchPendingApprovals(): Promise<ClaimWithApprovalsApi[]> {

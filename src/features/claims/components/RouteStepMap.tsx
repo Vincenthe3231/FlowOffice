@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Loader2, LocateFixed, Route } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,8 @@ interface GoogleApi {
       strokeOpacity: number;
       strokeWeight: number;
     }) => GooglePolylineLike;
-    places: {
-      Autocomplete: new (
+    places?: {
+      Autocomplete?: new (
         input: HTMLInputElement,
         options: Record<string, unknown>
       ) => GoogleAutocompleteLike;
@@ -68,31 +68,74 @@ interface GoogleApi {
 
 const GOOGLE_MAPS_SCRIPT_ID = "google-maps-js-sdk";
 const ROUTE_DEBOUNCE_MS = 400;
+/** Framer Motion step transition is ~300ms; map must resize after container gains real size */
+const MAP_RESIZE_AFTER_MOTION_MS = 360;
 let googleMapsScriptPromise: Promise<void> | null = null;
 
+function resetGoogleMapsLoader() {
+  googleMapsScriptPromise = null;
+  document.getElementById(GOOGLE_MAPS_SCRIPT_ID)?.remove();
+}
+
+function triggerMapResize(mapInstance: GoogleMapLike) {
+  const g = window.google?.maps;
+  if (!g) return;
+  const maps = g as typeof g & { event?: { trigger: (m: unknown, e: string) => void } };
+  maps.event?.trigger(mapInstance, "resize");
+}
+
 function loadGoogleMapsScript(key: string): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Google Maps can only load in the browser"));
+  }
   if (window.google?.maps) return Promise.resolve();
   if (googleMapsScriptPromise) return googleMapsScriptPromise;
 
   googleMapsScriptPromise = new Promise((resolve, reject) => {
+    const fail = (err: Error) => {
+      resetGoogleMapsLoader();
+      reject(err);
+    };
+
     const existing = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Failed to load Google Maps script")), {
-        once: true,
-      });
-      return;
+      if (window.google?.maps) {
+        resolve();
+        return;
+      }
+      existing.remove();
     }
+
+    const cbName = `__foGmaps_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const w = window as unknown as Record<string, unknown>;
+    w[cbName] = () => {
+      try {
+        delete w[cbName];
+      } catch {
+        w[cbName] = undefined;
+      }
+      if (window.google?.maps) {
+        resolve();
+      } else {
+        fail(new Error("Google Maps callback ran but google.maps is missing"));
+      }
+    };
 
     const script = document.createElement("script");
     script.id = GOOGLE_MAPS_SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      key
-    )}&libraries=places`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps script"));
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+      key
+    )}&libraries=places&callback=${encodeURIComponent(cbName)}`;
+    script.onerror = () => {
+      try {
+        delete w[cbName];
+      } catch {
+        w[cbName] = undefined;
+      }
+      fail(new Error("Failed to load Google Maps script"));
+    };
     document.head.appendChild(script);
   });
 
@@ -143,7 +186,10 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
   const updateFormField = useClaimDraftStore((s) => s.updateFormField);
   const { data: mapsConfig, isLoading: mapsConfigLoading, isError: mapsConfigError } = useMapsConfig();
 
-  const mapElRef = useRef<HTMLDivElement | null>(null);
+  /** Callback ref state so map init runs after the container mounts (step 4 is conditionally rendered). */
+  const [mapHost, setMapHost] = useState<HTMLDivElement | null>(null);
+  const mapResizeObserverRef = useRef<ResizeObserver | null>(null);
+  const mapMotionResizeTimerRef = useRef<number | null>(null);
   const fromInputRef = useRef<HTMLInputElement | null>(null);
   const toInputRef = useRef<HTMLInputElement | null>(null);
   const mapRef = useRef<GoogleMapLike | null>(null);
@@ -178,17 +224,17 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
     return () => clearTimeout(t);
   }, [fromLocation, toLocation]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const key = mapsConfig?.key?.trim();
-    if (!key || !mapElRef.current) return;
+    if (!key || !mapHost) return;
 
     let cancelled = false;
     loadGoogleMapsScript(key)
       .then(() => {
-        if (cancelled || !mapElRef.current || !window.google?.maps || mapRef.current) return;
+        if (cancelled || !mapHost || !window.google?.maps || mapRef.current) return;
 
         const googleMaps = window.google.maps;
-        const mapInstance = new googleMaps.Map(mapElRef.current, {
+        const mapInstance = new googleMaps.Map(mapHost, {
           center: { lat: 3.139, lng: 101.6869 },
           zoom: 12,
           mapTypeControl: false,
@@ -197,46 +243,71 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
         });
         mapRef.current = mapInstance;
 
-        if (fromInputRef.current) {
-          const fromAutocomplete = new googleMaps.places.Autocomplete(fromInputRef.current, {
-            fields: ["formatted_address", "geometry", "name"],
-          });
-          fromAutocomplete.addListener("place_changed", () => {
-            const place = fromAutocomplete.getPlace();
-            const text = place.formatted_address || place.name || "";
-            if (!text) return;
-            setFromLocation(text);
-            updateFormField("fromLocation", text);
-            if (place.geometry?.location) {
-              if (!markersRef.current.from) {
-                markersRef.current.from = new googleMaps.Marker({ map: mapInstance, label: "A" });
-              }
-              markersRef.current.from.setPosition(place.geometry.location);
-              mapInstance.panTo(place.geometry.location);
+        const attachAutocomplete = (input: HTMLInputElement | null, which: "from" | "to") => {
+          if (!input) return;
+          try {
+            const AutocompleteCtor = googleMaps.places?.Autocomplete;
+            if (typeof AutocompleteCtor !== "function") {
+              return;
             }
-          });
-        }
-
-        if (toInputRef.current) {
-          const toAutocomplete = new googleMaps.places.Autocomplete(toInputRef.current, {
-            fields: ["formatted_address", "geometry", "name"],
-          });
-          toAutocomplete.addListener("place_changed", () => {
-            const place = toAutocomplete.getPlace();
-            const text = place.formatted_address || place.name || "";
-            if (!text) return;
-            setToLocation(text);
-            updateFormField("toLocation", text);
-            if (place.geometry?.location) {
-              if (!markersRef.current.to) {
-                markersRef.current.to = new googleMaps.Marker({ map: mapInstance, label: "B" });
+            const autocomplete = new AutocompleteCtor(input, {
+              fields: ["formatted_address", "geometry", "name"],
+            });
+            autocomplete.addListener("place_changed", () => {
+              const place = autocomplete.getPlace();
+              const text = place.formatted_address || place.name || "";
+              if (!text) return;
+              if (which === "from") {
+                setFromLocation(text);
+                updateFormField("fromLocation", text);
+                if (place.geometry?.location) {
+                  if (!markersRef.current.from) {
+                    markersRef.current.from = new googleMaps.Marker({ map: mapInstance, label: "A" });
+                  }
+                  markersRef.current.from.setPosition(place.geometry.location);
+                  mapInstance.panTo(place.geometry.location);
+                }
+              } else {
+                setToLocation(text);
+                updateFormField("toLocation", text);
+                if (place.geometry?.location) {
+                  if (!markersRef.current.to) {
+                    markersRef.current.to = new googleMaps.Marker({ map: mapInstance, label: "B" });
+                  }
+                  markersRef.current.to.setPosition(place.geometry.location);
+                }
               }
-              markersRef.current.to.setPosition(place.geometry.location);
-            }
-          });
-        }
+            });
+          } catch {
+            /* Legacy Autocomplete may be unavailable with newer Maps loaders; map + manual address entry still work. */
+          }
+        };
 
-        setIsMapReady(true);
+        attachAutocomplete(fromInputRef.current, "from");
+        attachAutocomplete(toInputRef.current, "to");
+
+        mapResizeObserverRef.current?.disconnect();
+        mapResizeObserverRef.current = new ResizeObserver(() => {
+          if (cancelled || !mapRef.current) return;
+          triggerMapResize(mapRef.current);
+        });
+        mapResizeObserverRef.current.observe(mapHost);
+
+        triggerMapResize(mapInstance);
+        requestAnimationFrame(() => {
+          if (!cancelled && mapRef.current) triggerMapResize(mapRef.current);
+        });
+        if (mapMotionResizeTimerRef.current) {
+          clearTimeout(mapMotionResizeTimerRef.current);
+        }
+        mapMotionResizeTimerRef.current = window.setTimeout(() => {
+          mapMotionResizeTimerRef.current = null;
+          if (!cancelled && mapRef.current) triggerMapResize(mapRef.current);
+        }, MAP_RESIZE_AFTER_MOTION_MS);
+
+        if (!cancelled) {
+          setIsMapReady(true);
+        }
       })
       .catch(() => {
         toast.error("Unable to load Google Maps. Please refresh and try again.");
@@ -244,8 +315,14 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
 
     return () => {
       cancelled = true;
+      if (mapMotionResizeTimerRef.current) {
+        clearTimeout(mapMotionResizeTimerRef.current);
+        mapMotionResizeTimerRef.current = null;
+      }
+      mapResizeObserverRef.current?.disconnect();
+      mapResizeObserverRef.current = null;
     };
-  }, [mapsConfig?.key, updateFormField]);
+  }, [mapsConfig?.key, mapHost, updateFormField]);
 
   const computeRouteViaRoutesApi = useCallback(
     async (
@@ -466,7 +543,7 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
       </div>
 
       <div className="rounded-xl border border-border overflow-hidden relative">
-        <div ref={mapElRef} className="h-[320px] w-full bg-muted/30" />
+        <div ref={setMapHost} className="h-[320px] w-full bg-muted/30" />
         {isCalculating && (
           <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg border border-border bg-background/90 px-3 py-2 text-sm text-muted-foreground shadow-sm">
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />

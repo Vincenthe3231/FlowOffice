@@ -12,7 +12,7 @@ export default function UserManagementDetailPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">User details</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          View directory information. Super admins can assign a department.
+          View directory information. Top Management can assign a department.
         </p>
       </div>
       {userUuid ? (

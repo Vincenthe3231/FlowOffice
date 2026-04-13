@@ -37,6 +37,7 @@ import type {
 } from "@/shared/lib/api-client/claims";
 import { extractError } from "@/shared/lib/api-client/response-handler";
 import { fetchMapsConfig } from "@/shared/lib/api-client/maps";
+import { useProfile } from "@/features/profile/hooks/useProfile";
 
 export const CLAIM_QUERY_KEYS = {
   claims: (filter?: ClaimFilter, page?: number) => ["claims", filter, page] as const,
@@ -54,7 +55,12 @@ export const CLAIM_QUERY_KEYS = {
   mapsConfig: () => ["maps-config"] as const,
 };
 
-export function useClaims(filter: ClaimFilter, page = 1, perPage = 50) {
+export function useClaims(
+  filter: ClaimFilter,
+  page = 1,
+  perPage = 50,
+  enabled = true,
+) {
   const statusParam = filter === "All" ? undefined : filter;
   return useQuery({
     queryKey: CLAIM_QUERY_KEYS.claims(statusParam, page),
@@ -68,6 +74,7 @@ export function useClaims(filter: ClaimFilter, page = 1, perPage = 50) {
       claims: res.claims,
       meta: res.meta,
     }),
+    enabled,
   });
 }
 
@@ -242,9 +249,12 @@ export function useClaimApprovals(claimId: number | null) {
 // ── Approval (HR) ──
 
 export function useAllClaimsForApproval() {
+  const { profile, isLoading } = useProfile();
   return useQuery({
-    queryKey: CLAIM_QUERY_KEYS.allClaimsApproval(),
-    queryFn: fetchAllClaimsForApprovalApi,
+    queryKey: [...CLAIM_QUERY_KEYS.allClaimsApproval(), profile?.role] as const,
+    queryFn: () => fetchAllClaimsForApprovalApi(profile?.role),
+    /** Avoid first request before `role` is known (would hit `/claims` instead of `/claims/all`). */
+    enabled: !isLoading,
   });
 }
 

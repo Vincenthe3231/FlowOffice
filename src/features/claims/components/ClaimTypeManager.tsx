@@ -54,6 +54,7 @@ import {
   isTransportClaimTypeKey,
   TRANSPORT_CLAIM_KEY_PREFIX,
 } from "@/features/claims/lib/claim-type-groups";
+import { isTopManagementSlug } from "@/shared/constants/roles";
 
 const CLAIM_TYPE_ICONS = [
   "receipt",
@@ -67,21 +68,25 @@ const CLAIM_TYPE_ICONS = [
   "bus",
 ] as const;
 
-const CLAIM_TYPE_COLORS = [
-  "stat-blue",
-  "stat-purple",
-  "stat-green",
-  "stat-orange",
-] as const;
-
 type ClaimTypeFormCategory = "standard" | "transport";
 
-const emptyForm = {
+type ClaimTypeForm = {
+  label: string;
+  description: string;
+  category: ClaimTypeFormCategory;
+  icon: string;
+};
+
+/** Main claim type color is fixed per category (create modal — not user-selectable). */
+function colorForCategory(category: ClaimTypeFormCategory): "stat-blue" | "stat-green" {
+  return category === "transport" ? "stat-green" : "stat-blue";
+}
+
+const emptyForm: ClaimTypeForm = {
   label: "",
   description: "",
-  category: "standard" satisfies ClaimTypeFormCategory,
+  category: "standard",
   icon: "receipt",
-  color: "stat-blue",
 };
 
 const typeIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -130,7 +135,7 @@ function ClaimTypeRow({
       ? typeColorMap[ct.color]
       : "bg-blue-500/10 text-blue-600 dark:text-blue-400";
 
-  const subclaimsHref = `/dashboard/settings/claim-types/${ct.id}/subclaims`;
+  const subclaimsHref = `/dashboard/claims/types/${ct.id}/subclaims`;
 
   function navigateToSubclaims() {
     if (onSelectSubclaims) onSelectSubclaims(ct.id);
@@ -291,11 +296,11 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
   const deleteMutation = useDeleteClaimType();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<ClaimTypeForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<ClaimType | null>(null);
 
   const isAdmin =
-    profile?.role === "hr_admin" || profile?.role === "super_admin";
+    profile?.role === "hr_admin" || isTopManagementSlug(profile?.role);
 
   const standardTypes = claimTypes.filter((t) => !isTransportClaimTypeKey(t.key));
   const transportTypes = claimTypes.filter((t) => isTransportClaimTypeKey(t.key));
@@ -326,7 +331,7 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
       label,
       description: form.description.trim() || undefined,
       icon: form.icon || undefined,
-      color: form.color || undefined,
+      color: colorForCategory(form.category),
     });
     setDialogOpen(false);
   };
@@ -345,11 +350,11 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Manage Claims
+            Claim types
           </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Manage main claim types (Receipt, Mileage, etc.). Standard expenses and
-            transport types are grouped separately. Only HR and super admins can add
+            transport types are grouped separately. Only HR and Top Management can add
             or delete.
           </p>
         </div>
@@ -466,21 +471,28 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
             </div>
             <div>
               <Label className="text-xs">Color</Label>
-              <Select
-                value={form.color}
-                onValueChange={(v) => setForm((p) => ({ ...p, color: v }))}
+              <div
+                className={cn(
+                  "mt-1 flex h-10 items-center gap-3 rounded-md border border-input bg-muted/40 px-3 text-sm",
+                )}
+                aria-readonly
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLAIM_TYPE_COLORS.map((color) => (
-                    <SelectItem key={color} value={color}>
-                      {color}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <span
+                  className={cn(
+                    "h-8 w-8 shrink-0 rounded-lg",
+                    typeColorMap[colorForCategory(form.category)] ??
+                      "bg-muted",
+                  )}
+                  aria-hidden
+                />
+                <span className="font-mono text-xs text-foreground">
+                  {colorForCategory(form.category)}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Set automatically from category (standard → stat-blue, transport →
+                stat-green).
+              </p>
             </div>
           </div>
           <DialogFooter>

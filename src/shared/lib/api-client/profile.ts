@@ -8,7 +8,15 @@ export interface OfficeSummary {
   address: string | null
 }
 
-export type ProfileRole = "super_admin" | "hr_admin" | "hod" | "manager" | "employee"
+export type ProfileRole =
+  | "top_management"
+  /** @deprecated Renamed server-side; may still appear briefly on cached sessions */
+  | "super_admin"
+  | "hr_admin"
+  | "hod"
+  | "staff"
+  | "manager"
+  | "employee"
 
 export interface Profile {
   id: string
@@ -17,6 +25,7 @@ export interface Profile {
   email: string | null
   phone: string | null
   department: string | null
+  /** Laravel `employee_id` (camelCase after axios). Populate server-side (e.g. from Supabase sync). */
   employeeId: string | null
   avatarUrl: string | null
   faceFrontUrl: string | null
@@ -43,14 +52,31 @@ export interface ProfileUpdateInput {
 
 const PROXY = API_ROUTES.PROXY_PREFIX
 
+/**
+ * Laravel may return `{ data: Profile }` or `{ data: { profile: Profile } }`.
+ * Response body is already camelCase from the axios interceptor.
+ */
+function unwrapProfileMePayload(raw: unknown): Profile {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid profile response')
+  }
+  const r = raw as Record<string, unknown>
+  if (r.profile && typeof r.profile === 'object') {
+    return r.profile as Profile
+  }
+  return raw as Profile
+}
+
 export async function fetchMyProfile(): Promise<Profile> {
   const response = await laravelApi.get(`${PROXY}/profile/me`)
-  return extractData<Profile>(response)
+  const raw = extractData<unknown>(response)
+  return unwrapProfileMePayload(raw)
 }
 
 export async function updateMyProfile(updates: ProfileUpdateInput): Promise<Profile> {
   const response = await laravelApi.put(`${PROXY}/profile/me`, updates)
-  return extractData<Profile>(response)
+  const raw = extractData<unknown>(response)
+  return unwrapProfileMePayload(raw)
 }
 
 export async function uploadAvatar(file: File): Promise<string> {

@@ -47,7 +47,7 @@ import {
   RadialBar,
 } from "recharts";
 
-type Role = "superadmin" | "hr" | "hod";
+type Role = "top_management" | "hr" | "hod";
 type Period = "daily" | "weekly" | "monthly" | "annually";
 
 const TOTAL_EMPLOYEES = 248;
@@ -74,7 +74,7 @@ const periodLabels: Record<Period, string> = {
 };
 
 const roleLabels: Record<Role, string> = {
-  superadmin: "Super Admin",
+  top_management: "Top Management",
   hr: "Admin / HR",
   hod: "HOD",
 };
@@ -163,8 +163,8 @@ function AttendanceChart({ data, subtitle }: { data: typeof weeklyChartData; sub
   );
 }
 
-// ───────── Superadmin Dashboard ─────────
-function SuperadminDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Period) => void }) {
+// ───────── Top Management dashboard (mock) ─────────
+function TopManagementDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Period) => void }) {
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -571,7 +571,7 @@ function HODDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Pe
 }
 
 export default function DashboardPage() {
-  const [role, setRole] = useState<Role>("superadmin");
+  const [role, setRole] = useState<Role>("top_management");
   const [period, setPeriod] = useState<Period>("weekly");
 
   return (
@@ -586,13 +586,13 @@ export default function DashboardPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="superadmin">Super Admin</SelectItem>
+            <SelectItem value="top_management">Top Management</SelectItem>
             <SelectItem value="hr">Admin / HR</SelectItem>
             <SelectItem value="hod">HOD</SelectItem>
           </SelectContent>
         </Select>
       </div>
-      {role === "superadmin" && <SuperadminDashboard period={period} setPeriod={setPeriod} />}
+      {role === "top_management" && <TopManagementDashboard period={period} setPeriod={setPeriod} />}
       {role === "hr" && <HRDashboard period={period} setPeriod={setPeriod} />}
       {role === "hod" && <HODDashboard period={period} setPeriod={setPeriod} />}
     </div>

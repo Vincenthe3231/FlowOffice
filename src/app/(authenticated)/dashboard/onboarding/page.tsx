@@ -21,7 +21,7 @@ export default function OnboardingPage() {
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-muted-foreground">
-            You do not have access to onboarding administration. Super admins can review and
+            You do not have access to onboarding administration. Top Management can review and
             approve requests here.
           </p>
           <Button asChild className="mt-4" variant="outline">

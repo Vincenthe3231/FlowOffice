@@ -5,7 +5,11 @@ import { extractData } from './response-handler'
 
 const PROXY = API_ROUTES.PROXY_PREFIX
 
-export type AdminUserDirectoryRole = 'super_admin' | 'hr_admin' | 'hod' | 'staff'
+export type AdminUserDirectoryRole =
+  | 'top_management'
+  | 'hr_admin'
+  | 'hod'
+  | 'staff'
 
 export type AdminUserDirectoryStatus =
   | 'active'
@@ -38,9 +42,11 @@ export const adminUserRowSchema = z
     name: z.string().nullable().optional(),
     fullName: z.string().nullable().optional(),
     email: z.string().nullable().optional(),
-    role: z.string(),
+    role: z.string().nullable(),
     status: z.string(),
     department: departmentSummarySchema.nullable().optional(),
+    /** Laravel `AdminUserManagementResource` — prefer over legacy `avatar`. */
+    avatarUrl: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
     larkUserId: z.string().nullable().optional(),
     larkOpenId: z.string().nullable().optional(),
@@ -156,13 +162,14 @@ export function parseAdminUsersPage(raw: unknown): AdminUsersPage {
   }
 }
 
+/** Laravel list endpoint expects snake_case query keys (not transformed by axios). */
 function compactParams(q: AdminUsersQuery): Record<string, string | number> {
   const out: Record<string, string | number> = {}
   if (q.page != null) out.page = q.page
-  if (q.perPage != null) out.perPage = q.perPage
+  if (q.perPage != null) out.per_page = q.perPage
   if (q.search != null && q.search.trim() !== '') out.search = q.search.trim()
   if (q.departmentId != null && String(q.departmentId) !== '')
-    out.departmentId = q.departmentId
+    out.department_id = q.departmentId
   if (q.role) out.role = q.role
   if (q.status) out.status = q.status
   return out
@@ -172,8 +179,26 @@ export async function fetchAdminUsers(query: AdminUsersQuery = {}): Promise<Admi
   const response = await laravelApi.get(`${PROXY}/admin/users`, {
     params: compactParams(query),
   })
+  const body = response.data
+  // Laravel paginated envelope: { message?, data: User[], meta, links } — keep meta (extractData would drop it).
+  if (
+    body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    'data' in body &&
+    Array.isArray((body as Record<string, unknown>).data)
+  ) {
+    return parseAdminUsersPage(body)
+  }
   const raw = extractData<unknown>(response)
   return parseAdminUsersPage(raw)
+}
+
+/** Avatar URL from API (`avatarUrl` preferred; legacy `avatar`). */
+export function getAdminUserAvatarUrl(row: AdminUserRow): string | null | undefined {
+  const u = row.avatarUrl ?? row.avatar
+  if (u == null || String(u).trim() === '') return null
+  return u
 }
 
 export function getAdminUserDisplayName(row: AdminUserRow): string {
@@ -208,7 +233,7 @@ export async function fetchAdminUser(
 
 /**
  * PATCH /api/admin/users/{user:uuid} — body `{ departmentId }` (camelCase; proxied as `department_id`).
- * Pass `null` to clear department. Super admin only (403 otherwise). Returns updated user row.
+ * Pass `null` to clear department. Top Management only (403 otherwise). Returns updated user row.
  */
 export async function patchAdminUserDepartment(
   userSegment: string | number,
@@ -216,6 +241,27 @@ export async function patchAdminUserDepartment(
 ): Promise<AdminUserRow> {
   const response = await laravelApi.patch(`${PROXY}/admin/users/${userSegment}`, {
     departmentId,
+  })
+  const raw = extractData<unknown>(response)
+  const parsed = adminUserRowSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid user response: ${parsed.error.issues.map((i) => i.message).join('; ')}`,
+    )
+  }
+  return parsed.data
+}
+
+/**
+ * PATCH /api/admin/users/{user:uuid}/role — body `{ role }`. Top Management only.
+ * 422 may return `errors.role` (validation or last Top Management user rule).
+ */
+export async function patchAdminUserRole(
+  userSegment: string | number,
+  role: AdminUserDirectoryRole,
+): Promise<AdminUserRow> {
+  const response = await laravelApi.patch(`${PROXY}/admin/users/${userSegment}/role`, {
+    role,
   })
   const raw = extractData<unknown>(response)
   const parsed = adminUserRowSchema.safeParse(raw)

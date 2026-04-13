@@ -33,13 +33,14 @@ import type {
 import {
   adminUserRouteSegment,
   formatAdminUserDepartmentLabel,
+  getAdminUserAvatarUrl,
   getAdminUserDisplayName,
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
 import type { ProfileRole } from '@/shared/lib/api-client/profile'
 
 const ROLE_OPTIONS: { value: AdminUserDirectoryRole; label: string }[] = [
-  { value: 'super_admin', label: 'Super Admin' },
+  { value: 'top_management', label: 'Top Management' },
   { value: 'hr_admin', label: 'HR Admin' },
   { value: 'hod', label: 'HOD' },
   { value: 'staff', label: 'Staff' },
@@ -56,7 +57,8 @@ const PER_PAGE_OPTIONS = [25, 50, 100] as const
 
 function displayRole(role: string): string {
   const map: Record<string, string> = {
-    super_admin: 'Super Admin',
+    top_management: 'Top Management',
+    super_admin: 'Top Management',
     hr_admin: 'HR Admin',
     hod: 'HOD',
     staff: 'Staff',
@@ -81,7 +83,12 @@ function statusVariant(
 }
 
 function canUseDepartmentFilter(role: ProfileRole | null | undefined): boolean {
-  return role === 'super_admin' || role === 'hr_admin' || role === 'hod'
+  return (
+    role === 'top_management' ||
+    role === 'super_admin' ||
+    role === 'hr_admin' ||
+    role === 'hod'
+  )
 }
 
 export function UserManagementView() {
@@ -283,6 +290,7 @@ export function UserManagementView() {
             ) : (
               rows.map((row) => {
                 const displayName = getAdminUserDisplayName(row)
+                const avatarSrc = getAdminUserAvatarUrl(row)
                 return (
                   <TableRow
                     key={String(row.id)}
@@ -294,8 +302,8 @@ export function UserManagementView() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                          {row.avatar ? (
-                            <AvatarImage src={row.avatar} alt="" />
+                          {avatarSrc ? (
+                            <AvatarImage src={avatarSrc} alt="" />
                           ) : null}
                           <AvatarFallback className="text-xs">
                             {displayName.slice(0, 2).toUpperCase()}
@@ -307,7 +315,7 @@ export function UserManagementView() {
                     <TableCell className="text-muted-foreground">
                       {row.email ?? '—'}
                     </TableCell>
-                    <TableCell>{displayRole(row.role)}</TableCell>
+                    <TableCell>{displayRole(row.role ?? '')}</TableCell>
                     <TableCell className="max-w-[180px] truncate">
                       {formatAdminUserDepartmentLabel(row)}
                     </TableCell>

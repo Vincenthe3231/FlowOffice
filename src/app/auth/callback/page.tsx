@@ -1,17 +1,27 @@
 'use client'
 
-import { useEffect, useState, Suspense, useRef } from 'react'
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { Loader2, Clock, Ban, ShieldOff } from 'lucide-react'
 import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
-import { parseMeResponse, extractError } from '@/shared/lib/api-client/response-handler'
-import { logoutUser } from '@/shared/lib/api-client/laravel-client'
+import {
+  parseMeResponse,
+  extractError,
+  type MeEnvelope,
+} from '@/shared/lib/api-client/response-handler'
+import { getCurrentUser, logoutUser } from '@/shared/lib/api-client/laravel-client'
 import { laravelApi } from '@/shared/lib/api-client/axios'
 import { API_ROUTES } from '@/shared/lib/api-client/constants'
 import { useAuthStore } from '@/shared/stores/auth-store'
 import { AUTH_QUERY_KEYS } from '@/shared/lib/api-client/auth-constants'
-import { coerceAccessStatus, type AccessStatus } from '@/shared/lib/validation/api.schemas'
+import {
+  coerceAccessStatus,
+  type AccessStatus,
+  userSchema,
+  meSessionSchema,
+} from '@/shared/lib/validation/api.schemas'
 import { buildLarkAuthorizeUrl } from '@/shared/lib/lark-oauth-browser'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +32,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+
+/** Poll GET /api/user (via BFF) while verifying; backend keeps session after approve. */
+const PENDING_POLL_INTERVAL_MS = 8000
 
 type CallbackUiState =
   | 'loading'
@@ -50,14 +63,97 @@ function CallbackContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const logout = useAuthStore((s) => s.logout)
+  const setUser = useAuthStore((s) => s.setUser)
   const larkLoginMutation = useLarkLoginMutation()
 
-  const hasProcessed = useRef(false)
   const code = searchParams.get('code')
   const urlError = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
   const urlMessage = searchParams.get('message')
   const stateParam = searchParams.get('state')
+
+  const syncSessionFromMeBody = useCallback(
+    (body: unknown) => {
+      const parsed = parseMeResponse(body)
+      if (!parsed.user) return
+      const validatedUser = userSchema.parse(parsed.user)
+      const session = meSessionSchema.parse({
+        user: validatedUser,
+        accessStatus: coerceAccessStatus(parsed.accessStatus),
+        rejectionReason: parsed.rejectionReason ?? null,
+        onboarding: parsed.onboarding ?? null,
+      })
+      setUser(validatedUser, 'lark')
+      queryClient.setQueryData(AUTH_QUERY_KEYS.ME, session)
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+    },
+    [queryClient, setUser],
+  )
+
+  /** Remove ?code / ?state so reload does not replay a single-use OAuth code. */
+  const stripOAuthQuery = useCallback(() => {
+    router.replace('/auth/callback')
+  }, [router])
+
+  const applyAccessGate = useCallback(
+    (parsed: MeEnvelope) => {
+      if (!parsed.user) {
+        setStatus('error')
+        setMessage('Authentication succeeded but user data was not returned.')
+        return
+      }
+      const access: AccessStatus = coerceAccessStatus(parsed.accessStatus)
+
+      if (access === 'pending') {
+        setStatus('verification-pending')
+        setMessage(
+          'Your account is currently under verification by an administrator. You can stay on this page — when your account is approved, you will be redirected to the dashboard automatically.',
+        )
+        return
+      }
+
+      if (access === 'rejected') {
+        setStatus('account-rejected')
+        setRejectionReason(parsed.rejectionReason ?? null)
+        setMessage('Your account request was not approved.')
+        return
+      }
+
+      if (access === 'deactivated') {
+        setStatus('deactivated')
+        setMessage(
+          'Your account has been deactivated. Contact an administrator.',
+        )
+        return
+      }
+
+      setStatus('success')
+      setMessage('Login successful! Redirecting...')
+
+      let redirectTo = '/dashboard'
+      if (stateParam) {
+        try {
+          const parsedState = JSON.parse(decodeURIComponent(stateParam))
+          if (
+            parsedState?.from &&
+            typeof parsedState.from === 'string' &&
+            parsedState.from.startsWith('/')
+          ) {
+            redirectTo = parsedState.from
+          }
+        } catch {
+          /* ignore invalid state */
+        }
+      }
+
+      setTimeout(() => {
+        router.push(redirectTo)
+      }, 1000)
+    },
+    [router, stateParam],
+  )
+
+  const hasProcessed = useRef(false)
 
   const handleLogout = async () => {
     try {
@@ -104,7 +200,7 @@ function CallbackContent() {
         setStatus('verification-pending')
         setMessage(
           decodeOAuthMessage(urlMessage) ||
-            'Your account is currently under verification by an administrator.',
+            'Your account is currently under verification by an administrator. After approval, this page will redirect you to the dashboard when your session is active.',
         )
         return
       }
@@ -130,72 +226,46 @@ function CallbackContent() {
           throw new Error(errorDescription || `OAuth error: ${urlError}`)
         }
 
+        // No OAuth code: resolve existing session (reload on /auth/callback, or post-redirect).
         if (!code) {
-          throw new Error('Missing authorization code. Please try logging in again.')
+          try {
+            const body = await getCurrentUser()
+            syncSessionFromMeBody(body)
+            const parsed = parseMeResponse(body)
+            applyAccessGate(parsed)
+          } catch (err) {
+            if (axios.isAxiosError(err) && err.response?.status === 401) {
+              logout()
+              queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+              queryClient.clear()
+              router.replace('/login')
+              return
+            }
+            throw err
+          }
+          return
         }
 
         const body = await larkLoginMutation.mutateAsync(code)
-        const parsed = parseMeResponse(body)
+        stripOAuthQuery()
 
+        const parsed = parseMeResponse(body)
         if (!parsed.user) {
           console.error('Response structure:', body)
           throw new Error('Authentication succeeded but user data was not returned.')
         }
 
-        const access: AccessStatus = coerceAccessStatus(parsed.accessStatus)
-
-        if (access === 'pending') {
-          setStatus('verification-pending')
-          setMessage(
-            'Your account is currently under verification by an administrator.',
-          )
-          return
-        }
-
-        if (access === 'rejected') {
-          setStatus('account-rejected')
-          setRejectionReason(parsed.rejectionReason ?? null)
-          setMessage('Your account request was not approved.')
-          return
-        }
-
-        if (access === 'deactivated') {
-          setStatus('deactivated')
-          setMessage(
-            'Your account has been deactivated. Contact an administrator.',
-          )
-          return
-        }
-
-        setStatus('success')
-        setMessage('Login successful! Redirecting...')
-
-        let redirectTo = '/dashboard'
-        if (stateParam) {
-          try {
-            const parsedState = JSON.parse(decodeURIComponent(stateParam))
-            if (
-              parsedState?.from &&
-              typeof parsedState.from === 'string' &&
-              parsedState.from.startsWith('/')
-            ) {
-              redirectTo = parsedState.from
-            }
-          } catch {
-            /* ignore invalid state */
-          }
-        }
-
-        setTimeout(() => {
-          router.push(redirectTo)
-        }, 1000)
+        applyAccessGate(parsed)
       } catch (err) {
         console.error('Lark OAuth callback error:', err)
 
         const apiErr = extractError(err)
         let errorMessage = apiErr.message || 'Authentication failed. Please try again.'
 
-        if (apiErr.status === 429 && apiErr.retryAfter != null) {
+        if (apiErr.status === 401) {
+          errorMessage =
+            'This sign-in link was already used or expired. Return to login and sign in again with Lark.'
+        } else if (apiErr.status === 429 && apiErr.retryAfter != null) {
           errorMessage = `Too many requests. Try again in ${apiErr.retryAfter} seconds.`
         } else if (apiErr.status === 423 && apiErr.remainingSeconds != null) {
           errorMessage = `Account locked. Try again in ${apiErr.remainingSeconds} seconds.`
@@ -209,8 +279,61 @@ function CallbackContent() {
     }
 
     handleCallback()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, urlError, errorDescription, urlMessage, stateParam])
+  }, [
+    code,
+    urlError,
+    errorDescription,
+    urlMessage,
+    stateParam,
+    applyAccessGate,
+    stripOAuthQuery,
+    syncSessionFromMeBody,
+    larkLoginMutation,
+    logout,
+    queryClient,
+    router,
+  ])
+
+  /** While pending, poll /me until access is granted (session kept after approve). */
+  useEffect(() => {
+    if (status !== 'verification-pending') return
+
+    let cancelled = false
+
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const body = await getCurrentUser()
+        if (cancelled) return
+        const parsed = parseMeResponse(body)
+        syncSessionFromMeBody(body)
+        const access = coerceAccessStatus(parsed.accessStatus)
+        if (access === 'pending') return
+        applyAccessGate(parsed)
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          logout()
+          queryClient.removeQueries({ queryKey: AUTH_QUERY_KEYS.ME })
+          queryClient.clear()
+          router.replace('/login')
+        }
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(poll, PENDING_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [
+    status,
+    applyAccessGate,
+    syncSessionFromMeBody,
+    logout,
+    queryClient,
+    router,
+  ])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
@@ -283,6 +406,9 @@ function CallbackContent() {
               <CardDescription className="text-base text-muted-foreground">
                 {message}
               </CardDescription>
+              <p className="text-xs text-muted-foreground pt-2">
+                Checking for approval every few seconds…
+              </p>
             </CardHeader>
             <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button variant="outline" className="w-full sm:w-auto" onClick={handleLogout}>

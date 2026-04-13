@@ -12,13 +12,79 @@ import {
   useClaimApprovals,
   useClaimById,
 } from "@/features/claims/hooks/useClaims";
-import type { ClaimApproval } from "@/features/claims/types";
+import type { Claim, ClaimApproval } from "@/features/claims/types";
+import { useProfile } from "@/features/profile/hooks/useProfile";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { canRejectClaimFromMyClaimsList } from "@/shared/lib/role-utils";
+
+/** Reject control + dialog; mounted only for HOD / HR / top_management on pending/approved claims. */
+function ClaimDetailRejectControls({
+  claim,
+  approvalsToShow,
+}: {
+  claim: Claim;
+  approvalsToShow: ClaimApproval[];
+}) {
+  const rejectClaim = useApproveRejectClaim();
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+
+  if (!(claim.status === "Pending" || claim.status === "Approved")) {
+    return null;
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="default"
+        className="h-10 gap-2.5 border-border/70 bg-card px-4 text-sm font-semibold text-destructive shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow-md active:scale-[0.98]"
+        onClick={() => setRejectDialogOpen(true)}
+      >
+        <RejectDiscIcon size="md" />
+        Reject
+      </Button>
+      <RejectClaimDialog
+        claim={
+          rejectDialogOpen
+            ? {
+                id: claim.id,
+                title: claim.title,
+                amount: claim.amount,
+                categoryLabel: claim.claimTypeLabel ?? claim.category,
+                date: claim.date
+                  ? (() => {
+                      const d = new Date(claim.date);
+                      return Number.isNaN(d.getTime())
+                        ? claim.date
+                        : d.toLocaleDateString();
+                    })()
+                  : undefined,
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) setRejectDialogOpen(false);
+        }}
+        isPending={rejectClaim.isPending}
+        onReject={({ claimId: id, reason }) => {
+          const pending = approvalsToShow.find((a) => a.status === "pending");
+          const level = pending?.level ?? 1;
+          rejectClaim.mutate(
+            { claimId: id, level, action: "rejected", reason },
+            { onSuccess: () => setRejectDialogOpen(false) }
+          );
+        }}
+      />
+    </>
+  );
+}
 
 export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
   const { data: claim, isLoading, isError } = useClaimById(claimId);
   const { data: approvals } = useClaimApprovals(claimId);
-  const rejectClaim = useApproveRejectClaim();
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const { user } = useAuth();
+  const { profile } = useProfile();
 
   const fallbackApprovals: ClaimApproval[] =
     claim != null
@@ -54,7 +120,7 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
     );
   }
 
-  const canReject = claim.status === "Pending" || claim.status === "Approved";
+  const showRejectUi = canRejectClaimFromMyClaimsList(profile?.role, user?.roles);
 
   return (
     <div className="w-full space-y-8 pb-8">
@@ -69,52 +135,10 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
           </Button>
         }
         headerTrailingActions={
-          canReject ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="default"
-              className="h-10 gap-2.5 border-border/70 bg-card px-4 text-sm font-semibold text-destructive shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow-md active:scale-[0.98]"
-              onClick={() => setRejectDialogOpen(true)}
-            >
-              <RejectDiscIcon size="md" />
-              Reject
-            </Button>
+          showRejectUi ? (
+            <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
           ) : null
         }
-      />
-
-      <RejectClaimDialog
-        claim={
-          rejectDialogOpen
-            ? {
-                id: claim.id,
-                title: claim.title,
-                amount: claim.amount,
-                categoryLabel: claim.claimTypeLabel ?? claim.category,
-                date: claim.date
-                  ? (() => {
-                      const d = new Date(claim.date);
-                      return Number.isNaN(d.getTime())
-                        ? claim.date
-                        : d.toLocaleDateString();
-                    })()
-                  : undefined,
-              }
-            : null
-        }
-        onOpenChange={(open) => {
-          if (!open) setRejectDialogOpen(false);
-        }}
-        isPending={rejectClaim.isPending}
-        onReject={({ claimId: id, reason }) => {
-          const pending = approvalsToShow.find((a) => a.status === "pending");
-          const level = pending?.level ?? 1;
-          rejectClaim.mutate(
-            { claimId: id, level, action: "rejected", reason },
-            { onSuccess: () => setRejectDialogOpen(false) }
-          );
-        }}
       />
     </div>
   );

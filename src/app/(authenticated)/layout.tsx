@@ -13,7 +13,6 @@ import {
   ScrollText,
   Calendar,
   FileText,
-  List,
   Sparkles,
   Users,
   Building2,
@@ -57,10 +56,14 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { isRouteActive } from "@/shared/lib/nav-active";
 import {
-  canSeeManageClaims,
+  canRejectClaimFromMyClaimsList,
+  canSeeExpandedClaimsNav,
   canSeeOnboardingAdmin,
   canSeeSettingsNav,
+  formatUserRoleForDisplay,
+  isTopManagement,
 } from "@/shared/lib/role-utils";
+import { ClaimsSidebarSection } from "@/components/layout/ClaimsSidebarSection";
 
 const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -133,6 +136,68 @@ function NavGroup({
   );
 }
 
+/** Main nav: expandable Claims for all users; Manage Claim Types sub-link is Top Management only. */
+function MainNavGroup({
+  items,
+  showExpandedClaimsNav,
+  showManageClaimTypes,
+  claimsAllSubHref,
+}: {
+  items: readonly {
+    title: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[];
+  showExpandedClaimsNav: boolean;
+  showManageClaimTypes: boolean;
+  claimsAllSubHref: string;
+}) {
+  const pathname = usePathname();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+
+  return (
+    <SidebarGroup>
+      {!collapsed && (
+        <SidebarGroupLabel className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Main
+        </SidebarGroupLabel>
+      )}
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            if (item.href === "/dashboard/claims" && showExpandedClaimsNav) {
+              return (
+                <ClaimsSidebarSection
+                  key="claims-expanded"
+                  showManageClaimTypes={showManageClaimTypes}
+                  allClaimsHref={claimsAllSubHref}
+                />
+              );
+            }
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isRouteActive(pathname, item.href)}
+                >
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:font-semibold"
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    {!collapsed && <span>{item.title}</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -143,8 +208,12 @@ export default function DashboardLayout({
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
-  const showManageClaims = canSeeManageClaims(profile?.role, user?.roles);
   const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
+  const showExpandedClaimsNav = canSeeExpandedClaimsNav();
+  const showManageClaimTypes = isTopManagement(profile?.role, user?.roles);
+  const claimsAllSubHref = canRejectClaimFromMyClaimsList(profile?.role, user?.roles)
+    ? "/dashboard/claims/all"
+    : "/dashboard/claims/my";
   const mainNav = React.useMemo(
     () =>
       showOnboardingNav
@@ -154,17 +223,13 @@ export default function DashboardLayout({
   );
   const settingsNav = React.useMemo(() => {
     if (!showSettingsNav) return [];
-    return showManageClaims
-      ? [
-          ...baseSettingsNav,
-          {
-            title: "Manage Claims",
-            href: "/dashboard/settings/claim-types",
-            icon: List,
-          },
-        ]
-      : baseSettingsNav;
-  }, [showSettingsNav, showManageClaims]);
+    return baseSettingsNav;
+  }, [showSettingsNav]);
+
+  const headerRoleLabel = React.useMemo(
+    () => formatUserRoleForDisplay(profile?.role, user?.roles),
+    [profile?.role, user?.roles]
+  );
 
   const handleLogout = async () => {
     try {
@@ -188,7 +253,12 @@ export default function DashboardLayout({
           </div>
         </SidebarHeader>
         <SidebarContent className="px-2 pt-2">
-          <NavGroup label="Main" items={mainNav} />
+          <MainNavGroup
+            items={mainNav}
+            showExpandedClaimsNav={showExpandedClaimsNav}
+            showManageClaimTypes={showManageClaimTypes}
+            claimsAllSubHref={claimsAllSubHref}
+          />
           <NavGroup label="Attendance" items={attendanceNav} />
           <NavGroup label="Overtime" items={overtimeNav} />
           <NavGroup label="Reports" items={reportNav} />
@@ -229,6 +299,7 @@ export default function DashboardLayout({
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium leading-none">{user?.name ?? "User"}</p>
                       <p className="text-[11px] text-muted-foreground">{user?.email ?? ""}</p>
+                      <p className="text-[11px] text-muted-foreground/90">{headerRoleLabel}</p>
                     </div>
                     <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden md:block" />
                   </Button>

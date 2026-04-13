@@ -15,7 +15,7 @@ export interface User {
 
 /**
  * Authentication method type
- * - 'email': Email/password (superadmin)
+ * - 'email': Email/password (Top Management test / admin login)
  * - 'lark': Lark OAuth (regular employees)
  */
 export type AuthMethod = 'email' | 'lark' | null

@@ -150,7 +150,7 @@ export function DepartmentsView() {
     <div className="space-y-4">
       {!canManage && (
         <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
-          You can view departments here. Only super admins can add, edit, or change active status.
+          You can view departments here. Only Top Management can add, edit, or change active status.
           HR and HOD see active departments only in this list.
         </p>
       )}

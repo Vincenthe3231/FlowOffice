@@ -34,7 +34,7 @@ const statusLabel: Record<string, string> = {
   draft: "Draft",
   pending_l1: "L1 Pending (HOD)",
   pending_l2: "L2 Pending (Admin/HR)",
-  pending_l3: "L3 Pending (Superadmin)",
+  pending_l3: "L3 Pending (Top Management)",
   approved: "Approved",
   rejected: "Rejected",
   paid: "Paid",

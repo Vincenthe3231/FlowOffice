@@ -18,6 +18,8 @@ export const API_ROUTES = {
   /** Claims (relative to PROXY_PREFIX) */
   CLAIMS: {
     LIST: 'claims',
+    /** Org-wide list; Laravel `ClaimApprovalController::all` — `hod` | `hr_admin` | `top_management` only */
+    ALL: 'claims/all',
     CREATE: 'claims',
     DETAIL: (id: number) => `claims/${id}`,
     UPDATE: (id: number) => `claims/${id}`,
