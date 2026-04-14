@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClaimDetailView } from "@/features/claims/components/ClaimDetailView";
+import { ClaimDetailOrgApproveButton } from "@/features/claims/components/ClaimDetailOrgApproveButton";
 import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
 import { RejectDiscIcon } from "@/features/claims/components/RejectDiscIcon";
 import {
+  CLAIM_QUERY_KEYS,
   useApproveRejectClaim,
   useClaimApprovals,
   useClaimById,
@@ -16,6 +19,10 @@ import type { Claim, ClaimApproval } from "@/features/claims/types";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { canRejectClaimFromMyClaimsList } from "@/shared/lib/role-utils";
+import {
+  fetchAllClaimsForApproval,
+  getClaimSubmittedByDisplay,
+} from "@/shared/lib/api-client/claims";
 
 /** Reject control + dialog; mounted only for HOD / HR / top_management on pending/approved claims. */
 function ClaimDetailRejectControls({
@@ -80,11 +87,35 @@ function ClaimDetailRejectControls({
   );
 }
 
-export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
+export function ClaimDetailPageClient({
+  claimId,
+  fromOrgAll = false,
+}: {
+  claimId: number;
+  /** Opened from org-wide All Claims (`?from=all`) — back link + submitter line + approve. */
+  fromOrgAll?: boolean;
+}) {
   const { data: claim, isLoading, isError } = useClaimById(claimId);
   const { data: approvals } = useClaimApprovals(claimId);
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, isLoading: profileLoading } = useProfile();
+
+  /** Same cache key as All Claims list — fills submitter when detail API omits it. */
+  const { data: orgClaims } = useQuery({
+    queryKey: [...CLAIM_QUERY_KEYS.allClaimsApproval(), profile?.role] as const,
+    queryFn: () => fetchAllClaimsForApproval(profile!.role),
+    enabled:
+      fromOrgAll &&
+      !profileLoading &&
+      profile?.role != null &&
+      String(profile.role).trim() !== "",
+    staleTime: 30_000,
+  });
+
+  const orgListRow = useMemo(
+    () => (fromOrgAll ? orgClaims?.find((c) => Number(c.id) === claimId) : undefined),
+    [fromOrgAll, orgClaims, claimId],
+  );
 
   const fallbackApprovals: ClaimApproval[] =
     claim != null
@@ -96,6 +127,8 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
 
   const approvalsToShow: ClaimApproval[] =
     approvals && approvals.length > 0 ? approvals : fallbackApprovals;
+
+  const backHref = fromOrgAll ? "/dashboard/claims/all" : "/dashboard/claims";
 
   if (isLoading) {
     return (
@@ -114,7 +147,7 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
           This claim may have been removed or you don&apos;t have access.
         </p>
         <Button asChild variant="outline">
-          <Link href="/dashboard/claims">Back to Claims</Link>
+          <Link href={backHref}>Back to Claims</Link>
         </Button>
       </div>
     );
@@ -122,23 +155,48 @@ export function ClaimDetailPageClient({ claimId }: { claimId: number }) {
 
   const showRejectUi = canRejectClaimFromMyClaimsList(profile?.role, user?.roles);
 
+  const submittedByLine = fromOrgAll
+    ? (() => {
+        const fromDetail = claim.submittedByDisplay?.trim();
+        if (fromDetail && fromDetail !== "—") return fromDetail;
+        const fromList = orgListRow ? getClaimSubmittedByDisplay(orgListRow).trim() : "";
+        if (fromList && fromList !== "—") return fromList;
+        return claim.submittedByDisplay ?? "—";
+      })()
+    : undefined;
+
+  const claimForOrgActions =
+    fromOrgAll && submittedByLine != null && submittedByLine !== "—"
+      ? { ...claim, submittedByDisplay: submittedByLine }
+      : claim;
+
+  const headerTrailingActions =
+    showRejectUi && fromOrgAll ? (
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <ClaimDetailOrgApproveButton
+          claim={claimForOrgActions}
+          approvalsToShow={approvalsToShow}
+        />
+        <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
+      </div>
+    ) : showRejectUi ? (
+      <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
+    ) : null;
+
   return (
     <div className="w-full space-y-8 pb-8">
       <ClaimDetailView
         claim={claim}
         approvalsToShow={approvalsToShow}
+        submittedByLine={submittedByLine}
         leadingAction={
           <Button variant="ghost" size="icon" className="shrink-0 -ml-2" asChild>
-            <Link href="/dashboard/claims" aria-label="Back to claims">
+            <Link href={backHref} aria-label="Back to claims">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
         }
-        headerTrailingActions={
-          showRejectUi ? (
-            <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
-          ) : null
-        }
+        headerTrailingActions={headerTrailingActions}
       />
     </div>
   );

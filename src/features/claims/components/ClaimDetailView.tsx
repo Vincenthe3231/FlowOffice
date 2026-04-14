@@ -57,6 +57,8 @@ export interface ClaimDetailViewProps {
   approvalsToShow: ClaimApproval[];
   leadingAction?: ReactNode;
   headerTrailingActions?: ReactNode;
+  /** When set (e.g. org All Claims), show “Submitted by …” under the title. */
+  submittedByLine?: string | null;
 }
 
 export function ClaimDetailView({
@@ -64,6 +66,7 @@ export function ClaimDetailView({
   approvalsToShow,
   leadingAction,
   headerTrailingActions,
+  submittedByLine,
 }: ClaimDetailViewProps) {
   const amountStr = claim.amount.toFixed(2);
   const [amountInt, amountDec] = amountStr.split(".");
@@ -109,6 +112,12 @@ export function ClaimDetailView({
             >
               {claim.title}
             </h1>
+            {submittedByLine != null && submittedByLine !== "" && (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Submitted by{" "}
+                <span className="font-medium text-foreground">{submittedByLine}</span>
+              </p>
+            )}
           </div>
         </div>
 

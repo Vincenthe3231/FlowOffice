@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useFaceVerification } from "@/features/attendance/hooks/useFaceVerification";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -34,8 +33,10 @@ import { cn } from "@/lib/utils";
 import { useGeolocation } from "@/features/attendance/hooks/useGeolocation";
 import { useCamera } from "@/features/attendance/hooks/useCamera";
 import { useAttendance, formatDistance } from "@/features/attendance/hooks/useAttendance";
-import { useRoles } from "@/shared/hooks/useRoles";
 import { useAdminAttendance } from "@/features/attendance/hooks/useAdminAttendance";
+import { useProfile } from "@/features/profile/hooks/useProfile";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { canAccessAttendanceAdminPortal } from "@/shared/lib/role-utils";
 import { DailyAttendanceChart } from "@/features/attendance/components/DailyAttendanceChart";
 import { LocationHeatmap } from "@/features/attendance/components/LocationHeatmap";
 import { LatenessAlerts } from "@/features/attendance/components/LatenessAlerts";
@@ -78,10 +79,23 @@ export default function Attendance() {
   const location = useGeolocation();
   const camera = useCamera();
   const attendance = useAttendance();
-  const { isAdminOrManager } = useRoles();
+  const { profile } = useProfile();
+  const { user } = useAuth();
+  const canViewAdminChips = canAccessAttendanceAdminPortal(profile?.role, user?.roles);
+  const visibleChips = useMemo(
+    () =>
+      canViewAdminChips ? roleChips : roleChips.filter((c) => c.id === "my-attendance"),
+    [canViewAdminChips]
+  );
   const faceVerification = useFaceVerification();
   const isAdminView = activeChip !== "my-attendance";
-  const admin = useAdminAttendance(isAdminOrManager && isAdminView);
+  const admin = useAdminAttendance(canViewAdminChips && isAdminView);
+
+  useEffect(() => {
+    if (!canViewAdminChips && activeChip !== "my-attendance") {
+      setActiveChip("my-attendance");
+    }
+  }, [canViewAdminChips, activeChip]);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -763,34 +777,35 @@ export default function Attendance() {
 
   return (
     <>
-      <PageHeader title="Attendance" subtitle="" />
-
       <div className="px-3 py-4 space-y-4 md:px-4 md:py-6 md:space-y-6 overflow-x-hidden min-w-0">
-        {/* ── Role Preview Chips ── */}
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 md:gap-2">
-          {roleChips.map((chip) => (
-            <motion.button
-              key={chip.id}
-              onClick={() => setActiveChip(chip.id)}
-              whileTap={{ scale: 0.95 }}
-              className={cn(
-                "relative whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:px-4 md:py-2 md:text-sm",
-              activeChip === chip.id
-                  ? "text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              {activeChip === chip.id && (
-                <motion.div
-                  layoutId="activeChip"
-                  className="absolute inset-0 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{chip.label}</span>
-            </motion.button>
-          ))}
-        </div>
+        {/* ── Role chips: HOD / HR / Top Management only (staff = personal attendance only, no row) ── */}
+        {visibleChips.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 md:gap-2">
+            {visibleChips.map((chip) => (
+              <motion.button
+                key={chip.id}
+                type="button"
+                onClick={() => setActiveChip(chip.id)}
+                whileTap={{ scale: 0.95 }}
+                className={cn(
+                  "relative whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:px-4 md:py-2 md:text-sm",
+                  activeChip === chip.id
+                    ? "text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {activeChip === chip.id && (
+                  <motion.div
+                    layoutId="activeChip"
+                    className="absolute inset-0 rounded-full bg-primary"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{chip.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        )}
 
         {/* ── Content ── */}
         <AnimatePresence mode="wait">

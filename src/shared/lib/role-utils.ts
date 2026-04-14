@@ -82,6 +82,17 @@ export function canRejectClaimFromMyClaimsList(
 }
 
 /**
+ * Attendance page: show role chips (Top Management / Admin·HR / HOD) and org-wide admin dashboards.
+ * Staff and other roles see only personal attendance (no extra chips).
+ */
+export function canAccessAttendanceAdminPortal(
+  role?: string | null,
+  roles?: string[] | null
+): boolean {
+  return canRejectClaimFromMyClaimsList(role, roles)
+}
+
+/**
  * Onboarding admin queue (approve / reject). Top Management only.
  */
 export function canSeeOnboardingAdmin(

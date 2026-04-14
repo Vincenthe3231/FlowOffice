@@ -26,3 +26,8 @@ export function parseClaimIdParam(raw: string): number | null {
 export function buildClaimDetailHref(claimId: number | string): string {
   return `/dashboard/claims/${encodeURIComponent(String(claimId))}`;
 }
+
+/** Org-wide All Claims → full detail with back link to `/dashboard/claims/all`. */
+export function buildClaimDetailHrefFromOrgAll(claimId: number | string): string {
+  return `${buildClaimDetailHref(claimId)}?from=all`;
+}

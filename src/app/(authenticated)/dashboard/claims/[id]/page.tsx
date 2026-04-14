@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ClaimDetailPageClient } from "@/features/claims/components/ClaimDetailPageClient";
 import { Button } from "@/components/ui/button";
-import { parseClaimIdParam } from "@/features/claims/lib/claimUrlParams";
+import {
+  getFirstQueryParam,
+  parseClaimIdParam,
+} from "@/features/claims/lib/claimUrlParams";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -13,7 +16,8 @@ type PageProps = {
  */
 export default async function ClaimDetailPage({ params, searchParams }: PageProps) {
   const { id: rawId } = await params;
-  await searchParams;
+  const sp = await searchParams;
+  const fromOrgAll = getFirstQueryParam(sp, "from") === "all";
 
   const claimId = parseClaimIdParam(rawId);
 
@@ -29,5 +33,5 @@ export default async function ClaimDetailPage({ params, searchParams }: PageProp
     );
   }
 
-  return <ClaimDetailPageClient claimId={claimId} />;
+  return <ClaimDetailPageClient claimId={claimId} fromOrgAll={fromOrgAll} />;
 }

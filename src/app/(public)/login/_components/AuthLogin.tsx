@@ -14,11 +14,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { loginSchema, type LoginFormData } from '@/shared/lib/validation/auth.schemas'
 import { useLoginMutation } from '@/shared/hooks/useLoginMutation'
 
+/** Internal app paths only; strips stray quotes; blocks protocol-relative / absolute URLs. */
+function sanitizeLoginRedirectPath(raw: string | null): string {
+  if (raw == null || String(raw).trim() === '') return '/dashboard'
+  const cleaned = String(raw).replace(/^['"]+|['"]+$/g, '').trim()
+  if (!cleaned.startsWith('/')) return '/dashboard'
+  if (cleaned.startsWith('//')) return '/dashboard'
+  if (cleaned.includes('://')) return '/dashboard'
+  return cleaned
+}
+
 const AuthLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const from = searchParams.get('from') || '/dashboard'
 
   // React Hook Form with Zod validation
   const {
@@ -50,9 +59,8 @@ const AuthLogin = () => {
       // 3. Invalidates query to trigger refetch
       // useAuth in authenticated layout will pick up the cached data automatically
       
-      // Redirect to original destination or dashboard without full reload
-      // This preserves the in-memory auth store (including Bearer token)
-      router.push(from)
+      const safeFrom = sanitizeLoginRedirectPath(searchParams.get('from'))
+      router.replace(safeFrom)
     } catch (error) {
       // Error is handled by mutation and displayed below
       console.error('Login error:', error)

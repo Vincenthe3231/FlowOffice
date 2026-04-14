@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -23,12 +24,16 @@ import {
 import { useAllClaimsForApproval, useApproveRejectClaim } from "@/features/claims/hooks/useClaims";
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
 import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
-import { ShieldCheck, Check, Eye } from "lucide-react";
+import { Check, Eye, Car, FileText } from "lucide-react";
 import { RejectDiscIcon } from "@/features/claims/components/RejectDiscIcon";
-import type { ClaimApproval } from "@/features/claims/types";
-import type { ClaimWithApprovalsApi } from "@/shared/lib/api-client/claims";
-
-type ApprovalFilter = "All" | "Pending" | "Approved" | "Rejected";
+import type { ClaimApproval, ClaimFilter } from "@/features/claims/types";
+import {
+  type ClaimWithApprovalsApi,
+  getClaimSubmittedByDisplay,
+} from "@/shared/lib/api-client/claims";
+import { buildClaimDetailHrefFromOrgAll } from "@/features/claims/lib/claimUrlParams";
+import { StatusBadge } from "@/features/attendance";
+import { CLAIM_FILTERS } from "@/features/claims/data";
 
 const statusLabel: Record<string, string> = {
   draft: "Draft",
@@ -40,14 +45,26 @@ const statusLabel: Record<string, string> = {
   paid: "Paid",
 };
 
-const statusToFilter: Record<string, ApprovalFilter> = {
-  pending_l1: "Pending",
-  pending_l2: "Pending",
-  pending_l3: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
-  paid: "Approved",
-};
+/** Map API claim status to the same filter buckets as the personal All Claims table. */
+function apiStatusToClaimFilter(status: string): ClaimFilter | null {
+  const s = String(status).toLowerCase();
+  if (s.startsWith("pending")) return "Pending";
+  if (s === "approved") return "Approved";
+  if (s === "rejected") return "Rejected";
+  if (s === "paid") return "Paid";
+  if (s === "draft") return "Draft";
+  return null;
+}
+
+function mapApprovalStatusToBadgeString(status: string): string {
+  const s = String(status).toLowerCase();
+  if (s.startsWith("pending")) return "Pending";
+  if (s === "approved") return "Approved";
+  if (s === "rejected") return "Rejected";
+  if (s === "paid") return "Paid";
+  if (s === "draft") return "Draft";
+  return statusLabel[status] ?? status;
+}
 
 function mapApprovals(approvals: unknown): ClaimApproval[] {
   if (!Array.isArray(approvals)) return [];
@@ -61,22 +78,41 @@ function mapApprovals(approvals: unknown): ClaimApproval[] {
   }));
 }
 
+function categoryLabel(claim: ClaimWithApprovalsApi): string {
+  return (
+    claim.claimTypes?.label ??
+    claim.claimType?.label ??
+    claim.category?.name ??
+    claim.type ??
+    "—"
+  );
+}
+
+function dateDisplay(claim: ClaimWithApprovalsApi): string {
+  if (claim.claimDate) return claim.claimDate.slice(0, 10);
+  if (claim.createdAt) {
+    const d = new Date(claim.createdAt);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  return "—";
+}
+
 export function ClaimApprovalView() {
+  const router = useRouter();
   const { data: claims, isLoading } = useAllClaimsForApproval();
   const approveReject = useApproveRejectClaim();
   const [approveTarget, setApproveTarget] = useState<ClaimWithApprovalsApi | null>(null);
   const [rejectTarget, setRejectTarget] = useState<ClaimWithApprovalsApi | null>(null);
   const [approveReason, setApproveReason] = useState("");
-  const [detailClaim, setDetailClaim] = useState<ClaimWithApprovalsApi | null>(null);
-  const [filter, setFilter] = useState<ApprovalFilter>("All");
+  const [filter, setFilter] = useState<ClaimFilter>("All");
 
   const filteredClaims = useMemo(() => {
-    if (!claims) return [];
+    if (!claims?.length) return [];
     if (filter === "All") return claims;
-    return claims.filter(
-      (c: ClaimWithApprovalsApi) =>
-        statusToFilter[String(c.status)] === filter
-    );
+    return claims.filter((c) => {
+      const mapped = apiStatusToClaimFilter(String(c.status));
+      return mapped === filter;
+    });
   }, [claims, filter]);
 
   const isPending = (status: string) => String(status).startsWith("pending_");
@@ -101,221 +137,213 @@ export function ClaimApprovalView() {
     }
   };
 
-  const detailApprovals = detailClaim?.claimApprovals
-    ? mapApprovals(detailClaim.claimApprovals)
-    : [];
   const approveTargetApprovals = approveTarget?.claimApprovals
     ? mapApprovals(approveTarget.claimApprovals)
     : [];
 
+  const handleFilterSelect = (value: ClaimFilter) => {
+    if (value !== filter) setFilter(value);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-primary p-6 shadow-xl">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="relative flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-primary-foreground">
-              Claim Approvals
-            </h1>
-            <p className="text-sm text-primary-foreground/70 mt-0.5">
-              Review and process claims
-            </p>
-          </div>
-        </div>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">All Claims</h1>
+        <p className="text-sm text-muted-foreground max-w-2xl">
+          Review submitted claims and process approvals. Updates appear as staff submit or move
+          claims through the workflow.
+        </p>
       </div>
 
-      <Card className="premium-shadow border-0">
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="text-base font-semibold">
-              Claims ({filteredClaims?.length ?? 0})
-            </CardTitle>
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as ApprovalFilter)}>
-              <TabsList className="h-8">
-                {(["All", "Pending", "Approved", "Rejected"] as ApprovalFilter[]).map(
-                  (f) => (
-                    <TabsTrigger key={f} value={f} className="text-xs px-2.5 h-6">
-                      {f}
-                    </TabsTrigger>
-                  )
-                )}
-              </TabsList>
-            </Tabs>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="w-full">
-            {isLoading ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Loading...
-              </div>
-            ) : !filteredClaims?.length ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                No claims found
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClaims.map((claim: ClaimWithApprovalsApi) => (
-                    <TableRow
-                      key={claim.id}
-                      className="hover:bg-primary/5 transition-colors"
-                    >
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium">{claim.title}</p>
-                          {(claim as unknown as Record<string, string>).claimantName != null && (
-                            <p className="text-xs text-muted-foreground">
-                              ({(claim as unknown as Record<string, string>).claimantName})
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm font-semibold">
-                        RM {Number(claim.amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                          {statusLabel[String(claim.status)] ?? String(claim.status)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {claim.createdAt
-                          ? new Date(claim.createdAt).toLocaleDateString()
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1.5 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1 hover:bg-primary/10"
-                            onClick={() => setDetailClaim(claim)}
-                          >
-                            <Eye className="h-3 w-3" /> View
-                          </Button>
-                          {isPending(String(claim.status)) && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs gap-1 text-emerald-600 border-emerald-200/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                                onClick={() => setApproveTarget(claim)}
-                              >
-                                <Check className="h-3 w-3" /> Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-9 gap-2 px-3 text-sm font-medium text-destructive border-border/70 shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow active:scale-[0.98]"
-                                onClick={() => setRejectTarget(claim)}
-                              >
-                                <RejectDiscIcon size="sm" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!detailClaim} onOpenChange={() => setDetailClaim(null)}>
-        <DialogContent className="sm:max-w-lg premium-shadow border-0">
-          <DialogHeader>
-            <DialogTitle>Claim Details</DialogTitle>
-          </DialogHeader>
-          {detailClaim && (
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={filter}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Card className="premium-shadow border-0">
+            <CardHeader className="px-4 pb-2 pt-4 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-lg font-bold text-foreground">
-                    {detailClaim.title}
-                  </p>
-                  {(detailClaim as unknown as Record<string, string>).claimantName && (
-                    <p className="text-xs text-muted-foreground">
-                      by {(detailClaim as unknown as Record<string, string>).claimantName}
-                    </p>
-                  )}
-                </div>
-                <div className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                  RM {Number(detailClaim.amount).toFixed(2)}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg border border-border/50">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Type
-                  </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
-                    {detailClaim.claimTypes?.label ?? detailClaim.type ?? "—"}
+                  <CardTitle className="text-sm font-semibold sm:text-base">All Claims</CardTitle>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {filteredClaims.length} records
                   </p>
                 </div>
-                <div className="p-3 rounded-lg border border-border/50">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Status
-                  </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
-                    {statusLabel[String(detailClaim.status)]}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg border border-border/50">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    Submitted
-                  </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
-                    {detailClaim.createdAt
-                      ? new Date(detailClaim.createdAt).toLocaleDateString()
-                      : "—"}
-                  </p>
+                <div className="w-full sm:max-w-[420px]">
+                  <div className="flex flex-nowrap items-center gap-1 rounded-full bg-muted/40 p-1">
+                    {CLAIM_FILTERS.map((claimFilter) => {
+                      const isActive = filter === claimFilter;
+                      return (
+                        <motion.div key={claimFilter} whileTap={{ scale: 0.97 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleFilterSelect(claimFilter)}
+                            className="relative h-6 shrink-0 whitespace-nowrap rounded-full border border-transparent bg-muted/60 px-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted sm:h-7 sm:px-2.5 sm:text-[11px]"
+                            aria-pressed={isActive}
+                          >
+                            {isActive && (
+                              <motion.span
+                                layoutId="org-claims-active-tab"
+                                className="pointer-events-none absolute inset-0 rounded-full bg-primary"
+                                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                              />
+                            )}
+                            <span
+                              className={`relative z-10 transition-colors ${
+                                isActive ? "text-primary-foreground" : "text-muted-foreground"
+                              }`}
+                            >
+                              {claimFilter}
+                            </span>
+                          </button>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-
-              {detailClaim.description && (
-                <div className="p-3 rounded-lg border border-border/50">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-                    Description
-                  </p>
-                  <p className="text-sm text-foreground">
-                    {detailClaim.description}
-                  </p>
-                </div>
-              )}
-
-              {detailApprovals.length > 0 && (
-                <ApprovalTimeline
-                  approvals={detailApprovals}
-                  claimStatus={String(detailClaim.status)}
-                  submittedDate={
-                    detailClaim.createdAt
-                      ? new Date(detailClaim.createdAt).toLocaleDateString()
-                      : undefined
-                  }
-                />
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="w-full">
+                {isLoading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
+                ) : !filteredClaims.length ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">No claims found</div>
+                ) : (
+                  <Table className="text-xs sm:text-sm">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                          Title
+                        </TableHead>
+                        <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                          Submitted by
+                        </TableHead>
+                        <TableHead className="hidden h-9 px-3 text-[10px] uppercase tracking-wide sm:table-cell sm:h-10 sm:px-4">
+                          Category
+                        </TableHead>
+                        <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                          Amount
+                        </TableHead>
+                        <TableHead className="hidden h-9 px-3 text-[10px] uppercase tracking-wide md:table-cell md:h-10 md:px-4">
+                          Date
+                        </TableHead>
+                        <TableHead className="h-9 px-3 text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                          Status
+                        </TableHead>
+                        <TableHead className="h-9 w-[140px] px-3 text-right text-[10px] uppercase tracking-wide sm:h-10 sm:px-4">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredClaims.map((claim: ClaimWithApprovalsApi) => (
+                        <TableRow
+                          key={claim.id}
+                          className="cursor-pointer transition-colors duration-200 hover:bg-muted/50"
+                          onClick={() =>
+                            router.push(buildClaimDetailHrefFromOrgAll(claim.id))
+                          }
+                        >
+                          <TableCell className="px-3 py-2.5 sm:px-4 sm:py-3">
+                            <motion.div
+                              className="flex items-start gap-2"
+                              whileHover={{ x: 2 }}
+                              transition={{ duration: 0.18 }}
+                            >
+                              {claim.type === "mileage" ? (
+                                <Car className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
+                              ) : (
+                                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
+                              )}
+                              <div className="min-w-0">
+                                <span className="block truncate text-xs font-medium sm:text-sm">
+                                  {claim.title}
+                                </span>
+                                <span className="mt-0.5 block text-[10px] text-muted-foreground sm:hidden">
+                                  {categoryLabel(claim)} • {dateDisplay(claim)}
+                                </span>
+                              </div>
+                            </motion.div>
+                          </TableCell>
+                          <TableCell className="px-3 py-2.5 text-xs text-foreground sm:px-4 sm:py-3 sm:text-sm">
+                            <span className="font-medium">
+                              {getClaimSubmittedByDisplay(claim)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="hidden px-3 py-2.5 text-xs text-muted-foreground sm:table-cell sm:px-4 sm:py-3 sm:text-sm">
+                            {categoryLabel(claim)}
+                          </TableCell>
+                          <TableCell className="px-3 py-2.5 text-xs font-semibold sm:px-4 sm:py-3 sm:text-sm">
+                            RM {Number(claim.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="hidden px-3 py-2.5 text-xs text-muted-foreground md:table-cell md:px-4 md:py-3 md:text-sm">
+                            {dateDisplay(claim)}
+                          </TableCell>
+                          <TableCell className="px-3 py-2.5 sm:px-4 sm:py-3">
+                            <StatusBadge
+                              status={mapApprovalStatusToBadgeString(String(claim.status))}
+                              className="px-2 py-0.5 text-[9px] sm:text-[10px]"
+                            />
+                          </TableCell>
+                          <TableCell className="px-3 py-2.5 text-right sm:px-4 sm:py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-[10px] sm:text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(buildClaimDetailHrefFromOrgAll(claim.id));
+                                }}
+                              >
+                                <Eye className="h-3 w-3" /> View
+                              </Button>
+                              {isPending(String(claim.status)) && (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 border-emerald-200/50 text-[10px] text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 sm:text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setApproveTarget(claim);
+                                    }}
+                                  >
+                                    <Check className="h-3 w-3" /> Approve
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 gap-2 px-3 text-sm font-medium text-destructive border-border/70 shadow-sm transition-all hover:border-destructive/40 hover:bg-destructive/[0.07] hover:shadow active:scale-[0.98]"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRejectTarget(claim);
+                                    }}
+                                  >
+                                    <RejectDiscIcon size="sm" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </AnimatePresence>
 
       <Dialog
         open={!!approveTarget}
@@ -331,9 +359,15 @@ export function ClaimApprovalView() {
           {approveTarget && (
             <div className="space-y-4">
               <div className="space-y-2 rounded-lg border border-border/50 p-3">
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-xs text-muted-foreground">Title</span>
-                  <span className="text-sm font-medium">{approveTarget.title}</span>
+                  <span className="text-sm font-medium text-right">{approveTarget.title}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-muted-foreground">Submitted by</span>
+                  <span className="text-sm font-medium">
+                    {getClaimSubmittedByDisplay(approveTarget)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-muted-foreground">Amount</span>
@@ -362,13 +396,13 @@ export function ClaimApprovalView() {
                 <Textarea
                   value={approveReason}
                   onChange={(e) => setApproveReason(e.target.value)}
-                  placeholder="Optional comment..."
+                  placeholder="Optional comment…"
                   rows={2}
                   className="resize-none"
                 />
               </div>
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -383,7 +417,7 @@ export function ClaimApprovalView() {
                   onClick={() => void handleApproveConfirm()}
                   disabled={approveReject.isPending}
                 >
-                  {approveReject.isPending ? "Processing..." : "Confirm Approve"}
+                  {approveReject.isPending ? "Processing…" : "Confirm Approve"}
                 </Button>
               </div>
             </div>

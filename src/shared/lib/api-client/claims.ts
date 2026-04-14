@@ -51,6 +51,15 @@ export interface SubclaimTypeRef {
   description?: string
 }
 
+/** Laravel / Spatie-style user JSON (camelCase after axios `keysToCamel`). */
+export type ClaimSubmitterUserApi = {
+  name?: string | null
+  fullName?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  email?: string | null
+}
+
 export interface ClaimApiResponse {
   id: number
   title: string
@@ -70,6 +79,10 @@ export interface ClaimApiResponse {
   metadata?: {
     fields?: Array<{ label: string; type: string; value: string | number | null }>
   } | null
+  /** Claim owner / submitter (often eager-loaded on GET `claims/{id}`). */
+  user?: ClaimSubmitterUserApi | null
+  employee?: ClaimSubmitterUserApi | null
+  claimant?: ClaimSubmitterUserApi | null
 }
 
 export interface ClaimsListResponse {
@@ -134,6 +147,78 @@ export interface ClaimWithApprovalsApi extends ClaimApiResponse {
   claimApprovals?: ClaimApprovalApi[]
   claimTypes?: { key: string; label: string }
   subclaimTypes?: { key: string; label: string; rate?: number }
+  /** Submitter name (org-wide / approval list). */
+  claimantName?: string | null
+  submitter?: ClaimSubmitterUserApi | null
+  creator?: ClaimSubmitterUserApi | null
+}
+
+function trimmedNonEmpty(value: unknown): string | null {
+  if (value == null) return null
+  const t = String(value).trim()
+  return t.length > 0 ? t : null
+}
+
+/** Display string from a nested user/employee-style object. */
+function displayNameFromUserLike(obj: unknown): string | null {
+  if (obj == null) return null
+  if (typeof obj !== 'object') return trimmedNonEmpty(obj)
+
+  const o = obj as Record<string, unknown>
+  // Laravel API resource wrapper: { data: { ... } }
+  if (
+    'data' in o &&
+    o.data != null &&
+    typeof o.data === 'object' &&
+    Object.keys(o).length === 1
+  ) {
+    return displayNameFromUserLike(o.data)
+  }
+
+  const full =
+    trimmedNonEmpty(o.fullName) ?? trimmedNonEmpty(o.displayName)
+  if (full) return full
+  const single = trimmedNonEmpty(o.name) ?? trimmedNonEmpty(o.username)
+  if (single) return single
+  const fn = trimmedNonEmpty(o.firstName)
+  const ln = trimmedNonEmpty(o.lastName)
+  if (fn && ln) return `${fn} ${ln}`
+  if (fn) return fn
+  if (ln) return ln
+  return trimmedNonEmpty(o.email)
+}
+
+/**
+ * Resolve display name for who submitted the claim.
+ * Supports common Laravel shapes: `claimantName`, flat strings, `user` / `employee` / `claimant`, etc.
+ */
+export function getClaimSubmittedByDisplay(claim: ClaimApiResponse): string {
+  const c = claim as unknown as Record<string, unknown>
+
+  const flat =
+    trimmedNonEmpty(c.claimantName) ??
+    trimmedNonEmpty(c.submittedBy) ??
+    trimmedNonEmpty(c.submitterName) ??
+    trimmedNonEmpty(c.employeeName) ??
+    trimmedNonEmpty(c.createdByName) ??
+    trimmedNonEmpty(c.claimantDisplayName)
+  if (flat) return flat
+
+  const nestedKeys = [
+    'user',
+    'employee',
+    'claimant',
+    'submitter',
+    'creator',
+    'owner',
+    'profile',
+  ] as const
+  for (const key of nestedKeys) {
+    const name = displayNameFromUserLike(c[key])
+    if (name) return name
+  }
+
+  return '—'
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +226,8 @@ export interface ClaimWithApprovalsApi extends ClaimApiResponse {
 // ---------------------------------------------------------------------------
 
 function normalizeStatus(s: string): Claim['status'] {
+  const key = String(s ?? '').toLowerCase()
+  if (key.startsWith('pending')) return 'Pending'
   const map: Record<string, Claim['status']> = {
     draft: 'Draft',
     pending: 'Pending',
@@ -148,7 +235,7 @@ function normalizeStatus(s: string): Claim['status'] {
     rejected: 'Rejected',
     paid: 'Paid',
   }
-  return map[s?.toLowerCase()] ?? (s as Claim['status'])
+  return map[key] ?? (s as Claim['status'])
 }
 
 function mapClaimFromApi(row: ClaimApiResponse): Claim {
@@ -164,6 +251,7 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     originalName: a.originalName,
     mimeType: a.mimeType,
   }))
+  const submittedByDisplay = getClaimSubmittedByDisplay(row)
   const base = {
     id: row.id,
     title: row.title,
@@ -178,6 +266,7 @@ function mapClaimFromApi(row: ClaimApiResponse): Claim {
     subclaimTypeLabel: row.subclaimType?.label ?? undefined,
     customFields,
     attachments,
+    submittedByDisplay,
   }
   if (row.type === 'mileage' && row.mileage) {
     return {

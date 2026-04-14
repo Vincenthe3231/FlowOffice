@@ -44,6 +44,8 @@ interface BaseClaim {
     originalName?: string;
     mimeType?: string;
   }>;
+  /** Submitter display name when API includes claimant/user (org-wide detail). */
+  submittedByDisplay?: string;
 }
 
 export interface ReceiptClaim extends BaseClaim {
