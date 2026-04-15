@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,13 +50,16 @@ import {
   useClaimTypes,
   useSubclaimTypes,
   useSubmitClaim,
-  useApprovalThreshold,
   useClaimById,
 } from "@/features/claims/hooks/useClaims";
 import { calculateDistance } from "@/shared/lib/api-client/claims";
-import type { Claim, ClaimType, ClaimApproval } from "@/features/claims/types";
+import type { Claim, ClaimType } from "@/features/claims/types";
 import { cn } from "@/lib/utils";
 import { isTransportClaimTypeKey } from "@/features/claims/lib/claim-type-groups";
+import {
+  previewClaimApprovalsFromStepKinds,
+  previewStepKindsForSubmitterRole,
+} from "@/features/claims/lib/approval-chain-preview";
 import { isTopManagementSlug } from "@/shared/constants/roles";
 
 const steps = [
@@ -326,7 +329,6 @@ export function NewClaimWizard() {
 
   const { data: claimTypes, isLoading: typesLoading } = useClaimTypes();
   const { data: subclaimTypes } = useSubclaimTypes(draft.selectedTypeId);
-  const { data: threshold } = useApprovalThreshold();
   const submitClaim = useSubmitClaim();
   const { data: resubmitClaim } = useClaimById(resubmitIdValid);
 
@@ -515,8 +517,14 @@ export function NewClaimWizard() {
     else router.push("/dashboard/claims");
   };
 
-  const thresholdAmount = threshold?.level3Min ?? threshold?.level2Max ?? 500;
-  const needsL3 = getAmount() >= thresholdAmount;
+  const previewApprovals = useMemo(
+    () =>
+      previewClaimApprovalsFromStepKinds(
+        0,
+        previewStepKindsForSubmitterRole(profile?.role)
+      ),
+    [profile?.role]
+  );
 
   const detailsTitleError =
     detailsValidationAttempted &&
@@ -535,14 +543,6 @@ export function NewClaimWizard() {
   const handleSubmit = async () => {
     if (!draft.selectedTypeId) return;
     const amount = getAmount();
-
-    const approvalLevels = [
-      { level: 1, approverRole: "HOD", status: "pending" },
-      { level: 2, approverRole: "Admin/HR", status: "pending" },
-      ...(needsL3
-        ? [{ level: 3, approverRole: "Top Management", status: "pending" }]
-        : []),
-    ];
 
     try {
       const customFieldsForSubmit = (draft.customFields ?? []).map((f) => ({
@@ -565,7 +565,7 @@ export function NewClaimWizard() {
             (draft.formData.description as string)?.trim() || null,
           amount,
           currency: "RM",
-          status: "pending",
+          status: "draft",
           metadata: {
             merchant: draft.formData.merchant,
             category: draft.formData.category,
@@ -577,7 +577,6 @@ export function NewClaimWizard() {
           customFields: customFieldsForSubmit,
           _attachmentFiles: attachmentFilesRef.current,
         },
-        approvalLevels,
       });
 
       attachmentFilesRef.current = [];
@@ -587,37 +586,6 @@ export function NewClaimWizard() {
       // toast in mutation
     }
   };
-
-  const previewApprovals: ClaimApproval[] = [
-    {
-      id: 1,
-      claimId: 0,
-      level: 1,
-      status: "pending",
-      reason: null,
-      decidedAt: null,
-    },
-    {
-      id: 2,
-      claimId: 0,
-      level: 2,
-      status: "pending",
-      reason: null,
-      decidedAt: null,
-    },
-    ...(needsL3
-      ? [
-          {
-            id: 3,
-            claimId: 0,
-            level: 3,
-            status: "pending" as const,
-            reason: null,
-            decidedAt: null,
-          },
-        ]
-      : []),
-  ];
 
   const mileageRate =
     subclaimTypes?.find((s) => s.id === draft.selectedSubclaimId)?.rate ??
@@ -1076,10 +1044,10 @@ export function NewClaimWizard() {
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 mb-4">
                       <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                       <p className="text-xs text-muted-foreground">
-                        Your claim will go through{" "}
-                        {getAmount() >= thresholdAmount ? "3-level" : "2-level"}{" "}
-                        approval: HOD → Admin/HR
-                        {getAmount() >= thresholdAmount ? " → Top Management" : ""}.
+                        After you submit, the server builds the approval chain from your
+                        account role. The preview below shows the steps that apply to you
+                        (e.g. Top Management uses any one of three approvers, then Finance
+                        HOD when that step is in your chain).
                       </p>
                     </div>
                     <ApprovalTimeline

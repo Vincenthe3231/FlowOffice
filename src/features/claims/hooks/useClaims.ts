@@ -14,6 +14,7 @@ import {
   deleteClaimType as deleteClaimTypeApi,
   fetchClaimById,
   fetchClaimApprovals as fetchClaimApprovalsApi,
+  mapClaimApprovalApiToClaimApproval,
   fetchAllClaimsForApproval as fetchAllClaimsForApprovalApi,
   fetchPendingApprovals as fetchPendingApprovalsApi,
   fetchApprovalThreshold as fetchApprovalThresholdApi,
@@ -27,7 +28,6 @@ import type {
   ClaimFilter,
   ClaimType,
   SubclaimType,
-  ClaimApproval,
   ApprovalThreshold,
 } from "@/features/claims/types";
 import type {
@@ -36,6 +36,7 @@ import type {
   CreateClaimTypePayload,
 } from "@/shared/lib/api-client/claims";
 import { extractError } from "@/shared/lib/api-client/response-handler";
+import { IN_APP_NOTIFICATION_QUERY_KEYS } from "@/shared/lib/api-client/notifications";
 import { fetchMapsConfig } from "@/shared/lib/api-client/maps";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 
@@ -231,16 +232,7 @@ export function useClaimApprovals(claimId: number | null) {
     queryFn: async () => {
       if (claimId == null) return [];
       const data = await fetchClaimApprovalsApi(claimId);
-      return data.map(
-        (row): ClaimApproval => ({
-          id: row.id,
-          claimId: row.claimId,
-          level: row.level,
-          status: row.status,
-          reason: row.reason ?? null,
-          decidedAt: row.decidedAt ?? null,
-        })
-      );
+      return data.map(mapClaimApprovalApiToClaimApproval);
     },
     enabled: claimId != null,
   });
@@ -290,6 +282,9 @@ export function useSubmitClaim() {
       queryClient.invalidateQueries({ queryKey: ["claims"] });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+      void queryClient.invalidateQueries({
+        queryKey: IN_APP_NOTIFICATION_QUERY_KEYS.list(),
+      });
       toast.success("Claim submitted");
     },
     onError: (err) => {
@@ -309,6 +304,9 @@ export function useApproveRejectClaim() {
       queryClient.invalidateQueries({ queryKey: ["claim-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
       queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claim(variables.claimId) });
+      void queryClient.invalidateQueries({
+        queryKey: IN_APP_NOTIFICATION_QUERY_KEYS.list(),
+      });
       toast.success("Action saved");
     },
     onError: (err) => {

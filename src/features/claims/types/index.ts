@@ -83,6 +83,18 @@ export interface SubclaimType {
   description?: string;
 }
 
+/** Backend `claim_approvals.step_kind` (snake → camel in API client). */
+export type ClaimApprovalStepKind =
+  | "dept_hod"
+  | "hr_hod"
+  | "top_management"
+  | "finance_hod";
+
+export interface ClaimApprovalEligibleApprover {
+  id: number;
+  name: string | null;
+}
+
 export interface ClaimApproval {
   id: number;
   claimId: number;
@@ -90,6 +102,11 @@ export interface ClaimApproval {
   status: "pending" | "approved" | "rejected";
   reason?: string | null;
   decidedAt?: string | null;
+  stepKind?: ClaimApprovalStepKind | null;
+  eligibleApprovers?: ClaimApprovalEligibleApprover[];
+  approverId?: number | null;
+  approverName?: string | null;
+  approverDepartment?: string | null;
 }
 
 export interface ApprovalThreshold {

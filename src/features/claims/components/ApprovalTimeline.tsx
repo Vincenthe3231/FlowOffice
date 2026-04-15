@@ -1,7 +1,10 @@
 "use client";
 
 import { Check, Clock, X, ShieldCheck } from "lucide-react";
-import type { ClaimApproval } from "@/features/claims/types";
+import type {
+  ClaimApproval,
+  ClaimApprovalStepKind,
+} from "@/features/claims/types";
 import { Fragment } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -18,7 +21,35 @@ const levelLabels: Record<number, string> = {
   1: "HOD Review",
   2: "Admin/HR Review",
   3: "Top Management review",
+  4: "Finance HOD",
 };
+
+const STEP_KIND_LABELS: Record<ClaimApprovalStepKind, string> = {
+  dept_hod: "Department HOD",
+  hr_hod: "HR review",
+  top_management: "Top Management (any 1 of 3)",
+  finance_hod: "Finance HOD",
+};
+
+function approvalRowLabel(approval: ClaimApproval): string {
+  if (approval.stepKind && STEP_KIND_LABELS[approval.stepKind]) {
+    return STEP_KIND_LABELS[approval.stepKind];
+  }
+  return levelLabels[approval.level] ?? `Level ${approval.level}`;
+}
+
+function isClaimRejectedStatus(claimStatus: string): boolean {
+  return String(claimStatus).toLowerCase() === "rejected";
+}
+
+/** When the claim is rejected, hide steps still `pending` (those levels never acted). */
+function visibleApprovalsForPipeline(
+  sorted: ClaimApproval[],
+  claimStatus: string
+): ClaimApproval[] {
+  if (!isClaimRejectedStatus(claimStatus)) return sorted;
+  return sorted.filter((a) => a.status !== "pending");
+}
 
 /** Date-only strings → medium date; ISO/datetime → date + short time. */
 export function formatPipelineTimestamp(value: string | undefined | null): string {
@@ -98,6 +129,8 @@ function buildPipelineSteps(
   lastDecisionDecidedAt: string | undefined | null,
   rejectedApproval: ClaimApproval | undefined
 ): PipelineStep[] {
+  const rowsForSteps = visibleApprovalsForPipeline(sorted, claimStatus);
+
   const steps: PipelineStep[] = [
     {
       id: "submitted",
@@ -108,7 +141,7 @@ function buildPipelineSteps(
     },
   ];
 
-  for (const approval of sorted) {
+  for (const approval of rowsForSteps) {
     let badge = "Awaiting";
     let tone: StepTone = "awaiting";
     if (approval.status === "approved") {
@@ -123,14 +156,14 @@ function buildPipelineSteps(
     }
     steps.push({
       id: `level-${approval.id}`,
-      label: levelLabels[approval.level] || `Level ${approval.level}`,
+      label: approvalRowLabel(approval),
       badge,
       tone,
       timestamp: timestampForApprovalStep(approval, sorted, submittedDate),
     });
   }
 
-  if (claimStatus === "paid") {
+  if (String(claimStatus).toLowerCase() === "paid") {
     steps.push({
       id: "terminal-paid",
       label: "Payment processed",
@@ -138,7 +171,10 @@ function buildPipelineSteps(
       tone: "done",
       timestamp: formatPipelineTimestamp(lastDecisionDecidedAt ?? submittedDate),
     });
-  } else if (claimStatus === "rejected" && !sorted.some((a) => a.status === "rejected")) {
+  } else if (
+    isClaimRejectedStatus(claimStatus) &&
+    !sorted.some((a) => a.status === "rejected")
+  ) {
     steps.push({
       id: "terminal-rejected",
       label: "Claim rejected",
@@ -244,6 +280,7 @@ export function ApprovalTimeline({
   variant = "vertical",
 }: ApprovalTimelineProps) {
   const sorted = [...approvals].sort((a, b) => a.level - b.level);
+  const visibleSorted = visibleApprovalsForPipeline(sorted, claimStatus);
 
   const lastDecision = [...sorted]
     .filter((a) => a.decidedAt && (a.status === "approved" || a.status === "rejected"))
@@ -308,7 +345,7 @@ export function ApprovalTimeline({
             </div>
           </div>
 
-          {sorted.map((approval) => (
+          {visibleSorted.map((approval) => (
             <div key={approval.id} className="flex items-start gap-3 relative z-10">
               <div
                 className={`w-4 h-4 rounded-full ${statusBg(approval.status)} flex items-center justify-center mt-0.5 shrink-0 ring-2 ring-background shadow-md ${approval.status === "pending" ? "shadow-[0_0_10px_rgba(245,158,11,0.35)]" : ""}`}
@@ -320,8 +357,18 @@ export function ApprovalTimeline({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">
-                  {levelLabels[approval.level] || `Level ${approval.level}`}
+                  {approvalRowLabel(approval)}
                 </p>
+                {approval.status === "pending" &&
+                  approval.stepKind === "top_management" &&
+                  (approval.eligibleApprovers?.length ?? 0) > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Eligible:{" "}
+                      {approval.eligibleApprovers
+                        ?.map((e) => e.name ?? `#${e.id}`)
+                        .join(", ")}
+                    </p>
+                  )}
                 <p className="text-xs text-muted-foreground tabular-nums">
                   {approval.status === "pending"
                     ? `Awaiting review · ${timestampForApprovalStep(approval, sorted, submittedDate)}`
@@ -338,14 +385,15 @@ export function ApprovalTimeline({
             </div>
           ))}
 
-          {(claimStatus === "approved" || claimStatus === "paid") && (
+          {(String(claimStatus).toLowerCase() === "approved" ||
+            String(claimStatus).toLowerCase() === "paid") && (
             <div className="flex items-start gap-3 relative z-10">
               <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center mt-0.5 shrink-0 ring-2 ring-background shadow-md">
                 <Check className="h-2.5 w-2.5 text-primary-foreground" />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {claimStatus === "paid"
+                  {String(claimStatus).toLowerCase() === "paid"
                     ? "Payment Processed"
                     : "Fully Approved"}
                 </p>
@@ -356,7 +404,8 @@ export function ApprovalTimeline({
             </div>
           )}
 
-          {claimStatus === "rejected" && (
+          {isClaimRejectedStatus(claimStatus) &&
+            !sorted.some((a) => a.status === "rejected") && (
             <div className="flex items-start gap-3 relative z-10">
               <div className="w-4 h-4 rounded-full bg-destructive flex items-center justify-center mt-0.5 shrink-0 ring-2 ring-background shadow-md">
                 <X className="h-2.5 w-2.5 text-primary-foreground" />
@@ -366,6 +415,11 @@ export function ApprovalTimeline({
                 <p className="text-xs text-muted-foreground tabular-nums">
                   {formatPipelineTimestamp(rejectedApproval?.decidedAt ?? submittedDate)}
                 </p>
+                {rejectedApproval?.reason && (
+                  <p className="mt-1 text-xs text-muted-foreground italic">
+                    &quot;{rejectedApproval.reason}&quot;
+                  </p>
+                )}
               </div>
             </div>
           )}

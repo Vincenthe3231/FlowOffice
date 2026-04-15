@@ -2,7 +2,13 @@ import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
 import { keysToSnake } from './transform'
-import type { Claim, ClaimCategory, ClaimMonthlySpend, CustomField } from '@/features/claims/types'
+import type {
+  Claim,
+  ClaimApproval,
+  ClaimCategory,
+  ClaimMonthlySpend,
+  CustomField,
+} from '@/features/claims/types'
 
 const PROXY = API_ROUTES.PROXY_PREFIX
 
@@ -127,6 +133,11 @@ export interface SubclaimTypeApi {
   description?: string
 }
 
+export interface ClaimApprovalEligibleApproverApi {
+  id: number
+  name: string | null
+}
+
 export interface ClaimApprovalApi {
   id: number
   claimId: number
@@ -134,6 +145,48 @@ export interface ClaimApprovalApi {
   status: 'pending' | 'approved' | 'rejected'
   reason?: string | null
   decidedAt?: string | null
+  stepKind?: string | null
+  eligibleApproverIds?: number[]
+  eligibleApprovers?: ClaimApprovalEligibleApproverApi[]
+  approverId?: number | null
+  approverName?: string | null
+  approverDepartment?: string | null
+  rejectionReason?: string | null
+}
+
+const CLAIM_APPROVAL_STEP_KINDS = new Set([
+  'dept_hod',
+  'hr_hod',
+  'top_management',
+  'finance_hod',
+])
+
+export function mapClaimApprovalApiToClaimApproval(row: ClaimApprovalApi): ClaimApproval {
+  const rawKind = row.stepKind != null ? String(row.stepKind).trim() : ''
+  const stepKind =
+    rawKind !== '' && CLAIM_APPROVAL_STEP_KINDS.has(rawKind)
+      ? (rawKind as ClaimApproval['stepKind'])
+      : null
+
+  return {
+    id: row.id,
+    claimId: row.claimId,
+    level: row.level,
+    status: row.status,
+    reason: row.reason ?? row.rejectionReason ?? null,
+    decidedAt: row.decidedAt ?? null,
+    stepKind,
+    eligibleApprovers:
+      Array.isArray(row.eligibleApprovers) && row.eligibleApprovers.length > 0
+        ? row.eligibleApprovers.map((e) => ({
+            id: Number(e.id),
+            name: e.name ?? null,
+          }))
+        : undefined,
+    approverId: row.approverId ?? null,
+    approverName: row.approverName ?? null,
+    approverDepartment: row.approverDepartment ?? null,
+  }
 }
 
 export interface ApprovalThresholdApi {
@@ -381,7 +434,10 @@ export async function deleteClaim(id: number): Promise<void> {
   await laravelApi.delete(`${PROXY}/${API_ROUTES.CLAIMS.DELETE(id)}`)
 }
 
-/** Finalize a draft claim (status must be "draft"). No body. Returns full claim with status "pending". */
+/**
+ * Activates the approval pipeline: builds `claim_approvals` from the submitter’s role
+ * and moves the claim to `pending_l1` (or legacy `pending`). Expects claim status `draft`.
+ */
 export async function submitDraftClaim(claimId: number): Promise<Claim> {
   const response = await laravelApi.patch(
     `${PROXY}/${API_ROUTES.CLAIMS.SUBMIT(claimId)}`
@@ -549,7 +605,7 @@ export async function fetchAllClaimsForApproval(
 
 export async function fetchPendingApprovals(): Promise<ClaimWithApprovalsApi[]> {
   const response = await laravelApi.get(`${PROXY}/${API_ROUTES.CLAIMS.LIST}`, {
-    params: { status: 'pending_l1,pending_l2,pending_l3' },
+    params: { status: 'pending_l1,pending_l2,pending_l3,pending_l4' },
   })
   const data = extractData<ClaimWithApprovalsApi[]>(response)
   return Array.isArray(data) ? data : []
@@ -562,20 +618,21 @@ export async function fetchApprovalThreshold(): Promise<ApprovalThresholdApi | n
 }
 
 // ---------------------------------------------------------------------------
-// Submit claim (wizard: claim + approval rows)
+// Submit claim (wizard: create as draft, then PATCH submit — chain is server-side)
 // ---------------------------------------------------------------------------
 
 export interface SubmitClaimPayload {
   claim: Record<string, unknown>
-  approvalLevels: Record<string, unknown>[]
 }
 
 export async function submitClaim(payload: SubmitClaimPayload): Promise<Claim> {
-  const { claim, approvalLevels } = payload
+  const { claim } = payload
   const rawFiles = (claim as Record<string, unknown>)._attachmentFiles
   const attachmentFiles: File[] = Array.isArray(rawFiles)
     ? rawFiles.filter((f): f is File => f instanceof File)
     : []
+
+  let created: ClaimApiResponse
 
   if (attachmentFiles.length > 0) {
     const claimPayload = { ...claim }
@@ -584,19 +641,23 @@ export async function submitClaim(payload: SubmitClaimPayload): Promise<Claim> {
     formData.append('claim', JSON.stringify(keysToSnake(claimPayload as Record<string, unknown>)))
     attachmentFiles.forEach((f) => formData.append('attachments[]', f))
     const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, formData)
-    const data = extractData<ClaimApiResponse>(response)
-    return mapClaimFromApi(data)
+    created = extractData<ClaimApiResponse>(response)
+  } else {
+    const jsonClaim = { ...claim }
+    delete (jsonClaim as Record<string, unknown>)._attachmentFiles
+
+    const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, {
+      claim: jsonClaim,
+    })
+    created = extractData<ClaimApiResponse>(response)
   }
 
-  const jsonClaim = { ...claim }
-  delete (jsonClaim as Record<string, unknown>)._attachmentFiles
+  const id = Number(created.id)
+  if (!Number.isFinite(id)) {
+    throw new Error('Invalid claim id from create response')
+  }
 
-  const response = await laravelApi.post(`${PROXY}/${API_ROUTES.CLAIMS.CREATE}`, {
-    claim: jsonClaim,
-    approvalLevels,
-  })
-  const data = extractData<ClaimApiResponse>(response)
-  return mapClaimFromApi(data)
+  return submitDraftClaim(id)
 }
 
 // ---------------------------------------------------------------------------
@@ -615,10 +676,15 @@ export async function approveRejectClaim(payload: ApproveRejectPayload): Promise
     payload.action === 'approved'
       ? API_ROUTES.CLAIMS.APPROVE(payload.claimId)
       : API_ROUTES.CLAIMS.REJECT(payload.claimId)
-  await laravelApi.post(`${PROXY}/${path}`, {
+  const body = {
     level: payload.level,
     reason: payload.reason ?? null,
-  })
+  }
+  if (payload.action === 'approved') {
+    await laravelApi.patch(`${PROXY}/${path}`, body)
+  } else {
+    await laravelApi.post(`${PROXY}/${path}`, body)
+  }
 }
 
 // ---------------------------------------------------------------------------

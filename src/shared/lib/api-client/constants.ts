@@ -45,6 +45,13 @@ export const API_ROUTES = {
   },
   CLAIM_CATEGORIES: 'claim-categories',
 
+  /** In-app notifications (Laravel `in_app_notifications`; relative to PROXY_PREFIX) */
+  NOTIFICATIONS: {
+    LIST: 'notifications',
+    READ_ALL: 'notifications/read-all',
+    READ: (id: number) => `notifications/${id}/read`,
+  },
+
   /** Geocode (Google Maps via backend; relative to PROXY_PREFIX) */
   GEOCODE: 'geocode',
   REVERSE_GEOCODE: 'reverse-geocode',

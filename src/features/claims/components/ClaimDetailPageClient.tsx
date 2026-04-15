@@ -96,7 +96,7 @@ export function ClaimDetailPageClient({
   fromOrgAll?: boolean;
 }) {
   const { data: claim, isLoading, isError } = useClaimById(claimId);
-  const { data: approvals } = useClaimApprovals(claimId);
+  const { data: approvals, isPending: approvalsLoading } = useClaimApprovals(claimId);
   const { user } = useAuth();
   const { profile, isLoading: profileLoading } = useProfile();
 
@@ -117,16 +117,8 @@ export function ClaimDetailPageClient({
     [fromOrgAll, orgClaims, claimId],
   );
 
-  const fallbackApprovals: ClaimApproval[] =
-    claim != null
-      ? [
-          { id: -1, claimId: claim.id, level: 1, status: "pending" },
-          { id: -2, claimId: claim.id, level: 2, status: "pending" },
-        ]
-      : [];
-
   const approvalsToShow: ClaimApproval[] =
-    approvals && approvals.length > 0 ? approvals : fallbackApprovals;
+    approvalsLoading ? [] : (approvals ?? []);
 
   const backHref = fromOrgAll ? "/dashboard/claims/all" : "/dashboard/claims";
 

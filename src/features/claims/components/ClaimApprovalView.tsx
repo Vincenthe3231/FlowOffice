@@ -30,6 +30,8 @@ import type { ClaimApproval, ClaimFilter } from "@/features/claims/types";
 import {
   type ClaimWithApprovalsApi,
   getClaimSubmittedByDisplay,
+  mapClaimApprovalApiToClaimApproval,
+  type ClaimApprovalApi,
 } from "@/shared/lib/api-client/claims";
 import { buildClaimDetailHrefFromOrgAll } from "@/features/claims/lib/claimUrlParams";
 import { StatusBadge } from "@/features/attendance";
@@ -37,9 +39,10 @@ import { CLAIM_FILTERS } from "@/features/claims/data";
 
 const statusLabel: Record<string, string> = {
   draft: "Draft",
-  pending_l1: "L1 Pending (HOD)",
-  pending_l2: "L2 Pending (Admin/HR)",
-  pending_l3: "L3 Pending (Top Management)",
+  pending_l1: "L1 Pending",
+  pending_l2: "L2 Pending",
+  pending_l3: "L3 Pending",
+  pending_l4: "L4 Pending (Finance HOD)",
   approved: "Approved",
   rejected: "Rejected",
   paid: "Paid",
@@ -68,14 +71,9 @@ function mapApprovalStatusToBadgeString(status: string): string {
 
 function mapApprovals(approvals: unknown): ClaimApproval[] {
   if (!Array.isArray(approvals)) return [];
-  return approvals.map((a: Record<string, unknown>) => ({
-    id: Number(a.id),
-    claimId: Number(a.claimId ?? a.claim_id),
-    level: Number(a.level),
-    status: String(a.status ?? "pending") as "pending" | "approved" | "rejected",
-    reason: (a.reason as string) ?? null,
-    decidedAt: (a.decidedAt ?? a.decided_at) as string | null,
-  }));
+  return approvals.map((a) =>
+    mapClaimApprovalApiToClaimApproval(a as ClaimApprovalApi)
+  );
 }
 
 function categoryLabel(claim: ClaimWithApprovalsApi): string {
@@ -119,9 +117,19 @@ export function ClaimApprovalView() {
 
   const handleApproveConfirm = async () => {
     if (!approveTarget) return;
-    const status = String(approveTarget.status);
+    const rows = mapApprovals(approveTarget.claimApprovals ?? []);
+    const pending = rows.find((r) => r.status === "pending");
     const currentLevel =
-      status === "pending_l1" ? 1 : status === "pending_l2" ? 2 : 3;
+      pending?.level ??
+      (String(approveTarget.status) === "pending_l1"
+        ? 1
+        : String(approveTarget.status) === "pending_l2"
+          ? 2
+          : String(approveTarget.status) === "pending_l3"
+            ? 3
+            : String(approveTarget.status) === "pending_l4"
+              ? 4
+              : 1);
 
     try {
       await approveReject.mutateAsync({
@@ -448,9 +456,19 @@ export function ClaimApprovalView() {
         onReject={({ claimId, reason }) => {
           const c = rejectTarget;
           if (!c) return;
-          const status = String(c.status);
+          const rows = mapApprovals(c.claimApprovals ?? []);
+          const pending = rows.find((r) => r.status === "pending");
           const level =
-            status === "pending_l1" ? 1 : status === "pending_l2" ? 2 : 3;
+            pending?.level ??
+            (String(c.status) === "pending_l1"
+              ? 1
+              : String(c.status) === "pending_l2"
+                ? 2
+                : String(c.status) === "pending_l3"
+                  ? 3
+                  : String(c.status) === "pending_l4"
+                    ? 4
+                    : 1);
           approveReject.mutate(
             { claimId, level, action: "rejected", reason },
             { onSuccess: () => setRejectTarget(null) }

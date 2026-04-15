@@ -51,7 +51,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { isRouteActive } from "@/shared/lib/nav-active";
@@ -283,10 +284,7 @@ export default function DashboardLayout({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
-            </Button>
+            <NotificationBell />
             <div className="hidden lg:flex">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -54,8 +54,8 @@ Thumbs.db
 .tmp/
 
 # Personal TODO files
-TODO.md
-TODO-*.md
+Todo.md 
+TODO.md 
 
 .pnpm-store/
 .vercel
