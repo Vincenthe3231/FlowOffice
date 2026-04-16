@@ -25,9 +25,13 @@ import {
   Calendar,
   FileText,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   Users,
   Building2,
+  PlusCircle,
+  LayoutList,
+  Tags,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -38,10 +42,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { isRouteActive } from "@/shared/lib/nav-active";
 import {
+  canRejectClaimFromMyClaimsList,
+  canSeeExpandedClaimsNav,
   canSeeOnboardingAdmin,
   canSeeSettingsNav,
   formatUserRoleForDisplay,
+  isTopManagement,
 } from "@/shared/lib/role-utils";
+import { cn } from "@/lib/utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import {
   DropdownMenu,
@@ -82,15 +90,98 @@ const baseSettingsNav = [
   { title: "Departments", href: "/dashboard/settings/departments", icon: Building2 },
 ];
 
+type SimpleNavItem = { title: string; href: string; icon: LucideIcon };
+
+type UnifiedNavItem =
+  | { type: "link"; title: string; href: string; icon: LucideIcon }
+  | { type: "claims"; title: "Claims"; children: SimpleNavItem[] };
+
+function buildClaimsChildren(
+  showManageClaimTypes: boolean,
+  allClaimsHref: string
+): SimpleNavItem[] {
+  const base: SimpleNavItem[] = [
+    { title: "Submit New Claim", href: "/dashboard/claims", icon: PlusCircle },
+    { title: "All Claims", href: allClaimsHref, icon: LayoutList },
+  ];
+  if (showManageClaimTypes) {
+    base.push({
+      title: "Manage Claim Types",
+      href: "/dashboard/claims/types",
+      icon: Tags,
+    });
+  }
+  return base;
+}
+
+function mainNavToUnifiedItems(
+  mainItems: { title: string; href: string; icon: LucideIcon }[],
+  opts: {
+    showExpandedClaimsNav: boolean;
+    showManageClaimTypes: boolean;
+    claimsAllSubHref: string;
+  }
+): UnifiedNavItem[] {
+  return mainItems.map((item) => {
+    if (item.href === "/dashboard/claims" && opts.showExpandedClaimsNav) {
+      return {
+        type: "claims" as const,
+        title: "Claims",
+        children: buildClaimsChildren(opts.showManageClaimTypes, opts.claimsAllSubHref),
+      };
+    }
+    return { type: "link" as const, ...item };
+  });
+}
+
+function toLinkItems(items: SimpleNavItem[]): UnifiedNavItem[] {
+  return items.map((item) => ({ type: "link" as const, ...item }));
+}
+
 function buildNavGroupsWithoutSettings(
-  mainItems: { title: string; href: string; icon: LucideIcon }[]
-): { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] {
+  mainUnified: UnifiedNavItem[]
+): { label: string; items: UnifiedNavItem[] }[] {
   return [
-  { label: "Main", items: mainItems },
-  { label: "Attendance", items: attendanceNav },
-  { label: "Overtime", items: overtimeNav },
-  { label: "Reports", items: reportNav },
-];
+    { label: "Main", items: mainUnified },
+    { label: "Attendance", items: toLinkItems(attendanceNav) },
+    { label: "Overtime", items: toLinkItems(overtimeNav) },
+    { label: "Reports", items: toLinkItems(reportNav) },
+  ];
+}
+
+function filterNavGroupsByQuery(
+  groups: { label: string; items: UnifiedNavItem[] }[],
+  query: string
+): { label: string; items: UnifiedNavItem[] }[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return groups;
+  return groups
+    .map((group) => {
+      const labelMatches = group.label.toLowerCase().includes(q);
+      const matchingItems = group.items
+        .map((item) => {
+          if (item.type === "link") {
+            const hit =
+              item.title.toLowerCase().includes(q) ||
+              item.href.toLowerCase().includes(q);
+            return hit ? item : null;
+          }
+          const titleHit = item.title.toLowerCase().includes(q);
+          const childHits = item.children.filter(
+            (c) =>
+              c.title.toLowerCase().includes(q) || c.href.toLowerCase().includes(q)
+          );
+          if (titleHit) return item;
+          if (childHits.length) return { ...item, children: childHits };
+          return null;
+        })
+        .filter((x): x is UnifiedNavItem => x != null);
+      return {
+        ...group,
+        items: labelMatches ? group.items : matchingItems,
+      };
+    })
+    .filter((group) => group.items.length > 0);
 }
 
 function MenuOption({
@@ -99,55 +190,173 @@ function MenuOption({
   href,
   isActive,
   onNavigate,
+  variant = "default",
 }: {
   icon: LucideIcon;
   label: string;
   href: string;
   isActive: boolean;
   onNavigate: () => void;
+  variant?: "default" | "sub";
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
-      className="flex w-full items-center justify-between rounded px-2 py-1.5 transition-colors hover:bg-muted/50 group sm:rounded-md sm:px-2.5 sm:py-2 md:rounded-lg md:px-3 md:py-2.5"
+      className={cn(
+        "flex w-full items-center justify-between rounded px-2 py-1.5 transition-colors hover:bg-muted/50 group sm:rounded-md sm:px-2.5 sm:py-2 md:rounded-lg md:px-3 md:py-2.5",
+        variant === "sub" && "ml-1 border-l-2 border-primary/20 pl-3 sm:ml-1.5 sm:pl-3.5"
+      )}
     >
-      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 md:gap-3">
         <Icon
           size={14}
           className={`h-3.5 w-3.5 shrink-0 transition-colors sm:h-4 sm:w-4 md:h-[18px] md:w-[18px] ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
         />
         <span
-          className={`text-[11px] sm:text-xs md:text-[14px] ${isActive ? "font-semibold text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+          className={`truncate text-[11px] sm:text-xs md:text-[14px] ${isActive ? "font-semibold text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
         >
           {label}
         </span>
       </div>
-      <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/70 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+      {variant === "default" ? (
+        <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/70 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+      ) : null}
     </Link>
   );
 }
 
-function filterNavGroupsByQuery(
-  groups: { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[],
-  query: string
-): { label: string; items: { title: string; href: string; icon: LucideIcon }[] }[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return groups;
-  return groups
-    .map((group) => {
-      const labelMatches = group.label.toLowerCase().includes(q);
-      const matchingItems = group.items.filter(
-        (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.href.toLowerCase().includes(q)
-      );
-      return {
-        ...group,
-        items: labelMatches ? group.items : matchingItems,
-      };
-    })
-    .filter((group) => group.items.length > 0);
+function ClaimsExpandableNav({
+  subItems,
+  pathname,
+  onNavigate,
+  hasSearchQuery,
+}: {
+  subItems: SimpleNavItem[];
+  pathname: string;
+  onNavigate: () => void;
+  hasSearchQuery: boolean;
+}) {
+  const isClaimsArea = pathname.startsWith("/dashboard/claims");
+  const [open, setOpen] = useState(isClaimsArea);
+
+  useEffect(() => {
+    if (isClaimsArea) setOpen(true);
+  }, [isClaimsArea]);
+
+  useEffect(() => {
+    if (hasSearchQuery) setOpen(true);
+  }, [hasSearchQuery]);
+
+  const subActive = subItems.some((sub) =>
+    sub.href === "/dashboard/claims"
+      ? (pathname.replace(/\/$/, "") || "/") === "/dashboard/claims"
+      : isRouteActive(pathname, sub.href)
+  );
+
+  return (
+    <div className="rounded px-0.5 sm:rounded-md md:rounded-lg">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex w-full items-center justify-between rounded px-2 py-1.5 transition-colors hover:bg-muted/50 group sm:rounded-md sm:px-2.5 sm:py-2 md:rounded-lg md:px-3 md:py-2.5",
+          (isClaimsArea || subActive) && "bg-muted/30"
+        )}
+        aria-expanded={open}
+        aria-controls="bottom-nav-claims-sub"
+      >
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+          <FileText
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 md:h-[18px] md:w-[18px]",
+              isClaimsArea || subActive
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground"
+            )}
+          />
+          <span
+            className={cn(
+              "text-[11px] sm:text-xs md:text-[14px]",
+              isClaimsArea || subActive
+                ? "font-semibold text-foreground"
+                : "text-muted-foreground group-hover:text-foreground"
+            )}
+          >
+            Claims
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-200 sm:h-3.5 sm:w-3.5",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+          aria-hidden
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            id="bottom-nav-claims-sub"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-0.5 space-y-0.5 pb-0.5 pt-0.5">
+              {subItems.map((sub) => {
+                const subIsActive =
+                  sub.href === "/dashboard/claims"
+                    ? (pathname.replace(/\/$/, "") || "/") === "/dashboard/claims"
+                    : isRouteActive(pathname, sub.href);
+                return (
+                  <MenuOption
+                    key={`${sub.href}-${sub.title}`}
+                    icon={sub.icon}
+                    label={sub.title}
+                    href={sub.href}
+                    isActive={subIsActive}
+                    onNavigate={onNavigate}
+                    variant="sub"
+                  />
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function renderUnifiedItem(
+  item: UnifiedNavItem,
+  pathname: string,
+  closeMenu: () => void,
+  hasSearchQuery: boolean
+) {
+  if (item.type === "claims") {
+    return (
+      <ClaimsExpandableNav
+        key="claims-expandable"
+        subItems={item.children}
+        pathname={pathname}
+        onNavigate={closeMenu}
+        hasSearchQuery={hasSearchQuery}
+      />
+    );
+  }
+  return (
+    <MenuOption
+      key={item.href}
+      icon={item.icon}
+      label={item.title}
+      href={item.href}
+      isActive={isRouteActive(pathname, item.href)}
+      onNavigate={closeMenu}
+    />
+  );
 }
 
 export function BottomNav() {
@@ -166,12 +375,26 @@ export function BottomNav() {
 
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
   const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
+  const showExpandedClaimsNav = canSeeExpandedClaimsNav();
+  const showManageClaimTypes = isTopManagement(profile?.role, user?.roles);
+  const claimsAllSubHref = canRejectClaimFromMyClaimsList(profile?.role, user?.roles)
+    ? "/dashboard/claims/all"
+    : "/dashboard/claims/my";
   const mainNav = useMemo(
     () =>
       showOnboardingNav
         ? [...mainNavAll]
         : mainNavAll.filter((item) => item.href !== "/dashboard/onboarding"),
     [showOnboardingNav]
+  );
+  const mainUnified = useMemo(
+    () =>
+      mainNavToUnifiedItems(mainNav, {
+        showExpandedClaimsNav,
+        showManageClaimTypes,
+        claimsAllSubHref,
+      }),
+    [mainNav, showExpandedClaimsNav, showManageClaimTypes, claimsAllSubHref]
   );
   const settingsNav = useMemo(() => {
     if (!showSettingsNav) return [];
@@ -182,13 +405,16 @@ export function BottomNav() {
     [profile?.role, user?.roles]
   );
   const navGroupsWithoutSettings = useMemo(
-    () => buildNavGroupsWithoutSettings(mainNav),
-    [mainNav]
+    () => buildNavGroupsWithoutSettings(mainUnified),
+    [mainUnified]
   );
   const navGroups = useMemo(
     () =>
       showSettingsNav
-        ? [...navGroupsWithoutSettings, { label: "Settings", items: settingsNav }]
+        ? [
+            ...navGroupsWithoutSettings,
+            { label: "Settings", items: toLinkItems(settingsNav) },
+          ]
         : navGroupsWithoutSettings,
     [showSettingsNav, settingsNav, navGroupsWithoutSettings]
   );
@@ -272,28 +498,14 @@ export function BottomNav() {
                     )}
                     {group.items.length > 1 ? (
                       <div className="mb-1 rounded bg-muted/30 p-0.5 sm:mb-1.5 sm:rounded-md md:mb-2 md:rounded-lg md:p-1">
-                        {group.items.map((item) => (
-                          <MenuOption
-                            key={item.href}
-                            icon={item.icon}
-                            label={item.title}
-                            href={item.href}
-                            isActive={isRouteActive(pathname, item.href)}
-                            onNavigate={closeMenu}
-                          />
-                        ))}
+                        {group.items.map((item) =>
+                          renderUnifiedItem(item, pathname, closeMenu, hasSearchQuery)
+                        )}
                       </div>
                     ) : (
-                      group.items.map((item) => (
-                        <MenuOption
-                          key={item.href}
-                          icon={item.icon}
-                          label={item.title}
-                          href={item.href}
-                          isActive={isRouteActive(pathname, item.href)}
-                          onNavigate={closeMenu}
-                        />
-                      ))
+                      group.items.map((item) =>
+                        renderUnifiedItem(item, pathname, closeMenu, hasSearchQuery)
+                      )
                     )}
                   </div>
                 ))}
