@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+
+# Belive-FO-Client Project Rules
+
+## Stack and architecture
+- This is a single Next.js app (not monorepo).
+- Use flat structure under `src/`:
+  - `src/app` for routes/layouts
+  - `src/features` for feature modules
+  - `src/shared` for shared logic (stores, hooks, lib, types)
+  - `src/components` for UI/shared components
+- Do not introduce `apps/*`, `packages/*`, or `@belive/*` package imports.
+
+## Consistency and project alignment
+- Always comply with the standards defined in **[AGENTS.md](/AGENTS.md)**
+
+## Import and path conventions
+- Prefer path aliases:
+  - `@/*`
+  - `@/features/*`
+  - `@/shared/*`
+  - `@/components/*`
+- Keep import paths consistent with current tsconfig.
+
+## Branding and product language
+- Product name is `FlowOffice`.
+- Primary login/social icon is `public/images/logos/Lark.png`.
+- Do not reintroduce "Modernize" branding unless explicitly requested.
+
+## Auth and integration assumptions
+- Lark OAuth is primary social auth path.
+- Event bus exists as a placeholder (`src/shared/lib/event-bus.ts`) and should not be treated as fully implemented.
+- If implementing event-driven logic, either implement event bus properly or document as planned.
+
+## Code quality
+- TypeScript strict mode friendly changes only.
+- Keep components small and focused; avoid unnecessary abstractions.
+- Prefer existing UI primitives from `src/components/ui`.
+- After substantive edits, run lint checks for changed files.
+
+## Documentation sync
+- If architecture/path/branding changes, update docs:
+  - `README.md`
+  - `docs/README.md`
+  - `docs/01-overview.md`
+  - `docs/02-implementation-plan.md`
+  - `docs/03-complete-guide.md`
+- Docs must reflect actual project state, not aspirational monorepo structure.

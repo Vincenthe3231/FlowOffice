@@ -1,0 +1,7 @@
+// api/v1/hello.js
+export default function handler(req, res) {
+    res.status(200).json({ 
+      message: 'Welcome to Version 1 of the API!' 
+    });
+  }
+  
