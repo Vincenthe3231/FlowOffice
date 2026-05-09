@@ -146,6 +146,10 @@ function CallbackContent() {
         }
       }
 
+      if (redirectTo === '/') {
+        redirectTo = '/dashboard'
+      }
+
       setTimeout(() => {
         router.push(redirectTo)
       }, 1000)

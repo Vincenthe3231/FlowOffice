@@ -21,6 +21,7 @@ function sanitizeLoginRedirectPath(raw: string | null): string {
   if (!cleaned.startsWith('/')) return '/dashboard'
   if (cleaned.startsWith('//')) return '/dashboard'
   if (cleaned.includes('://')) return '/dashboard'
+  if (cleaned === '/') return '/dashboard'
   return cleaned
 }
 

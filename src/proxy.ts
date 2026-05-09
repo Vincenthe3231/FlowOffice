@@ -40,7 +40,9 @@ export async function proxy(request: NextRequest) {
 
   if (!hasAuthCookie(request)) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('from', pathname)
+    }
     return NextResponse.redirect(loginUrl)
   }
 
@@ -57,7 +59,9 @@ export async function proxy(request: NextRequest) {
 
   if (meRes.status === 401) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('from', pathname)
+    }
     return NextResponse.redirect(loginUrl)
   }
 
@@ -71,7 +75,9 @@ export async function proxy(request: NextRequest) {
   const user = getUserFromMeJson(body)
   if (!user) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('from', pathname)
+    }
     return NextResponse.redirect(loginUrl)
   }
 

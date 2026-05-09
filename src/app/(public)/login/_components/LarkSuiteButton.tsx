@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { buildLarkAuthorizeUrl } from '@/shared/lib/lark-oauth-browser'
 
 export default function LarkSuiteButton() {
   const [isLoading, setIsLoading] = useState(false)
@@ -12,20 +13,13 @@ export default function LarkSuiteButton() {
   const handleLarkSuiteLogin = () => {
     setIsLoading(true)
 
-    const appId = process.env.NEXT_PUBLIC_LARK_APP_ID
-    const redirectUri =
-      process.env.NEXT_PUBLIC_LARK_REDIRECT_URI ||
-      `${window.location.origin}/auth/callback`
-
-    if (!appId) {
-      console.error('NEXT_PUBLIC_LARK_APP_ID not configured')
+    const authUrl = buildLarkAuthorizeUrl(from)
+    if (!authUrl) {
+      console.error('Lark OAuth not configured')
       alert('Lark OAuth not configured. Please set environment variables.')
       setIsLoading(false)
       return
     }
-
-    const state = encodeURIComponent(JSON.stringify({ from }))
-    const authUrl = `https://open.larksuite.com/open-apis/authen/v1/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
 
     window.location.href = authUrl
   }
