@@ -8,6 +8,7 @@ import { CustomizerContextProvider } from "@/app/context/CustomizerContext";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { QueryErrorBoundary } from "@/components/providers/query-error-boundary";
 import { StoreHydrationProvider } from "@/components/providers/store-hydration-provider";
+import { appConfig } from "@/config/app.config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,8 +27,8 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FlowOffice",
-  description: "FlowOffice - HR Management System",
+  title: appConfig.name,
+  description: appConfig.description,
 };
 
 const enableServiceWorker =

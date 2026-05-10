@@ -29,37 +29,44 @@ import {
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
 import { isTopManagement } from '@/shared/lib/role-utils'
+import {
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+  ROLE_STAFF,
+} from '@/shared/constants/roles'
 
 const ADMIN_ROLE_OPTIONS: { value: AdminUserDirectoryRole; label: string }[] = [
-  { value: 'top_management', label: 'Top Management' },
-  { value: 'hr_admin', label: 'HR' },
-  { value: 'hod', label: 'HOD' },
-  { value: 'staff', label: 'Staff' },
+  { value: ROLE_TOP_MANAGEMENT, label: 'Top Management' },
+  { value: ROLE_HR_ADMIN, label: 'HR' },
+  { value: ROLE_HOD, label: 'HOD' },
+  { value: ROLE_STAFF, label: 'Staff' },
 ]
 
 function normalizeEditableRole(
   r: string | null | undefined
 ): AdminUserDirectoryRole {
   const normalized =
-    r === 'super_admin' ? 'top_management' : r
+    r === ROLE_SUPER_ADMIN_LEGACY ? ROLE_TOP_MANAGEMENT : r
   const allowed: AdminUserDirectoryRole[] = [
-    'top_management',
-    'hr_admin',
-    'hod',
-    'staff',
+    ROLE_TOP_MANAGEMENT,
+    ROLE_HR_ADMIN,
+    ROLE_HOD,
+    ROLE_STAFF,
   ]
   if (normalized && (allowed as string[]).includes(normalized))
     return normalized as AdminUserDirectoryRole
-  return 'staff'
+  return ROLE_STAFF
 }
 
 function displayRole(role: string): string {
   const map: Record<string, string> = {
-    top_management: 'Top Management',
-    super_admin: 'Top Management',
-    hr_admin: 'HR Admin',
-    hod: 'HOD',
-    staff: 'Staff',
+    [ROLE_TOP_MANAGEMENT]: 'Top Management',
+    [ROLE_SUPER_ADMIN_LEGACY]: 'Top Management',
+    [ROLE_HR_ADMIN]: 'HR Admin',
+    [ROLE_HOD]: 'HOD',
+    [ROLE_STAFF]: 'Staff',
   }
   return map[role] ?? role.replace(/_/g, ' ')
 }

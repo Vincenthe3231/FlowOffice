@@ -6,6 +6,26 @@ import {
   getUserFromMeJson,
   isNonGrantedAllowedPath,
 } from '@/shared/lib/middleware-me'
+import { featuresConfig, FeatureKey } from '@/config/features.config'
+
+const FEATURE_ROUTE_MAP: Array<[string, FeatureKey]> = [
+  ['/dashboard/attendnance', 'attendance'],
+  ['/dashboard/log', 'attendance'],
+  ['/dashboard/claims', 'claims'],
+  ['/dashboard/leave', 'leave'],
+  ['/dashboard/onboarding', 'onboarding'],
+  ['/dashboard/overtime', 'overtime'],
+  ['/dashboard/reports', 'reports'],
+]
+
+function isDisabledFeatureRoute(pathname: string): boolean {
+  for (const [prefix, feature] of FEATURE_ROUTE_MAP) {
+    if (pathname === prefix || pathname.startsWith(prefix + '/')) {
+      if (!featuresConfig[feature]) return true
+    }
+  }
+  return false
+}
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/login') return true
@@ -83,6 +103,10 @@ export async function proxy(request: NextRequest) {
 
   const accessStatus = getAccessStatusFromMeJson(body)
   if (accessStatus !== 'granted' && !isNonGrantedAllowedPath(pathname)) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (isDisabledFeatureRoute(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

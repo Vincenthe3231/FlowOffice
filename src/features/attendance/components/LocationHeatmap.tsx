@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
+import { appConfig } from "@/config/app.config";
 
 interface Props {
   staffByOffice: Array<{ name: string; count: number }>;
@@ -15,7 +16,7 @@ const COLORS = [
 
 export function LocationHeatmap({ staffByOffice }: Props) {
   const data = staffByOffice.map((o) => ({
-    name: o.name.replace("BeLive ", "").replace("Co-Living", "HQ"),
+    name: o.name.replace(appConfig.locationNamePrefix, "").replace("Co-Living", "HQ"),
     count: o.count,
   }));
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { ROLE_STAFF, ROLE_HOD, ROLE_HR_ADMIN } from "@/shared/constants/roles";
 
-export const onboardingRoleSchema = z.enum(["staff", "hod", "hr_admin"]);
+export const onboardingRoleSchema = z.enum([ROLE_STAFF, ROLE_HOD, ROLE_HR_ADMIN]);
 export type OnboardingRole = z.infer<typeof onboardingRoleSchema>;
 
 export const approvalRoleOptionSchema = z.object({

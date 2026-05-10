@@ -60,7 +60,7 @@ import {
   previewClaimApprovalsFromStepKinds,
   previewStepKindsForSubmitterRole,
 } from "@/features/claims/lib/approval-chain-preview";
-import { isTopManagementSlug } from "@/shared/constants/roles";
+import { isTopManagementSlug, ROLE_HR_ADMIN } from "@/shared/constants/roles";
 
 const steps = [
   { id: 1, label: "Claimant", icon: User },
@@ -325,7 +325,7 @@ export function NewClaimWizard() {
   }, []);
 
   const isClaimTypesAdmin =
-    profile?.role === "hr_admin" || isTopManagementSlug(profile?.role);
+    profile?.role === ROLE_HR_ADMIN || isTopManagementSlug(profile?.role);
 
   const { data: claimTypes, isLoading: typesLoading } = useClaimTypes();
   const { data: subclaimTypes } = useSubclaimTypes(draft.selectedTypeId);

@@ -5,6 +5,7 @@ import LeftSidebar from './_components/LeftSidebar'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import FullLogo from '@/components/shared/FullLogo'
+import { appConfig } from '@/config/app.config'
 
 export const metadata: Metadata = {
   title: 'Side Login Authentication',
@@ -25,7 +26,7 @@ const Login = () => {
           <div className='xl:col-span-4 lg:col-span-5 col-span-12 sm:px-12 p-5'>
             <div className='flex h-screen items-center px-3 lg:justify-start justify-center'>
               <div className='max-w-[420px] w-full mx-auto'>
-                <h3 className='text-2xl font-bold text-foreground'>Welcome to FlowOffice</h3>
+                <h3 className='text-2xl font-bold text-foreground'>Welcome to {appConfig.name}</h3>
                 <Suspense
                   fallback={
                     <div className="space-y-4 animate-pulse">
@@ -41,7 +42,7 @@ const Login = () => {
                   <AuthLogin />
                 </Suspense>
                 <div className='flex gap-2 text-base text-ld dark:text-ld font-medium mt-6 items-center justify-center'>
-                  <p className='text-foreground'>New to FlowOffice?</p>
+                  <p className='text-foreground'>New to {appConfig.name}?</p>
                   <Link
                     href={'/register'}
                     className='text-primary text-sm font-medium'>

@@ -54,7 +54,7 @@ import {
   isTransportClaimTypeKey,
   TRANSPORT_CLAIM_KEY_PREFIX,
 } from "@/features/claims/lib/claim-type-groups";
-import { isTopManagementSlug } from "@/shared/constants/roles";
+import { isTopManagementSlug, ROLE_HR_ADMIN } from "@/shared/constants/roles";
 
 const CLAIM_TYPE_ICONS = [
   "receipt",
@@ -300,7 +300,7 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
   const [deleteTarget, setDeleteTarget] = useState<ClaimType | null>(null);
 
   const isAdmin =
-    profile?.role === "hr_admin" || isTopManagementSlug(profile?.role);
+    profile?.role === ROLE_HR_ADMIN || isTopManagementSlug(profile?.role);
 
   const standardTypes = claimTypes.filter((t) => !isTransportClaimTypeKey(t.key));
   const transportTypes = claimTypes.filter((t) => isTransportClaimTypeKey(t.key));

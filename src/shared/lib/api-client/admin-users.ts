@@ -2,14 +2,20 @@ import { z } from 'zod'
 import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
+import {
+  ROLE_TOP_MANAGEMENT,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+  ROLE_STAFF,
+} from '@/shared/constants/roles'
 
 const PROXY = API_ROUTES.PROXY_PREFIX
 
 export type AdminUserDirectoryRole =
-  | 'top_management'
-  | 'hr_admin'
-  | 'hod'
-  | 'staff'
+  | typeof ROLE_TOP_MANAGEMENT
+  | typeof ROLE_HR_ADMIN
+  | typeof ROLE_HOD
+  | typeof ROLE_STAFF
 
 export type AdminUserDirectoryStatus =
   | 'active'

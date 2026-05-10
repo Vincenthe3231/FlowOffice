@@ -65,6 +65,8 @@ import {
   isTopManagement,
 } from "@/shared/lib/role-utils";
 import { ClaimsSidebarSection } from "@/components/layout/ClaimsSidebarSection";
+import { LeaveSidebarSection } from "@/components/layout/LeaveSidebarSection";
+import { featuresConfig } from "@/config/features.config";
 
 const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -137,12 +139,14 @@ function NavGroup({
   );
 }
 
-/** Main nav: expandable Claims for all users; Manage Claim Types sub-link is Top Management only. */
+/** Main nav: expandable Claims + Leave sections; sub-links gated by role. */
 function MainNavGroup({
   items,
   showExpandedClaimsNav,
   showManageClaimTypes,
   claimsAllSubHref,
+  showLeaveApprovalQueue,
+  showLeaveTypes,
 }: {
   items: readonly {
     title: string;
@@ -152,6 +156,8 @@ function MainNavGroup({
   showExpandedClaimsNav: boolean;
   showManageClaimTypes: boolean;
   claimsAllSubHref: string;
+  showLeaveApprovalQueue: boolean;
+  showLeaveTypes: boolean;
 }) {
   const pathname = usePathname();
   const { state } = useSidebar();
@@ -173,6 +179,15 @@ function MainNavGroup({
                   key="claims-expanded"
                   showManageClaimTypes={showManageClaimTypes}
                   allClaimsHref={claimsAllSubHref}
+                />
+              );
+            }
+            if (item.href === "/dashboard/leave") {
+              return (
+                <LeaveSidebarSection
+                  key="leave-expanded"
+                  showApprovalQueue={showLeaveApprovalQueue}
+                  showLeaveTypes={showLeaveTypes}
                 />
               );
             }
@@ -215,11 +230,17 @@ export default function DashboardLayout({
   const claimsAllSubHref = canRejectClaimFromMyClaimsList(profile?.role, user?.roles)
     ? "/dashboard/claims/all"
     : "/dashboard/claims/my";
+  const showLeaveApprovalQueue = canSeeSettingsNav(profile?.role, user?.roles);
+  const showLeaveTypes = Boolean(isTopManagement(profile?.role, user?.roles) || profile?.role === "hr_admin" || (user?.roles ?? []).includes("hr_admin"));
   const mainNav = React.useMemo(
     () =>
-      showOnboardingNav
-        ? [...mainNavAll]
-        : mainNavAll.filter((item) => item.href !== "/dashboard/onboarding"),
+      mainNavAll.filter((item) => {
+        if (!showOnboardingNav && item.href === "/dashboard/onboarding") return false;
+        if (!featuresConfig.attendance && item.href === "/dashboard/attendnance") return false;
+        if (!featuresConfig.leave && item.href === "/dashboard/leave") return false;
+        if (!featuresConfig.claims && item.href === "/dashboard/claims") return false;
+        return true;
+      }),
     [showOnboardingNav]
   );
   const settingsNav = React.useMemo(() => {
@@ -259,10 +280,12 @@ export default function DashboardLayout({
             showExpandedClaimsNav={showExpandedClaimsNav}
             showManageClaimTypes={showManageClaimTypes}
             claimsAllSubHref={claimsAllSubHref}
+            showLeaveApprovalQueue={showLeaveApprovalQueue}
+            showLeaveTypes={showLeaveTypes}
           />
-          <NavGroup label="Attendance" items={attendanceNav} />
-          <NavGroup label="Overtime" items={overtimeNav} />
-          <NavGroup label="Reports" items={reportNav} />
+          {featuresConfig.attendance && <NavGroup label="Attendance" items={attendanceNav} />}
+          {featuresConfig.overtime && <NavGroup label="Overtime" items={overtimeNav} />}
+          {featuresConfig.reports && <NavGroup label="Reports" items={reportNav} />}
           {showSettingsNav && (
             <NavGroup label="Settings" items={settingsNav} />
           )}

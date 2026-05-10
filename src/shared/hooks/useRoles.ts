@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./useAuth";
 import { fetchMyRoles, Role } from "@/shared/lib/api-client/roles";
+import { ROLE_HR_ADMIN } from "@/shared/constants/roles";
 
 export function useRoles() {
   const { user } = useAuth();
@@ -14,9 +15,9 @@ export function useRoles() {
   return {
     roles,
     isLoading,
-    isAdmin: roles.includes("hr_admin" as Role),
+    isAdmin: roles.includes(ROLE_HR_ADMIN as Role),
     isManager: roles.includes("manager"),
     isEmployee: roles.includes("employee"),
-    isAdminOrManager: roles.includes("hr_admin") || roles.includes("manager"),
+    isAdminOrManager: roles.includes(ROLE_HR_ADMIN as Role) || roles.includes("manager"),
   };
 }

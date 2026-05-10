@@ -1,6 +1,13 @@
 import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
+import {
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+  ROLE_STAFF,
+} from '@/shared/constants/roles'
 
 export interface OfficeSummary {
   id: string
@@ -9,12 +16,12 @@ export interface OfficeSummary {
 }
 
 export type ProfileRole =
-  | "top_management"
+  | typeof ROLE_TOP_MANAGEMENT
   /** @deprecated Renamed server-side; may still appear briefly on cached sessions */
-  | "super_admin"
-  | "hr_admin"
-  | "hod"
-  | "staff"
+  | typeof ROLE_SUPER_ADMIN_LEGACY
+  | typeof ROLE_HR_ADMIN
+  | typeof ROLE_HOD
+  | typeof ROLE_STAFF
   | "manager"
   | "employee"
 
