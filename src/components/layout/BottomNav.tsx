@@ -51,6 +51,7 @@ import {
 } from "@/shared/lib/role-utils";
 import { cn } from "@/lib/utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
+import { featuresConfig } from "@/config/features.config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,12 +142,13 @@ function toLinkItems(items: SimpleNavItem[]): UnifiedNavItem[] {
 function buildNavGroupsWithoutSettings(
   mainUnified: UnifiedNavItem[]
 ): { label: string; items: UnifiedNavItem[] }[] {
-  return [
+  const groups: { label: string; items: UnifiedNavItem[] }[] = [
     { label: "Main", items: mainUnified },
-    { label: "Attendance", items: toLinkItems(attendanceNav) },
-    { label: "Overtime", items: toLinkItems(overtimeNav) },
-    { label: "Reports", items: toLinkItems(reportNav) },
   ];
+  if (featuresConfig.attendance) groups.push({ label: "Attendance", items: toLinkItems(attendanceNav) });
+  if (featuresConfig.overtime) groups.push({ label: "Overtime", items: toLinkItems(overtimeNav) });
+  if (featuresConfig.reports) groups.push({ label: "Reports", items: toLinkItems(reportNav) });
+  return groups;
 }
 
 function filterNavGroupsByQuery(
@@ -382,9 +384,13 @@ export function BottomNav() {
     : "/dashboard/claims/my";
   const mainNav = useMemo(
     () =>
-      showOnboardingNav
-        ? [...mainNavAll]
-        : mainNavAll.filter((item) => item.href !== "/dashboard/onboarding"),
+      mainNavAll.filter((item) => {
+        if (!showOnboardingNav && item.href === "/dashboard/onboarding") return false;
+        if (!featuresConfig.attendance && item.href === "/dashboard/attendnance") return false;
+        if (!featuresConfig.leave && item.href === "/dashboard/leave") return false;
+        if (!featuresConfig.claims && item.href === "/dashboard/claims") return false;
+        return true;
+      }),
     [showOnboardingNav]
   );
   const mainUnified = useMemo(

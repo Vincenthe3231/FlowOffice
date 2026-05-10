@@ -38,12 +38,19 @@ import {
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
 import type { ProfileRole } from '@/shared/lib/api-client/profile'
+import {
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+  ROLE_STAFF,
+} from '@/shared/constants/roles'
 
 const ROLE_OPTIONS: { value: AdminUserDirectoryRole; label: string }[] = [
-  { value: 'top_management', label: 'Top Management' },
-  { value: 'hr_admin', label: 'HR Admin' },
-  { value: 'hod', label: 'HOD' },
-  { value: 'staff', label: 'Staff' },
+  { value: ROLE_TOP_MANAGEMENT, label: 'Top Management' },
+  { value: ROLE_HR_ADMIN, label: 'HR Admin' },
+  { value: ROLE_HOD, label: 'HOD' },
+  { value: ROLE_STAFF, label: 'Staff' },
 ]
 
 const STATUS_OPTIONS: { value: AdminUserDirectoryStatus; label: string }[] = [
@@ -57,11 +64,11 @@ const PER_PAGE_OPTIONS = [25, 50, 100] as const
 
 function displayRole(role: string): string {
   const map: Record<string, string> = {
-    top_management: 'Top Management',
-    super_admin: 'Top Management',
-    hr_admin: 'HR Admin',
-    hod: 'HOD',
-    staff: 'Staff',
+    [ROLE_TOP_MANAGEMENT]: 'Top Management',
+    [ROLE_SUPER_ADMIN_LEGACY]: 'Top Management',
+    [ROLE_HR_ADMIN]: 'HR Admin',
+    [ROLE_HOD]: 'HOD',
+    [ROLE_STAFF]: 'Staff',
   }
   return map[role] ?? role.replace(/_/g, ' ')
 }
@@ -84,10 +91,10 @@ function statusVariant(
 
 function canUseDepartmentFilter(role: ProfileRole | null | undefined): boolean {
   return (
-    role === 'top_management' ||
-    role === 'super_admin' ||
-    role === 'hr_admin' ||
-    role === 'hod'
+    role === ROLE_TOP_MANAGEMENT ||
+    role === ROLE_SUPER_ADMIN_LEGACY ||
+    role === ROLE_HR_ADMIN ||
+    role === ROLE_HOD
   )
 }
 

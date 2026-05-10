@@ -5,8 +5,9 @@
  * Cookie name and options must match middleware (route protection).
  */
 
-export const AUTH_COOKIE_NAME =
-  process.env.AUTH_COOKIE_NAME || 'belive_auth_token'
+import { appConfig } from '@/config/app.config'
+
+export const AUTH_COOKIE_NAME = appConfig.cookieNames.auth
 
 export const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -25,8 +26,7 @@ export const AUTH_COOKIE_OPTIONS = {
  * exposing the Bearer token itself.
  */
 
-export const AUTH_CACHE_COOKIE_NAME =
-  process.env.AUTH_CACHE_COOKIE_NAME || 'rx_staff_auth'
+export const AUTH_CACHE_COOKIE_NAME = appConfig.cookieNames.authCache
 
 export const AUTH_CACHE_COOKIE_OPTIONS = {
   httpOnly: false,

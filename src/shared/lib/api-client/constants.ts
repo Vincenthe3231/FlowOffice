@@ -52,6 +52,29 @@ export const API_ROUTES = {
     READ: (id: number) => `notifications/${id}/read`,
   },
 
+  /** Leave (relative to PROXY_PREFIX) */
+  LEAVE: {
+    LIST: 'leave',
+    ALL: 'leave/all',
+    PENDING_APPROVALS: 'leave/pending-approvals',
+    BALANCE_ME: 'leave/balance',
+    OIL_GRANT: 'leave/oil-grant',
+    DETAIL: (id: number) => `leave/${id}`,
+    CANCEL: (id: number) => `leave/${id}/cancel`,
+    APPROVE: (id: number) => `leave/${id}/approve`,
+    REJECT: (id: number) => `leave/${id}/reject`,
+    APPROVALS: (id: number) => `leave/${id}/approvals`,
+    ATTACHMENTS: (id: number) => `leave/${id}/attachments`,
+    ATTACHMENT: (id: number, attachId: number) => `leave/${id}/attachments/${attachId}`,
+    BALANCE_USER: (userId: number) => `leave/balance/${userId}`,
+  },
+
+  /** Leave Types (relative to PROXY_PREFIX) */
+  LEAVE_TYPES: {
+    LIST: 'leave-types',
+    DETAIL: (id: string | number) => `leave-types/${id}`,
+  },
+
   /** Geocode (Google Maps via backend; relative to PROXY_PREFIX) */
   GEOCODE: 'geocode',
   REVERSE_GEOCODE: 'reverse-geocode',
