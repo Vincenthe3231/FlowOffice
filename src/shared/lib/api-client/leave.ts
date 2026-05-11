@@ -1,6 +1,12 @@
 import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
+import {
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+} from '@/shared/constants/roles'
 import type {
   LeaveRequest,
   LeaveType,
@@ -22,7 +28,11 @@ const PROXY = API_ROUTES.PROXY_PREFIX
 // Mapping helpers
 // ---------------------------------------------------------------------------
 
-const LEAVE_APPROVAL_STEP_KINDS = new Set<string>(['hod', 'hr_admin', 'top_management'])
+const LEAVE_APPROVAL_STEP_KINDS = new Set<string>([
+  ROLE_HOD,
+  ROLE_HR_ADMIN,
+  ROLE_TOP_MANAGEMENT,
+])
 
 function trimmedNonEmpty(value: unknown): string | null {
   if (value == null) return null
@@ -240,12 +250,17 @@ export async function fetchUserLeaveBalance(userId: number): Promise<LeaveBalanc
 // Fetch: org-wide (approver views)
 // ---------------------------------------------------------------------------
 
-const LEAVE_ALL_VIEWER_ROLES = new Set(['hod', 'hr_admin', 'top_management', 'super_admin'])
+const LEAVE_ALL_VIEWER_ROLES = new Set([
+  ROLE_HOD,
+  ROLE_HR_ADMIN,
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+])
 
 export async function fetchAllLeavesForApproval(
   viewerRole?: string | null
 ): Promise<LeaveRequest[]> {
-  const useOrgWide = viewerRole != null && LEAVE_ALL_VIEWER_ROLES.has(viewerRole)
+  const useOrgWide = viewerRole != null && LEAVE_ALL_VIEWER_ROLES.has(viewerRole as LeaveApprovalStepKind)
   const path = `${PROXY}/${useOrgWide ? API_ROUTES.LEAVE.ALL : API_ROUTES.LEAVE.LIST}`
   const response = await laravelApi.get(path, { params: { per_page: 200 } })
   const body = response.data as LeavesListResponse | LeaveRequestApi[]

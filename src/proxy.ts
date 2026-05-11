@@ -9,7 +9,7 @@ import {
 import { featuresConfig, FeatureKey } from '@/config/features.config'
 
 const FEATURE_ROUTE_MAP: Array<[string, FeatureKey]> = [
-  ['/dashboard/attendnance', 'attendance'],
+  ['/dashboard/attendance', 'attendance'],
   ['/dashboard/log', 'attendance'],
   ['/dashboard/claims', 'claims'],
   ['/dashboard/leave', 'leave'],
