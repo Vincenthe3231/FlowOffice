@@ -65,7 +65,7 @@ import {
 const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Onboarding", href: "/dashboard/onboarding", icon: Sparkles },
-  { title: "Attendance", href: "/dashboard/attendnance", icon: ClipboardList },
+  { title: "Attendance", href: "/dashboard/attendance", icon: ClipboardList },
   { title: "Leave", href: "/dashboard/leave", icon: Calendar },
   { title: "Claims", href: "/dashboard/claims", icon: FileText },
 ];
@@ -386,12 +386,12 @@ export function BottomNav() {
     () =>
       mainNavAll.filter((item) => {
         if (!showOnboardingNav && item.href === "/dashboard/onboarding") return false;
-        if (!featuresConfig.attendance && item.href === "/dashboard/attendnance") return false;
+        if (!featuresConfig.attendance && item.href === "/dashboard/attendance") return false;
         if (!featuresConfig.leave && item.href === "/dashboard/leave") return false;
         if (!featuresConfig.claims && item.href === "/dashboard/claims") return false;
         return true;
       }),
-    [showOnboardingNav]
+    [showOnboardingNav, featuresConfig]
   );
   const mainUnified = useMemo(
     () =>

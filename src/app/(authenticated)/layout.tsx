@@ -64,6 +64,7 @@ import {
   formatUserRoleForDisplay,
   isTopManagement,
 } from "@/shared/lib/role-utils";
+import { ROLE_HR_ADMIN } from "@/shared/constants/roles";
 import { ClaimsSidebarSection } from "@/components/layout/ClaimsSidebarSection";
 import { LeaveSidebarSection } from "@/components/layout/LeaveSidebarSection";
 import { featuresConfig } from "@/config/features.config";
@@ -71,7 +72,7 @@ import { featuresConfig } from "@/config/features.config";
 const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Onboarding", href: "/dashboard/onboarding", icon: Sparkles },
-  { title: "Attendance", href: "/dashboard/attendnance", icon: ClipboardList },
+  { title: "Attendance", href: "/dashboard/attendance", icon: ClipboardList },
   { title: "Leave", href: "/dashboard/leave", icon: Calendar },
   { title: "Claims", href: "/dashboard/claims", icon: FileText },
 ] as const;
@@ -231,17 +232,17 @@ export default function DashboardLayout({
     ? "/dashboard/claims/all"
     : "/dashboard/claims/my";
   const showLeaveApprovalQueue = canSeeSettingsNav(profile?.role, user?.roles);
-  const showLeaveTypes = Boolean(isTopManagement(profile?.role, user?.roles) || profile?.role === "hr_admin" || (user?.roles ?? []).includes("hr_admin"));
+  const showLeaveTypes = Boolean(isTopManagement(profile?.role, user?.roles) || profile?.role === ROLE_HR_ADMIN || (user?.roles ?? []).includes(ROLE_HR_ADMIN));
   const mainNav = React.useMemo(
     () =>
       mainNavAll.filter((item) => {
         if (!showOnboardingNav && item.href === "/dashboard/onboarding") return false;
-        if (!featuresConfig.attendance && item.href === "/dashboard/attendnance") return false;
+        if (!featuresConfig.attendance && item.href === "/dashboard/attendance") return false;
         if (!featuresConfig.leave && item.href === "/dashboard/leave") return false;
         if (!featuresConfig.claims && item.href === "/dashboard/claims") return false;
         return true;
       }),
-    [showOnboardingNav]
+    [showOnboardingNav, featuresConfig]
   );
   const settingsNav = React.useMemo(() => {
     if (!showSettingsNav) return [];
