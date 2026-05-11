@@ -82,6 +82,19 @@ export function canRejectClaimFromMyClaimsList(
 }
 
 /**
+ * Leave approval queue visibility. Same roles as claim rejection: hod, hr_admin, top_management.
+ */
+export function canApproveLeaves(
+  role?: string | null,
+  roles?: string[] | null
+): boolean {
+  return (
+    hasRole(role, CLAIM_REJECT_ON_MY_LIST_ROLES) ||
+    hasAnyRole(roles, CLAIM_REJECT_ON_MY_LIST_ROLES)
+  )
+}
+
+/**
  * Attendance page: show role chips (Top Management / Admin·HR / HOD) and org-wide admin dashboards.
  * Staff and other roles see only personal attendance (no extra chips).
  */

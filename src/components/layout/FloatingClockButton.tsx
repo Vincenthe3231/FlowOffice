@@ -9,12 +9,12 @@ export function FloatingClockButton() {
   const pathname = usePathname();
   
   // 3. Update the logic to use 'pathname'
-  if (pathname === "/attendance") return null;
+  if (pathname === "/dashboard/attendance") return null;
 
   return (
     <button
       // 4. Update navigate() to router.push()
-      onClick={() => router.push("/attendance")}
+      onClick={() => router.push("/dashboard/attendance")}
       className={cn(
         "fixed bottom-24 right-4 z-40",
         "flex items-center justify-center",

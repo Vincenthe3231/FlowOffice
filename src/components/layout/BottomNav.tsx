@@ -42,6 +42,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { isRouteActive } from "@/shared/lib/nav-active";
 import {
+  canApproveLeaves,
   canRejectClaimFromMyClaimsList,
   canSeeExpandedClaimsNav,
   canSeeOnboardingAdmin,
@@ -95,7 +96,8 @@ type SimpleNavItem = { title: string; href: string; icon: LucideIcon };
 
 type UnifiedNavItem =
   | { type: "link"; title: string; href: string; icon: LucideIcon }
-  | { type: "claims"; title: "Claims"; children: SimpleNavItem[] };
+  | { type: "claims"; title: "Claims"; children: SimpleNavItem[] }
+  | { type: "leave"; title: "Leave"; children: SimpleNavItem[] };
 
 function buildClaimsChildren(
   showManageClaimTypes: boolean,
@@ -115,12 +117,39 @@ function buildClaimsChildren(
   return base;
 }
 
+function buildLeaveChildren(
+  canApprove: boolean,
+  isTopMgmt: boolean
+): SimpleNavItem[] {
+  const base: SimpleNavItem[] = [
+    { title: "My Leave", href: "/dashboard/leave", icon: Calendar },
+  ];
+  if (canApprove) {
+    base.push({
+      title: "Approval Queue",
+      href: "/dashboard/leave/approval",
+      icon: Timer,
+    });
+  }
+  if (isTopMgmt) {
+    base.push({
+      title: "Leave Types",
+      href: "/dashboard/leave/types",
+      icon: Tags,
+    });
+  }
+  return base;
+}
+
 function mainNavToUnifiedItems(
   mainItems: { title: string; href: string; icon: LucideIcon }[],
   opts: {
     showExpandedClaimsNav: boolean;
     showManageClaimTypes: boolean;
     claimsAllSubHref: string;
+    showExpandedLeaveNav: boolean;
+    canApproveLeaves: boolean;
+    isTopMgmt: boolean;
   }
 ): UnifiedNavItem[] {
   return mainItems.map((item) => {
@@ -129,6 +158,13 @@ function mainNavToUnifiedItems(
         type: "claims" as const,
         title: "Claims",
         children: buildClaimsChildren(opts.showManageClaimTypes, opts.claimsAllSubHref),
+      };
+    }
+    if (item.href === "/dashboard/leave" && opts.showExpandedLeaveNav) {
+      return {
+        type: "leave" as const,
+        title: "Leave",
+        children: buildLeaveChildren(opts.canApproveLeaves, opts.isTopMgmt),
       };
     }
     return { type: "link" as const, ...item };
@@ -332,6 +368,110 @@ function ClaimsExpandableNav({
   );
 }
 
+function LeaveExpandableNav({
+  subItems,
+  pathname,
+  onNavigate,
+  hasSearchQuery,
+}: {
+  subItems: SimpleNavItem[];
+  pathname: string;
+  onNavigate: () => void;
+  hasSearchQuery: boolean;
+}) {
+  const isLeaveArea = pathname.startsWith("/dashboard/leave");
+  const [open, setOpen] = useState(isLeaveArea);
+
+  useEffect(() => {
+    if (isLeaveArea) setOpen(true);
+  }, [isLeaveArea]);
+
+  useEffect(() => {
+    if (hasSearchQuery) setOpen(true);
+  }, [hasSearchQuery]);
+
+  const subActive = subItems.some((sub) =>
+    sub.href === "/dashboard/leave"
+      ? (pathname.replace(/\/$/, "") || "/") === "/dashboard/leave"
+      : isRouteActive(pathname, sub.href)
+  );
+
+  return (
+    <div className="rounded px-0.5 sm:rounded-md md:rounded-lg">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex w-full items-center justify-between rounded px-2 py-1.5 transition-colors hover:bg-muted/50 group sm:rounded-md sm:px-2.5 sm:py-2 md:rounded-lg md:px-3 md:py-2.5",
+          (isLeaveArea || subActive) && "bg-muted/30"
+        )}
+        aria-expanded={open}
+        aria-controls="bottom-nav-leave-sub"
+      >
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+          <Calendar
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 md:h-[18px] md:w-[18px]",
+              isLeaveArea || subActive
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground"
+            )}
+          />
+          <span
+            className={cn(
+              "text-[11px] sm:text-xs md:text-[14px]",
+              isLeaveArea || subActive
+                ? "font-semibold text-foreground"
+                : "text-muted-foreground group-hover:text-foreground"
+            )}
+          >
+            Leave
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-200 sm:h-3.5 sm:w-3.5",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+          aria-hidden
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            id="bottom-nav-leave-sub"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-0.5 space-y-0.5 pb-0.5 pt-0.5">
+              {subItems.map((sub) => {
+                const subIsActive =
+                  sub.href === "/dashboard/leave"
+                    ? (pathname.replace(/\/$/, "") || "/") === "/dashboard/leave"
+                    : isRouteActive(pathname, sub.href);
+                return (
+                  <MenuOption
+                    key={`${sub.href}-${sub.title}`}
+                    icon={sub.icon}
+                    label={sub.title}
+                    href={sub.href}
+                    isActive={subIsActive}
+                    onNavigate={onNavigate}
+                    variant="sub"
+                  />
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function renderUnifiedItem(
   item: UnifiedNavItem,
   pathname: string,
@@ -342,6 +482,17 @@ function renderUnifiedItem(
     return (
       <ClaimsExpandableNav
         key="claims-expandable"
+        subItems={item.children}
+        pathname={pathname}
+        onNavigate={closeMenu}
+        hasSearchQuery={hasSearchQuery}
+      />
+    );
+  }
+  if (item.type === "leave") {
+    return (
+      <LeaveExpandableNav
+        key="leave-expandable"
         subItems={item.children}
         pathname={pathname}
         onNavigate={closeMenu}
@@ -378,7 +529,10 @@ export function BottomNav() {
   const showSettingsNav = canSeeSettingsNav(profile?.role, user?.roles);
   const showOnboardingNav = canSeeOnboardingAdmin(profile?.role, user?.roles);
   const showExpandedClaimsNav = canSeeExpandedClaimsNav();
+  const showExpandedLeaveNav = canSeeExpandedClaimsNav();
   const showManageClaimTypes = isTopManagement(profile?.role, user?.roles);
+  const showManageLeaveTypes = isTopManagement(profile?.role, user?.roles);
+  const canApproveLeaveRequests = canApproveLeaves(profile?.role, user?.roles);
   const claimsAllSubHref = canRejectClaimFromMyClaimsList(profile?.role, user?.roles)
     ? "/dashboard/claims/all"
     : "/dashboard/claims/my";
@@ -399,8 +553,11 @@ export function BottomNav() {
         showExpandedClaimsNav,
         showManageClaimTypes,
         claimsAllSubHref,
+        showExpandedLeaveNav,
+        canApproveLeaves: canApproveLeaveRequests,
+        isTopMgmt: showManageLeaveTypes,
       }),
-    [mainNav, showExpandedClaimsNav, showManageClaimTypes, claimsAllSubHref]
+    [mainNav, showExpandedClaimsNav, showManageClaimTypes, claimsAllSubHref, showExpandedLeaveNav, canApproveLeaveRequests, showManageLeaveTypes]
   );
   const settingsNav = useMemo(() => {
     if (!showSettingsNav) return [];
