@@ -10,7 +10,6 @@
       "env": ["NEXT_PUBLIC_*"]
     },
     "lint": {
-      "cache": true,
       "outputs": []
     },
     "clean": {

@@ -1,0 +1,5 @@
+packages:
+  - "apps/frontend"
+allowBuilds:
+  sharp: true
+  unrs-resolver: true

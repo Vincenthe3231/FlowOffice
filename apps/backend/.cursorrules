@@ -1,0 +1,179 @@
+# BeLive FlowOffice - AI Development Rules
+
+## Mandatory Documentation Reading Order
+
+When starting work on this project, ALWAYS read documentation in this sequence:
+
+1. **@docs/ARCHITECTURE-DECISIONS.md** - Source of truth for architectural choices
+2. **@docs/Backend-System-Architecture.md** - System design and responsibility boundaries
+3. **@docs/Belive-FO-Implementation-Plan.md** - Roadmap and implementation examples
+4. **@docs/TEST_PLAN.md** - Testing strategy and quality gates
+5. **@backend/README.md** - Setup and development commands
+
+## Architecture Principles (Non-Negotiable)
+
+### Laravel-First Authentication & Authorization
+
+- ✅ **Laravel Sanctum** (API tokens, Bearer) handles authentication; token is stored in an httpOnly cookie; the frontend uses a **thin BFF** (Next.js App Router Route Handlers) that forwards requests to Laravel with `Authorization: Bearer <token>`.
+- ✅ **Laravel Policies** handle authorization checks ("Can user X do Y?")
+- ✅ **Spatie Permission** handles roles and permissions (RBAC)
+- ✅ **Domain Rules** handle business validation ("Under what conditions?")
+- ✅ **Supabase** provides PostgreSQL database and file storage only (no RLS, no JWT)
+- ❌ **DO NOT** use Supabase JWT or RLS for authentication/authorization
+- ❌ **DO NOT** use a trusted BFF (e.g. X-User-ID header); Laravel must receive and validate the Bearer token itself.
+
+### Request Flow Pattern
+
+```
+User → Lark OAuth → Laravel (validates, returns token) → Next.js sets httpOnly cookie (and optionally redirects).
+User → Next.js (sends cookie) → Next.js thin BFF (route.ts) → Laravel (Sanctum validates Bearer, Policy checks authorization).
+```
+
+### Modular Monolith Rules
+
+- ✅ Modules communicate via `Shared/Contracts` interfaces
+- ✅ Use Domain Events for cross-module coordination
+- ❌ NEVER import models from other modules directly
+- ❌ NEVER access another module's database tables directly
+
+### Directory Structure
+
+- Business rules live in `Rules/` (NOT `Policies/`)
+- Business logic in `Services/`
+- External APIs in `Adapters/`
+- Controllers in `Controllers/`
+
+## Documentation Maintenance
+
+### Before Making Changes
+
+1. Search `@docs` for related architectural decisions
+2. Check if your change affects auth flow, module boundaries, or external integrations
+3. Review relevant ADRs in `ARCHITECTURE.md`
+
+### After Making Changes
+
+1. Update affected documentation immediately
+2. If you modify auth flow → update `ARCHITECTURE.md`
+3. If you add/remove packages → update `backend/README.md` and `IMPLEMENTATION.md`
+4. If you make architectural decisions → add ADR to `ARCHITECTURE.md`
+
+### Creating New ADRs
+
+When making significant architectural choices, add a new ADR following this template:
+
+```markdown
+## ADR-XXX: [Decision Title]
+
+**Status:** Accepted  
+**Date:** YYYY-MM-DD  
+**Context:** What problem are we solving?  
+**Decision:** What did we decide?  
+**Consequences:** What are the trade-offs?
+```
+
+## Package Usage Guidelines
+
+### ✅ Packages We Use
+
+- `laravel/framework` - Web framework
+- `laravel/sanctum` - API token (Bearer) authentication; frontend uses thin BFF with httpOnly cookie
+- `spatie/laravel-permission` - Roles and permissions (RBAC)
+- `saeedvir/supabase` - Supabase client for database and storage
+- `spatie/laravel-activitylog` - Audit trails
+- `laravel/boost` - AI development tooling
+
+## Code Patterns to Follow
+
+### Authorization vs Business Validation
+
+```php
+// ✅ Correct: Two-layer approach
+// 1. Authorization check (Policy)
+$this->authorize('create', Attendance::class);
+
+// 2. Business validation (Domain Rules)
+$validation = $this->attendanceRules->canClockIn($user->id, $location);
+if ($validation->failed()) {
+    throw new BusinessRuleViolationException($validation->errors());
+}
+
+// ❌ Wrong: Mixing authorization and business validation
+// Don't put business rules in Policies
+```
+
+### Controller Pattern
+
+```php
+// ✅ Correct: Sanctum + Policy authorization
+public function clockIn(Request $request): JsonResponse
+{
+    // 1. Authorization check (Policy)
+    $this->authorize('create', Attendance::class);
+    
+    // 2. Get authenticated user
+    $user = $request->user();
+    
+    // 3. Business validation (Domain Rules)
+    $validation = $this->attendanceRules->canClockIn($user->id, $location);
+    if ($validation->failed()) {
+        throw new BusinessRuleViolationException($validation->errors());
+    }
+    
+    // 4. Execute business logic
+    $result = $this->clockInUseCase->execute($user->id, $request->all());
+    return response()->json($result);
+}
+
+// ❌ Wrong: Using X-User-ID header or trusted BFF (Laravel must not trust a header; it must validate Bearer token)
+$userId = $request->header('X-User-ID'); // OLD - Don't use
+```
+
+## Testing Requirements
+
+- Always test module independence (can module boot alone?)
+- Test business rules without framework dependencies
+- Test Sanctum authentication (Bearer token validation)
+- Test Laravel Policies (authorization checks)
+- Test Spatie roles and permissions
+
+## When in Doubt
+
+1. Check `@docs/ARCHITECTURE.md` first
+2. Search the docs folder for similar patterns
+3. Ask the user before introducing new patterns
+4. Never assume—verify against documentation
+
+## Supabase Data Protection Rules (MANDATORY)
+
+### ❌ NEVER Execute These Operations on Supabase
+
+- **DELETE** statements (especially without WHERE clauses)
+- **TRUNCATE** statements
+- **DROP** statements (DROP TABLE, DROP SCHEMA, DROP DATABASE)
+- **ALTER TABLE ... DROP** operations
+- Modifications to `auth.users` table (except INSERT for new users)
+- Removal of RLS policies without explicit user approval
+
+### ✅ Safe Operations for Seeders
+
+- **INSERT** statements (adding new data)
+- **UPDATE** statements (with explicit WHERE clauses)
+- **CREATE** statements (tables, functions, triggers)
+- **ALTER TABLE ... ADD** (adding columns, constraints)
+
+### Data Protection Workflow
+
+1. **Before writing SQL:** Verify it only contains safe operations
+2. **Before executing:** Review SQL file content
+3. **If dangerous operations needed:** Ask user for explicit approval
+4. **Always use transactions:** Ensure rollback capability
+5. **Never auto-delete:** Always require explicit user confirmation
+
+### Seeding Command Usage
+
+- Use `php artisan supabase:seed` for safe seeding
+- SQL files must be in `database/seeds/sql/`
+- Command automatically blocks dangerous operations
+- See `docs/SUPABASE_SEEDING.md` for detailed guide
+
