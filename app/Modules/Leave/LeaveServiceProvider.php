@@ -2,33 +2,29 @@
 
 namespace App\Modules\Leave;
 
-use Illuminate\Support\ServiceProvider;
-use App\Modules\Shared\Contracts\LeaveServiceInterface;
 use App\Modules\Leave\Services\LeaveService;
+use App\Modules\Shared\Contracts\LeaveServiceInterface;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 class LeaveServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Bind interface to implementation
         $this->app->bind(
             LeaveServiceInterface::class,
             LeaveService::class
         );
     }
-    
+
     public function boot(): void
     {
-        // Load routes if they exist
-        if (file_exists(__DIR__ . '/Controllers/routes.php')) {
-            $this->loadRoutesFrom(__DIR__ . '/Controllers/routes.php');
+        if (file_exists(__DIR__.'/api.php')) {
+            Route::prefix('api')->middleware('api')->group(__DIR__.'/api.php');
         }
-        
-        // Load migrations if they exist
-        if (is_dir(__DIR__ . '/Migrations')) {
-            $this->loadMigrationsFrom(__DIR__ . '/Migrations');
+
+        if (is_dir(__DIR__.'/Migrations')) {
+            $this->loadMigrationsFrom(__DIR__.'/Migrations');
         }
     }
 }
-
-

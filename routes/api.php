@@ -17,6 +17,22 @@ Route::post('/auth/lark/callback', [LarkAuthController::class, 'callback'])
 Route::post('/auth/login', [LarkAuthController::class, 'login'])
     ->middleware('throttle:5,1');
 
+// OAuth scaffolds (501 until backend implemented)
+Route::post('/auth/google/callback', function () {
+    return response()->json([
+        'error' => 'NOT_IMPLEMENTED',
+        'message' => 'Google OAuth not yet implemented.',
+        'status' => 501,
+    ], 501);
+})->middleware('throttle:10,1');
+Route::post('/auth/microsoft/callback', function () {
+    return response()->json([
+        'error' => 'NOT_IMPLEMENTED',
+        'message' => 'Microsoft OAuth not yet implemented.',
+        'status' => 501,
+    ], 501);
+})->middleware('throttle:10,1');
+
 // Protected auth routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [LarkAuthController::class, 'logout'])
@@ -26,12 +42,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:3,5');
 
     Route::get('/user', [LarkAuthController::class, 'me']);
+    Route::get('/auth/my-roles', [LarkAuthController::class, 'myRoles']);
 
     Route::middleware(['check.account_status', 'check.account_locked'])->group(function () {
         // Profile
         Route::get('/profile/me', [ProfileController::class, 'me']);
         Route::put('/profile/me', [ProfileController::class, 'updateMe']);
         Route::post('/profile/face-photo', [ProfileController::class, 'uploadFacePhoto']);
+        Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']);
 
         // Geocode (Google Geocoding API, server-side)
         Route::post('/geocode', [GeocodeController::class, 'geocode']);

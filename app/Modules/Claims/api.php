@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum', 'check.account_status', 'check.account_locked
     Route::post('/claims/calculate-distance', [ClaimStatsController::class, 'calculateDistance']);
     Route::get('/claims/all', [ClaimApprovalController::class, 'all'])
         ->middleware('role:hod|hr_admin|top_management');
+    Route::get('/claims/approval-threshold', [ClaimStatsController::class, 'approvalThreshold']);
 
     Route::get('/claim-categories', [ClaimStatsController::class, 'categories']);
 
@@ -43,6 +44,7 @@ Route::middleware(['auth:sanctum', 'check.account_status', 'check.account_locked
     Route::delete('/claims/{claim}', [ClaimController::class, 'destroy']);
 
     // Attachments
+    Route::get('/claims/{claim}/attachments', [ClaimAttachmentController::class, 'index']);
     Route::post('/claims/{claim}/attachments', [ClaimAttachmentController::class, 'store']);
     Route::delete('/claims/{claim}/attachments/{attachment}', [ClaimAttachmentController::class, 'destroy']);
 
