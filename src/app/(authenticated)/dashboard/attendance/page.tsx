@@ -56,14 +56,15 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
+import { ROLE_TOP_MANAGEMENT, ROLE_HR_ADMIN, ROLE_HOD } from "@/shared/constants/roles";
 
-type RoleChip = "my-attendance" | "top_management" | "admin-hr" | "hod";
+type RoleChip = "my-attendance" | typeof ROLE_TOP_MANAGEMENT | typeof ROLE_HR_ADMIN | typeof ROLE_HOD;
 
 const roleChips: { id: RoleChip; label: string }[] = [
   { id: "my-attendance", label: "My Attendance" },
-  { id: "top_management", label: "Top Management" },
-  { id: "admin-hr", label: "Admin / HR" },
-  { id: "hod", label: "HOD" },
+  { id: ROLE_TOP_MANAGEMENT, label: "Top Management" },
+  { id: ROLE_HR_ADMIN, label: "Admin / HR" },
+  { id: ROLE_HOD, label: "HOD" },
 ];
 
 export default function Attendance() {
@@ -693,7 +694,7 @@ export default function Attendance() {
   // ─── ADMIN VIEW ───
   const selectedStaffProfile = selectedStaffId ? admin.getProfileForUser(selectedStaffId) : null;
   const selectedStaffLogs = selectedStaffId ? admin.getLogsForUser(selectedStaffId) : [];
-  const isHodView = activeChip === "hod";
+  const isHodView = activeChip === ROLE_HOD;
 
   const adminView = (
     <motion.div
@@ -773,7 +774,7 @@ export default function Attendance() {
 
   // Determine what to show based on chip
   const showStaffView = activeChip === "my-attendance";
-  const showBoth = activeChip === "top_management";
+  const showBoth = activeChip === ROLE_TOP_MANAGEMENT;
 
   return (
     <>
