@@ -17,43 +17,51 @@ function BalanceCard({ balance, color }: { balance: LeaveBalance; color: string 
       : 0
 
   return (
-    <Card className="overflow-hidden border-border/60">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-3">
+    <Card className="overflow-hidden border-border/60 hover:shadow-md transition-shadow duration-200">
+      <CardContent className="p-5">
+        <div className="space-y-3">
           <p className="text-sm font-semibold text-foreground leading-tight">
             {balance.leaveTypeName}
           </p>
-          {balance.entitled != null ? (
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              {balance.remaining} left
-            </span>
-          ) : null}
-        </div>
 
-        {balance.entitled != null && balance.entitled > 0 ? (
-          <>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-2">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${usedPct}%`, backgroundColor: color }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{balance.used} used</span>
-              <span>{balance.entitled} entitled</span>
-            </div>
-            {balance.pending > 0 && (
-              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                {balance.pending} day{balance.pending !== 1 ? "s" : ""} pending approval
+          {balance.entitled != null && balance.entitled > 0 ? (
+            <>
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-bold text-foreground">{balance.remaining}</span>
+                  <span className="text-xs text-muted-foreground">of {balance.entitled}</span>
+                </div>
+                <span className="text-xs text-muted-foreground block">days available</span>
+              </div>
+
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${usedPct}%`, backgroundColor: color }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{balance.used} used</span>
+              </div>
+
+              {balance.pending > 0 && (
+                <div className="pt-1 px-2 py-1.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                    ⏳ {balance.pending} day{balance.pending !== 1 ? "s" : ""} pending
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">{balance.remaining} remaining</p>
+              <p className="text-xs text-muted-foreground">
+                {balance.entitled == null ? "Manually granted" : "No quota set"}
               </p>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {balance.entitled == null ? "Manually granted" : "No quota set"}
-            {balance.remaining > 0 && ` · ${balance.remaining} remaining`}
-          </p>
-        )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
@@ -77,14 +85,17 @@ export function LeaveBalanceGrid({ balances, isLoading }: LeaveBalanceGridProps)
   }
 
   return (
-    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-      {balances.map((balance, i) => (
-        <BalanceCard
-          key={balance.leaveTypeId}
-          balance={balance}
-          color={LEAVE_BALANCE_COLORS[i % LEAVE_BALANCE_COLORS.length]!}
-        />
-      ))}
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Your leave balance</p>
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+        {balances.map((balance, i) => (
+          <BalanceCard
+            key={balance.leaveTypeId}
+            balance={balance}
+            color={LEAVE_BALANCE_COLORS[i % LEAVE_BALANCE_COLORS.length]!}
+          />
+        ))}
+      </div>
     </div>
   )
 }

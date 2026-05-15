@@ -216,34 +216,31 @@ export async function fetchLeaveApprovals(leaveId: number): Promise<LeaveApprova
 // Fetch: balances
 // ---------------------------------------------------------------------------
 
+function mapLeaveBalance(b: LeaveBalanceApi): LeaveBalance {
+  // Laravel may return leave type as nested { leaveType: { id, name } }
+  // after axios camelCase transform, rather than flat leaveTypeName
+  const raw = b as unknown as Record<string, unknown>
+  const nestedType = raw.leaveType as Record<string, unknown> | undefined
+  return {
+    leaveTypeId: String(b.leaveTypeId),
+    leaveTypeName: String(nestedType?.name ?? b.leaveTypeName ?? ''),
+    entitled: Number(b.entitled ?? 0),
+    used: Number(b.used ?? 0),
+    pending: Number(b.pending ?? 0),
+    remaining: Number(b.remaining ?? 0),
+  }
+}
+
 export async function fetchMyLeaveBalance(): Promise<LeaveBalance[]> {
   const response = await laravelApi.get(`${PROXY}/${API_ROUTES.LEAVE.BALANCE_ME}`)
   const data = extractData<LeaveBalanceApi[]>(response)
-  return Array.isArray(data)
-    ? data.map((b) => ({
-        leaveTypeId: String(b.leaveTypeId),
-        leaveTypeName: b.leaveTypeName,
-        entitled: Number(b.entitled ?? 0),
-        used: Number(b.used ?? 0),
-        pending: Number(b.pending ?? 0),
-        remaining: Number(b.remaining ?? 0),
-      }))
-    : []
+  return Array.isArray(data) ? data.map(mapLeaveBalance) : []
 }
 
 export async function fetchUserLeaveBalance(userId: number): Promise<LeaveBalance[]> {
   const response = await laravelApi.get(`${PROXY}/${API_ROUTES.LEAVE.BALANCE_USER(userId)}`)
   const data = extractData<LeaveBalanceApi[]>(response)
-  return Array.isArray(data)
-    ? data.map((b) => ({
-        leaveTypeId: String(b.leaveTypeId),
-        leaveTypeName: b.leaveTypeName,
-        entitled: Number(b.entitled ?? 0),
-        used: Number(b.used ?? 0),
-        pending: Number(b.pending ?? 0),
-        remaining: Number(b.remaining ?? 0),
-      }))
-    : []
+  return Array.isArray(data) ? data.map(mapLeaveBalance) : []
 }
 
 // ---------------------------------------------------------------------------
