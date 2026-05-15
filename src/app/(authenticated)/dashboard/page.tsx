@@ -46,8 +46,9 @@ import {
   RadialBarChart,
   RadialBar,
 } from "recharts";
+import { ROLE_TOP_MANAGEMENT, ROLE_HR_ADMIN, ROLE_HOD } from "@/shared/constants/roles";
 
-type Role = "top_management" | "hr" | "hod";
+type Role = typeof ROLE_TOP_MANAGEMENT | typeof ROLE_HR_ADMIN | typeof ROLE_HOD;
 type Period = "daily" | "weekly" | "monthly" | "annually";
 
 const TOTAL_EMPLOYEES = 248;
@@ -74,9 +75,9 @@ const periodLabels: Record<Period, string> = {
 };
 
 const roleLabels: Record<Role, string> = {
-  top_management: "Top Management",
-  hr: "Admin / HR",
-  hod: "HOD",
+  [ROLE_TOP_MANAGEMENT]: "Top Management",
+  [ROLE_HR_ADMIN]: "Admin / HR",
+  [ROLE_HOD]: "HOD",
 };
 
 // ── Custom Recharts tooltip renderer ──
@@ -571,7 +572,7 @@ function HODDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Pe
 }
 
 export default function DashboardPage() {
-  const [role, setRole] = useState<Role>("top_management");
+  const [role, setRole] = useState<Role>(ROLE_TOP_MANAGEMENT);
   const [period, setPeriod] = useState<Period>("weekly");
 
   return (
@@ -586,15 +587,15 @@ export default function DashboardPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="top_management">Top Management</SelectItem>
-            <SelectItem value="hr">Admin / HR</SelectItem>
-            <SelectItem value="hod">HOD</SelectItem>
+            <SelectItem value={ROLE_TOP_MANAGEMENT}>Top Management</SelectItem>
+            <SelectItem value={ROLE_HR_ADMIN}>Admin / HR</SelectItem>
+            <SelectItem value={ROLE_HOD}>HOD</SelectItem>
           </SelectContent>
         </Select>
       </div>
-      {role === "top_management" && <TopManagementDashboard period={period} setPeriod={setPeriod} />}
-      {role === "hr" && <HRDashboard period={period} setPeriod={setPeriod} />}
-      {role === "hod" && <HODDashboard period={period} setPeriod={setPeriod} />}
+      {role === ROLE_TOP_MANAGEMENT && <TopManagementDashboard period={period} setPeriod={setPeriod} />}
+      {role === ROLE_HR_ADMIN && <HRDashboard period={period} setPeriod={setPeriod} />}
+      {role === ROLE_HOD && <HODDashboard period={period} setPeriod={setPeriod} />}
     </div>
   );
 }
