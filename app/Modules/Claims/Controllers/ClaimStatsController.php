@@ -109,6 +109,13 @@ class ClaimStatsController extends Controller
         return $this->success(ClaimCategoryResource::collection($categories));
     }
 
+    public function approvalThreshold(Request $request): JsonResponse
+    {
+        return $this->success([
+            'threshold' => (float) config('claims.approval_threshold', 500),
+        ]);
+    }
+
     public function mileageRate(Request $request): JsonResponse
     {
         return $this->success([

@@ -263,6 +263,16 @@ class LarkAuthController extends Controller
     }
 
     /**
+     * Get current user's roles.
+     */
+    public function myRoles(Request $request): JsonResponse
+    {
+        $roles = $request->user()->roles()->select('name')->get();
+
+        return $this->success($roles);
+    }
+
+    /**
      * Re-submit onboarding after rejection (authenticated user).
      */
     public function resubmit(Request $request): JsonResponse

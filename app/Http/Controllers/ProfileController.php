@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
 {
+    use ApiResponse;
+
     /**
      * Get the authenticated user's profile.
      */
@@ -126,6 +130,49 @@ class ProfileController extends Controller
         return response()->json([
             'data' => $url,
         ]);
+    }
+
+    /**
+     * Upload avatar photo for the authenticated user.
+     */
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $request->validate([
+            'avatar' => ['required', 'file', 'image', 'max:5120'],
+        ]);
+
+        $file = $request->file('avatar');
+        $disk = config('filesystems.default');
+        $directory = 'avatars/'.$user->id;
+        $extension = $file->extension();
+        $filename = 'avatar_'.Str::uuid().'.'.$extension;
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
+        $storage = Storage::disk($disk);
+
+        $oldUrl = $user->avatar_url;
+        if ($oldUrl) {
+            $baseUrl = rtrim($storage->url(''), '/');
+            $oldPath = $baseUrl !== '' ? str_replace($baseUrl.'/', '', $oldUrl) : $oldUrl;
+            $storage->delete($oldPath);
+        }
+
+        $path = $file->storeAs($directory, $filename, $disk);
+
+        if (! $path) {
+            throw ValidationException::withMessages([
+                'avatar' => ['Failed to store avatar.'],
+            ]);
+        }
+
+        $url = $storage->url($path);
+        $user->avatar_url = $url;
+        $user->save();
+
+        return response()->json(['data' => ['url' => $url]]);
     }
 
     /**

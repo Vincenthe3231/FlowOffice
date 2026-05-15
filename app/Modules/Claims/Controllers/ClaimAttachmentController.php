@@ -20,6 +20,13 @@ class ClaimAttachmentController extends Controller
         private ClaimAttachmentService $attachmentService
     ) {}
 
+    public function index(Request $request, Claim $claim): JsonResponse
+    {
+        $this->authorize('view', $claim);
+
+        return $this->success(ClaimAttachmentResource::collection($claim->attachments));
+    }
+
     public function store(Request $request, Claim $claim): JsonResponse
     {
         $this->authorize('update', $claim);
