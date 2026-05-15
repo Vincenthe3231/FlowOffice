@@ -10,6 +10,8 @@ export const API_ROUTES = {
     LOGIN: '/api/auth/login',
     ME: '/api/auth/me',
     LARK_CALLBACK: '/api/auth/lark/callback',
+    GOOGLE_CALLBACK: '/api/auth/google/callback',
+    MICROSOFT_CALLBACK: '/api/auth/microsoft/callback',
     LOGOUT: '/api/auth/logout',
   },
   /** Prefix for proxied Laravel API (e.g. /api/proxy/attendance/clock-in → Laravel /api/attendance/clock-in) */

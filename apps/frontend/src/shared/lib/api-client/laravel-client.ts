@@ -41,6 +41,29 @@ export async function loginWithLark(code: string) {
 }
 
 /**
+ * Login with Google OAuth code (PKCE).
+ * `verifier` is the PKCE code_verifier generated in the browser when starting the flow.
+ */
+export async function loginWithGoogle(code: string, verifier: string) {
+  const response = await laravelApi.post(API_ROUTES.AUTH.GOOGLE_CALLBACK, {
+    code,
+    codeVerifier: verifier,
+  })
+  return response.data
+}
+
+/**
+ * Login with Microsoft Entra ID OAuth code (PKCE).
+ */
+export async function loginWithMicrosoft(code: string, verifier: string) {
+  const response = await laravelApi.post(API_ROUTES.AUTH.MICROSOFT_CALLBACK, {
+    code,
+    codeVerifier: verifier,
+  })
+  return response.data
+}
+
+/**
  * Log out. Next.js revokes token on Laravel and clears cookie.
  */
 export async function logoutUser(): Promise<void> {
