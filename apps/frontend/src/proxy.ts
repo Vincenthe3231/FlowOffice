@@ -4,9 +4,32 @@ import { AUTH_COOKIE_NAME } from '@/shared/lib/auth-cookie'
 import {
   getAccessStatusFromMeJson,
   getUserFromMeJson,
+  getRoleFromMeJson,
+  getRolesFromMeJson,
   isNonGrantedAllowedPath,
 } from '@/shared/lib/middleware-me'
 import { featuresConfig, FeatureKey } from '@/config/features.config'
+
+/** Roles that may access privileged approval/admin routes. */
+const APPROVER_ROLES_SET = new Set(['top_management', 'super_admin', 'hr_admin', 'hod'])
+
+/** Routes that require an approver role — staff are redirected away. */
+const APPROVER_ONLY_PREFIXES = ['/dashboard/leave/approval']
+
+function isApproverOnlyPath(pathname: string): boolean {
+  return APPROVER_ONLY_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  )
+}
+
+function hasApproverRole(body: unknown): boolean {
+  const role = getRoleFromMeJson(body)
+  const roles = getRolesFromMeJson(body)
+  return (
+    (role != null && APPROVER_ROLES_SET.has(role)) ||
+    roles.some((r) => APPROVER_ROLES_SET.has(r))
+  )
+}
 
 const FEATURE_ROUTE_MAP: Array<[string, FeatureKey]> = [
   ['/dashboard/attendance', 'attendance'],
@@ -108,6 +131,11 @@ export async function proxy(request: NextRequest) {
 
   if (isDisabledFeatureRoute(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Role-based route guard: approver-only paths redirect non-approvers
+  if (isApproverOnlyPath(pathname) && !hasApproverRole(body)) {
+    return NextResponse.redirect(new URL('/dashboard/leave', request.url))
   }
 
   return NextResponse.next()

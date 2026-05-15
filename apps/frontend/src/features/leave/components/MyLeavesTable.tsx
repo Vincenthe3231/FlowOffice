@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, Clock, CheckCircle2, XCircle, Trash2, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +28,15 @@ import { LEAVE_FILTERS, LEAVE_DAY_TYPE_LABELS } from "@/features/leave/data"
 import type { LeaveFilter, LeaveRequest } from "@/features/leave/types"
 import { cn } from "@/lib/utils"
 
+const FILTER_ICONS: Record<LeaveFilter, React.ComponentType<{ className?: string }>> = {
+  All: FileText,
+  Pending: Clock,
+  Approved: CheckCircle2,
+  Rejected: XCircle,
+  Cancelled: Trash2,
+  Draft: FileText,
+}
+
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "approved": return "default"
@@ -50,6 +59,10 @@ export function MyLeavesTable({ initialFilter = "All" }: MyLeavesTableProps) {
   const cancelMutation = useCancelLeaveRequest()
 
   const leaves = data?.leaves ?? []
+  // Defensive client-side filter: ensures correct rows even if API ignores status param
+  const filteredLeaves = filter === "All"
+    ? leaves
+    : leaves.filter((l) => l.status === filter.toLowerCase())
 
   function handleCancel() {
     if (!cancelTarget) return
@@ -59,23 +72,32 @@ export function MyLeavesTable({ initialFilter = "All" }: MyLeavesTableProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {LEAVE_FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              filter === f
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            )}
-          >
-            {f}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">Filter requests</p>
+        <div className="w-full overflow-x-auto pb-1">
+        <div className="inline-flex rounded-lg border border-border/40 bg-muted/30 p-1 gap-1 min-w-max">
+          {LEAVE_FILTERS.map((f) => {
+            const Icon = FILTER_ICONS[f]
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
+                  filter === f
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{f}</span>
+              </button>
+            )
+          })}
+        </div>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border">
@@ -96,14 +118,14 @@ export function MyLeavesTable({ initialFilter = "All" }: MyLeavesTableProps) {
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
-            ) : leaves.length === 0 ? (
+            ) : filteredLeaves.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-muted-foreground text-sm">
-                  No leave requests found.
+                  {filter === "All" ? "No leave requests found." : `No ${filter.toLowerCase()} requests.`}
                 </TableCell>
               </TableRow>
             ) : (
-              leaves.map((leave) => (
+              filteredLeaves.map((leave) => (
                 <TableRow
                   key={leave.id}
                   className="cursor-pointer hover:bg-muted/60"

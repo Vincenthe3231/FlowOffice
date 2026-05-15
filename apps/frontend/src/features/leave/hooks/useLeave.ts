@@ -40,7 +40,7 @@ export const LEAVE_QUERY_KEYS = {
   leaveApprovals: (leaveId: number | null) => ["leave-approvals", leaveId] as const,
   myBalance: () => ["leave", "balance", "me"] as const,
   userBalance: (userId: number | null) => ["leave", "balance", userId] as const,
-  allLeaves: () => ["leaves", "all"] as const,
+  allLeaves: (role?: string | null) => ["leaves", "all", role ?? null] as const,
   pendingApprovals: () => ["leaves", "pending-approvals"] as const,
   leaveTypes: () => ["leave-types"] as const,
   leaveType: (id: string | null) => ["leave-type", id] as const,
@@ -93,8 +93,9 @@ export function useUserLeaveBalance(userId: number | null) {
 export function useAllLeavesForApproval() {
   const { profile } = useProfile()
   return useQuery({
-    queryKey: LEAVE_QUERY_KEYS.allLeaves(),
+    queryKey: LEAVE_QUERY_KEYS.allLeaves(profile?.role),
     queryFn: () => fetchAllLeavesForApproval(profile?.role),
+    enabled: profile != null, // wait for role before fetching — prevents premature own-list fetch
   })
 }
 
