@@ -15,6 +15,8 @@ export function useInAppNotifications() {
     queryKey: IN_APP_NOTIFICATION_QUERY_KEYS.list(),
     queryFn: fetchInAppNotifications,
     refetchInterval: 30_000,
+    staleTime: 30_000,
+    refetchIntervalInBackground: false,
   })
 }
 
