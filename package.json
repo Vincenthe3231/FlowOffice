@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev:frontend": "pnpm --filter belive-fo dev",
-    "dev:backend": "cd apps/backend && composer run dev",
+    "dev:backend": "cd apps/backend && php artisan serve",
+    "dev:queue": "cd apps/backend && php artisan queue:listen --tries=1 --timeout=0",
     "dev:all": "concurrently \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
     "build": "pnpm --filter belive-fo build",
     "lint": "pnpm --filter belive-fo lint",

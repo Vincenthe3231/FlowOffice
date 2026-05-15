@@ -12,6 +12,8 @@ export const AUTH_QUERY_KEYS = {
   ME: ['auth', 'me'] as const,
   LOGIN: ['auth', 'login'] as const,
   LARK_LOGIN: ['auth', 'lark-login'] as const,
+  GOOGLE_LOGIN: ['auth', 'google-login'] as const,
+  MICROSOFT_LOGIN: ['auth', 'microsoft-login'] as const,
 } as const
 
 /**

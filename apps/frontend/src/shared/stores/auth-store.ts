@@ -17,8 +17,10 @@ export interface User {
  * Authentication method type
  * - 'email': Email/password (Top Management test / admin login)
  * - 'lark': Lark OAuth (regular employees)
+ * - 'google': Google OAuth (template buyers / external orgs)
+ * - 'microsoft': Microsoft Entra ID (Azure AD) OAuth
  */
-export type AuthMethod = 'email' | 'lark' | null
+export type AuthMethod = 'email' | 'lark' | 'google' | 'microsoft' | null
 
 /**
  * Auth store state interface

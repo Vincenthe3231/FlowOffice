@@ -6,6 +6,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { Loader2, Clock, Ban, ShieldOff } from 'lucide-react'
 import { useLarkLoginMutation } from '@/shared/hooks/useLarkLoginMutation'
+import { useGoogleLoginMutation } from '@/shared/hooks/useGoogleLoginMutation'
+import { useMicrosoftLoginMutation } from '@/shared/hooks/useMicrosoftLoginMutation'
+import { consumeVerifier } from '@/shared/lib/oauth-pkce'
+import type { AuthMethod } from '@/shared/stores/auth-store'
 import {
   parseMeResponse,
   extractError,
@@ -44,6 +48,19 @@ type CallbackUiState =
   | 'account-rejected'
   | 'deactivated'
 
+function providerLabel(provider: NonNullable<AuthMethod>): string {
+  switch (provider) {
+    case 'lark':
+      return 'Lark'
+    case 'google':
+      return 'Google'
+    case 'microsoft':
+      return 'Microsoft'
+    default:
+      return 'your provider'
+  }
+}
+
 function decodeOAuthMessage(raw: string | null): string {
   if (!raw) return ''
   try {
@@ -65,12 +82,28 @@ function CallbackContent() {
   const logout = useAuthStore((s) => s.logout)
   const setUser = useAuthStore((s) => s.setUser)
   const larkLoginMutation = useLarkLoginMutation()
+  const googleLoginMutation = useGoogleLoginMutation()
+  const microsoftLoginMutation = useMicrosoftLoginMutation()
 
   const code = searchParams.get('code')
   const urlError = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
   const urlMessage = searchParams.get('message')
   const stateParam = searchParams.get('state')
+
+  const parsedState = (() => {
+    if (!stateParam) return null
+    try {
+      return JSON.parse(decodeURIComponent(stateParam)) as {
+        from?: string
+        provider?: AuthMethod
+        nonce?: string
+      }
+    } catch {
+      return null
+    }
+  })()
+  const provider: NonNullable<AuthMethod> = parsedState?.provider ?? 'lark'
 
   const syncSessionFromMeBody = useCallback(
     (body: unknown) => {
@@ -83,11 +116,11 @@ function CallbackContent() {
         rejectionReason: parsed.rejectionReason ?? null,
         onboarding: parsed.onboarding ?? null,
       })
-      setUser(validatedUser, 'lark')
+      setUser(validatedUser, provider)
       queryClient.setQueryData(AUTH_QUERY_KEYS.ME, session)
       queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEYS.ME })
     },
-    [queryClient, setUser],
+    [queryClient, setUser, provider],
   )
 
   /** Remove ?code / ?state so reload does not replay a single-use OAuth code. */
@@ -250,7 +283,26 @@ function CallbackContent() {
           return
         }
 
-        const body = await larkLoginMutation.mutateAsync(code)
+        let body: unknown
+        if (provider === 'google') {
+          const verifier = parsedState?.nonce ? consumeVerifier(parsedState.nonce) : null
+          if (!verifier) {
+            throw new Error(
+              'Google sign-in session expired or was started in a different browser tab. Return to login and try again.',
+            )
+          }
+          body = await googleLoginMutation.mutateAsync({ code, verifier })
+        } else if (provider === 'microsoft') {
+          const verifier = parsedState?.nonce ? consumeVerifier(parsedState.nonce) : null
+          if (!verifier) {
+            throw new Error(
+              'Microsoft sign-in session expired or was started in a different browser tab. Return to login and try again.',
+            )
+          }
+          body = await microsoftLoginMutation.mutateAsync({ code, verifier })
+        } else {
+          body = await larkLoginMutation.mutateAsync(code)
+        }
         stripOAuthQuery()
 
         const parsed = parseMeResponse(body)
@@ -261,14 +313,14 @@ function CallbackContent() {
 
         applyAccessGate(parsed)
       } catch (err) {
-        console.error('Lark OAuth callback error:', err)
+        console.error(`${provider} OAuth callback error:`, err)
 
         const apiErr = extractError(err)
         let errorMessage = apiErr.message || 'Authentication failed. Please try again.'
 
         if (apiErr.status === 401) {
           errorMessage =
-            'This sign-in link was already used or expired. Return to login and sign in again with Lark.'
+            'This sign-in link was already used or expired. Return to login and sign in again.'
         } else if (apiErr.status === 429 && apiErr.retryAfter != null) {
           errorMessage = `Too many requests. Try again in ${apiErr.retryAfter} seconds.`
         } else if (apiErr.status === 423 && apiErr.remainingSeconds != null) {
@@ -289,10 +341,14 @@ function CallbackContent() {
     errorDescription,
     urlMessage,
     stateParam,
+    provider,
+    parsedState,
     applyAccessGate,
     stripOAuthQuery,
     syncSessionFromMeBody,
     larkLoginMutation,
+    googleLoginMutation,
+    microsoftLoginMutation,
     logout,
     queryClient,
     router,
@@ -347,7 +403,7 @@ function CallbackContent() {
             <CardContent className="flex flex-col items-center justify-center space-y-4 py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p className="text-muted-foreground text-center">
-                Authenticating with Lark...
+                Authenticating with {providerLabel(provider)}...
               </p>
             </CardContent>
           </Card>

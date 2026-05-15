@@ -6,7 +6,7 @@
 
 ## 📚 Documentation Index
 
-### Getting Started
+### Getting Started.
 
 Start with the main [README](../README.md) for quick setup and installation instructions.
 
