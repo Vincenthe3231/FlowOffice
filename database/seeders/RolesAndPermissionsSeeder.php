@@ -165,6 +165,52 @@ class RolesAndPermissionsSeeder extends Seeder
         $hodUser->syncRoles($hod);
         $hodUser->forceFill(['status' => 'active'])->save();
 
+        // Staff demo users
+        $staff1 = User::firstOrCreate(
+            ['email' => 'alice@gmail.com'],
+            [
+                'uuid' => (string) Str::uuid(),
+                'name' => 'Alice Johnson',
+                'password' => Hash::make('password'),
+                'status' => 'active',
+            ]
+        );
+        if (empty($staff1->uuid)) {
+            $staff1->forceFill(['uuid' => (string) Str::uuid()])->save();
+        }
+        $staff1->syncRoles($staff);
+        $staff1->forceFill(['status' => 'active'])->save();
+
+        $staff2 = User::firstOrCreate(
+            ['email' => 'bob@gmail.com'],
+            [
+                'uuid' => (string) Str::uuid(),
+                'name' => 'Bob Smith',
+                'password' => Hash::make('password'),
+                'status' => 'active',
+            ]
+        );
+        if (empty($staff2->uuid)) {
+            $staff2->forceFill(['uuid' => (string) Str::uuid()])->save();
+        }
+        $staff2->syncRoles($staff);
+        $staff2->forceFill(['status' => 'active'])->save();
+
+        $staff3 = User::firstOrCreate(
+            ['email' => 'carol@gmail.com'],
+            [
+                'uuid' => (string) Str::uuid(),
+                'name' => 'Carol Davis',
+                'password' => Hash::make('password'),
+                'status' => 'active',
+            ]
+        );
+        if (empty($staff3->uuid)) {
+            $staff3->forceFill(['uuid' => (string) Str::uuid()])->save();
+        }
+        $staff3->syncRoles($staff);
+        $staff3->forceFill(['status' => 'active'])->save();
+
         // Ensure users who have web guard roles also have the same roles for sanctum (API)
         $sanctumRolesByName = Role::where('guard_name', $guardName)->get()->keyBy('name');
         foreach (User::all() as $existingUser) {
