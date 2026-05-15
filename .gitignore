@@ -59,3 +59,14 @@ TODO.md
 
 .pnpm-store/
 .vercel
+
+# PHP / Laravel (backend)
+/apps/backend/vendor/
+/apps/backend/node_modules/
+/apps/backend/.env
+/apps/backend/.env.*
+!/apps/backend/.env.example
+/apps/backend/storage/*.key
+/apps/backend/storage/pail
+/apps/backend/bootstrap/cache/*
+!/apps/backend/bootstrap/cache/.gitignore
