@@ -2,16 +2,17 @@
   "name": "flowoffice-monorepo",
   "private": true,
   "scripts": {
-    "dev:frontend": "pnpm --filter belive-fo dev",
+    "dev:frontend": "pnpm --filter flowoffice-frontend dev:turbo",
     "dev:backend": "cd apps/backend && php artisan serve",
     "dev:queue": "cd apps/backend && php artisan queue:listen --tries=1 --timeout=0",
     "dev:all": "concurrently \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
-    "build": "pnpm --filter belive-fo build",
-    "lint": "pnpm --filter belive-fo lint",
+    "build": "pnpm --filter flowoffice-frontend build",
+    "lint": "pnpm --filter flowoffice-frontend lint",
     "lint:backend": "cd apps/backend && vendor/bin/pint --dirty",
     "test:backend": "cd apps/backend && composer run test",
     "docker:up": "cd apps/backend && docker compose up -d",
-    "docker:down": "cd apps/backend && docker compose down"
+    "docker:down": "cd apps/backend && docker compose down",
+    "clear:backend": "cd apps/backend && php artisan optimize:clear"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
