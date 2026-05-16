@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Auth\LarkAuthController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\GeocodeController;
@@ -82,6 +83,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/departments', [DepartmentController::class, 'store']);
             Route::put('/departments/{department}', [DepartmentController::class, 'update']);
             Route::patch('/departments/{department}', [DepartmentController::class, 'update']);
+        });
+
+        // Analytics (top_management + hr_admin)
+        Route::middleware(['role:top_management|hr_admin', 'throttle:60,1'])->group(function () {
+            Route::get('/admin/analytics/overview', [AnalyticsController::class, 'overview']);
+            Route::get('/admin/analytics/attendance', [AnalyticsController::class, 'attendance']);
+            Route::get('/admin/analytics/leave', [AnalyticsController::class, 'leave']);
+            Route::get('/admin/analytics/claims', [AnalyticsController::class, 'claims']);
         });
 
         // Onboarding (Top Management only)

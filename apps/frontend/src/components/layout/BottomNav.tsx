@@ -18,7 +18,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Timer,
-  BarChart3,
+  LineChart,
   MapPin,
   Monitor,
   ScrollText,
@@ -50,6 +50,7 @@ import {
   formatUserRoleForDisplay,
   isTopManagement,
 } from "@/shared/lib/role-utils";
+import { ROLE_HR_ADMIN } from "@/shared/constants/roles";
 import { cn } from "@/lib/utils";
 import { CustomizerContext } from "@/app/context/CustomizerContext";
 import { featuresConfig } from "@/config/features.config";
@@ -79,8 +80,8 @@ const overtimeNav = [
   { title: "OT Requests", href: "/dashboard/overtime", icon: Timer },
 ];
 
-const reportNav = [
-  { title: "Reports & Export", href: "/dashboard/reports", icon: BarChart3 },
+const analyticsNav = [
+  { title: "Analytics", href: "/dashboard/analytics", icon: LineChart },
 ];
 
 const baseSettingsNav = [
@@ -176,14 +177,15 @@ function toLinkItems(items: SimpleNavItem[]): UnifiedNavItem[] {
 }
 
 function buildNavGroupsWithoutSettings(
-  mainUnified: UnifiedNavItem[]
+  mainUnified: UnifiedNavItem[],
+  showAnalyticsNav: boolean
 ): { label: string; items: UnifiedNavItem[] }[] {
   const groups: { label: string; items: UnifiedNavItem[] }[] = [
     { label: "Main", items: mainUnified },
   ];
+  if (showAnalyticsNav) groups.push({ label: "Analytics", items: toLinkItems(analyticsNav) });
   if (featuresConfig.attendance) groups.push({ label: "Attendance", items: toLinkItems(attendanceNav) });
   if (featuresConfig.overtime) groups.push({ label: "Overtime", items: toLinkItems(overtimeNav) });
-  if (featuresConfig.reports) groups.push({ label: "Reports", items: toLinkItems(reportNav) });
   return groups;
 }
 
@@ -531,7 +533,16 @@ export function BottomNav() {
   const showExpandedClaimsNav = canSeeExpandedClaimsNav();
   const showExpandedLeaveNav = canSeeExpandedClaimsNav();
   const showManageClaimTypes = isTopManagement(profile?.role, user?.roles);
-  const showManageLeaveTypes = isTopManagement(profile?.role, user?.roles);
+  const showManageLeaveTypes = Boolean(
+    isTopManagement(profile?.role, user?.roles) ||
+    profile?.role === ROLE_HR_ADMIN ||
+    (user?.roles ?? []).includes(ROLE_HR_ADMIN)
+  );
+  const showAnalyticsNav = Boolean(
+    isTopManagement(profile?.role, user?.roles) ||
+    profile?.role === ROLE_HR_ADMIN ||
+    (user?.roles ?? []).includes(ROLE_HR_ADMIN)
+  );
   const canApproveLeaveRequests = canApproveLeaves(profile?.role, user?.roles);
   const claimsAllSubHref = canRejectClaimFromMyClaimsList(profile?.role, user?.roles)
     ? "/dashboard/claims/all"
@@ -568,8 +579,8 @@ export function BottomNav() {
     [profile?.role, user?.roles]
   );
   const navGroupsWithoutSettings = useMemo(
-    () => buildNavGroupsWithoutSettings(mainUnified),
-    [mainUnified]
+    () => buildNavGroupsWithoutSettings(mainUnified, showAnalyticsNav),
+    [mainUnified, showAnalyticsNav]
   );
   const navGroups = useMemo(
     () =>

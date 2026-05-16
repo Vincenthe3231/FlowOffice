@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   Timer,
-  BarChart3,
   MapPin,
   Monitor,
   ScrollText,
@@ -16,6 +15,7 @@ import {
   Sparkles,
   Users,
   Building2,
+  LineChart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -85,9 +85,6 @@ const overtimeNav = [
   { title: "OT Requests", href: "/dashboard/overtime", icon: Timer },
 ];
 
-const reportNav = [
-  { title: "Reports & Export", href: "/dashboard/reports", icon: BarChart3 },
-];
 
 const baseSettingsNav = [
   { title: "Work Locations", href: "/dashboard/settings/locations", icon: MapPin },
@@ -233,6 +230,7 @@ export default function DashboardLayout({
     : "/dashboard/claims/my";
   const showLeaveApprovalQueue = canSeeSettingsNav(profile?.role, user?.roles);
   const showLeaveTypes = Boolean(isTopManagement(profile?.role, user?.roles) || profile?.role === ROLE_HR_ADMIN || (user?.roles ?? []).includes(ROLE_HR_ADMIN));
+  const showAnalyticsNav = Boolean(isTopManagement(profile?.role, user?.roles) || profile?.role === ROLE_HR_ADMIN || (user?.roles ?? []).includes(ROLE_HR_ADMIN));
   const mainNav = React.useMemo(
     () =>
       mainNavAll.filter((item) => {
@@ -284,9 +282,11 @@ export default function DashboardLayout({
             showLeaveApprovalQueue={showLeaveApprovalQueue}
             showLeaveTypes={showLeaveTypes}
           />
+          {showAnalyticsNav && (
+            <NavGroup label="Analytics" items={[{ title: "Analytics", href: "/dashboard/analytics", icon: LineChart }]} />
+          )}
           {featuresConfig.attendance && <NavGroup label="Attendance" items={attendanceNav} />}
           {featuresConfig.overtime && <NavGroup label="Overtime" items={overtimeNav} />}
-          {featuresConfig.reports && <NavGroup label="Reports" items={reportNav} />}
           {showSettingsNav && (
             <NavGroup label="Settings" items={settingsNav} />
           )}

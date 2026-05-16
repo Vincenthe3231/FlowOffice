@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Users, UserCheck, UserX, AlertTriangle, Home, Clock } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from "recharts";
 import { sparklineDataMap } from "@/features/attendance/data/mockData";
+import { CHART_COLORS } from "@/shared/constants/chart-colors";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "Total Employees": Users,
@@ -16,14 +17,14 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 const colorClasses: Record<string, { bg: string; icon: string; stroke: string; fill: string }> = {
-  blue: { bg: "bg-stat-blue", icon: "text-stat-blue-icon", stroke: "hsl(215, 80%, 55%)", fill: "hsl(215, 80%, 55%)" },
-  green: { bg: "bg-stat-green", icon: "text-stat-green-icon", stroke: "hsl(145, 60%, 40%)", fill: "hsl(145, 60%, 40%)" },
-  orange: { bg: "bg-stat-orange", icon: "text-stat-orange-icon", stroke: "hsl(30, 80%, 50%)", fill: "hsl(30, 80%, 50%)" },
-  pink: { bg: "bg-stat-pink", icon: "text-stat-pink-icon", stroke: "hsl(340, 65%, 55%)", fill: "hsl(340, 65%, 55%)" },
-  purple: { bg: "bg-stat-purple", icon: "text-stat-purple-icon", stroke: "hsl(270, 60%, 55%)", fill: "hsl(270, 60%, 55%)" },
-  cyan: { bg: "bg-stat-cyan", icon: "text-stat-cyan-icon", stroke: "hsl(185, 60%, 40%)", fill: "hsl(185, 60%, 40%)" },
+  blue: { bg: "bg-stat-blue", icon: "text-stat-blue-icon", stroke: CHART_COLORS.primary, fill: CHART_COLORS.primary },
+  green: { bg: "bg-stat-green", icon: "text-stat-green-icon", stroke: CHART_COLORS.success, fill: CHART_COLORS.success },
+  orange: { bg: "bg-stat-orange", icon: "text-stat-orange-icon", stroke: CHART_COLORS.orange, fill: CHART_COLORS.orange },
+  pink: { bg: "bg-stat-pink", icon: "text-stat-pink-icon", stroke: CHART_COLORS.pink, fill: CHART_COLORS.pink },
+  purple: { bg: "bg-stat-purple", icon: "text-stat-purple-icon", stroke: CHART_COLORS.purple, fill: CHART_COLORS.purple },
+  cyan: { bg: "bg-stat-cyan", icon: "text-stat-cyan-icon", stroke: CHART_COLORS.cyan, fill: CHART_COLORS.cyan },
 };
-const defaultColors = { bg: "bg-stat-blue", icon: "text-stat-blue-icon", stroke: "hsl(215, 80%, 55%)", fill: "hsl(215, 80%, 55%)" };
+const defaultColors = { bg: "bg-stat-blue", icon: "text-stat-blue-icon", stroke: CHART_COLORS.primary, fill: CHART_COLORS.primary };
 
 interface StatCardProps {
   title: string;

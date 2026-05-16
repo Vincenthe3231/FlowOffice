@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,15 +56,15 @@ export default function ShiftSchedulingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Shift Scheduling</h1>
-          <p className="text-sm text-muted-foreground mt-1">Configure employee shifts and schedules.</p>
-        </div>
-        <Button className="gap-2" onClick={openAdd}>
-          <Plus className="h-4 w-4" /> Add Shift
-        </Button>
-      </div>
+      <PageHeader
+        title="Shift Scheduling"
+        subtitle="Configure employee shifts and schedules."
+        action={
+          <Button className="gap-2" onClick={openAdd}>
+            <Plus className="h-4 w-4" /> Add Shift
+          </Button>
+        }
+      />
 
       <Card className="premium-shadow border-0">
         <CardContent className="p-0">

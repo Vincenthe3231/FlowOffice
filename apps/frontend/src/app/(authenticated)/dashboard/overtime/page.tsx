@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Check, X, Plus, Clock } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { otQueue } from "@/features/attendance/data/mockData";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -21,56 +23,61 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 
 export default function OvertimePage() {
   const [tab, setTab] = useState("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [otDate, setOtDate] = useState<Date | undefined>(undefined);
 
   const filtered = tab === "all" ? otQueue : otQueue.filter((o) => o.status.toLowerCase() === tab);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Overtime Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Submit, review, and manage overtime requests.</p>
-        </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> New OT Request
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Submit OT Request</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Hours</Label>
-                  <Input type="number" placeholder="e.g. 2.5" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Time</Label>
-                  <Input type="time" />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Time</Label>
-                  <Input type="time" />
-                </div>
+      <PageHeader
+        title="Overtime Management"
+        subtitle="Submit, review, and manage overtime requests."
+        action={
+          <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4" /> New OT Request
+          </Button>
+        }
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit OT Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <ScrollDatePicker
+                  value={otDate}
+                  onChange={setOtDate}
+                  placeholder="Select date"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Reason</Label>
-                <Textarea placeholder="Describe the reason for overtime..." rows={3} />
+                <Label>Hours</Label>
+                <Input type="number" placeholder="e.g. 2.5" />
               </div>
-              <Button className="w-full">Submit Request</Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Time</Label>
+                <Input type="time" />
+              </div>
+              <div className="space-y-2">
+                <Label>End Time</Label>
+                <Input type="time" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea placeholder="Describe the reason for overtime..." rows={3} />
+            </div>
+            <Button className="w-full">Submit Request</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="premium-shadow border-0">
         <CardHeader className="pb-2">

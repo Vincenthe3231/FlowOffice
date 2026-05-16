@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -9,10 +10,7 @@ import { auditTrail } from "@/features/attendance/data/mockData";
 export default function AuditTrailPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Audit Trail</h1>
-        <p className="text-sm text-muted-foreground mt-1">Historical log of system changes and actions.</p>
-      </div>
+      <PageHeader title="Audit Trail" subtitle="Historical log of system changes and actions." />
 
       <Card className="premium-shadow border-0">
         <CardHeader className="pb-2">

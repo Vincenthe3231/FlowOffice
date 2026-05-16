@@ -1,4 +1,5 @@
 import type { LeaveFilter, LeaveApprovalStepKind } from "@/features/leave/types"
+import { CHART_PALETTE } from "@/shared/constants/chart-colors"
 
 export const LEAVE_FILTERS: LeaveFilter[] = [
   "All",
@@ -48,15 +49,6 @@ export const DEFAULT_REQUIRES_ATTACHMENT_KEYS = new Set<string>([
   "compassionate_leave",
 ])
 
-export const LEAVE_BALANCE_COLORS = [
-  "hsl(215, 80%, 55%)",
-  "hsl(145, 60%, 40%)",
-  "hsl(30, 80%, 50%)",
-  "hsl(270, 60%, 55%)",
-  "hsl(340, 65%, 55%)",
-  "hsl(195, 70%, 50%)",
-  "hsl(48, 90%, 50%)",
-  "hsl(10, 70%, 55%)",
-]
+export const LEAVE_BALANCE_COLORS = [...CHART_PALETTE]
 
 export const LEAVE_DRAFT_MAX_ATTACHMENT_FILES = 5

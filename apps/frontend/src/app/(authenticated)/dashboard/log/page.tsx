@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/features/attendance/components/StatusBadge";
 import { Input } from "@/components/ui/input";
@@ -47,10 +48,10 @@ export default function AttendanceLogPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Attendance Log</h1>
-        <p className="text-sm text-muted-foreground mt-1">View and manage daily attendance records.</p>
-      </div>
+      <PageHeader
+        title="Attendance Log"
+        subtitle="View and manage daily attendance records."
+      />
 
       <Card className="premium-shadow border-0">
         <CardHeader className="pb-4">

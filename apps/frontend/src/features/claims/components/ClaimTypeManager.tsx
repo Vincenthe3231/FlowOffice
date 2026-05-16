@@ -346,201 +346,218 @@ export function ClaimTypeManager({ onSelectSubclaims }: ClaimTypeManagerProps = 
   const isDeleting = deleteMutation.isPending;
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Claim types
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Manage main claim types (Receipt, Mileage, etc.). Standard expenses and
-            transport types are grouped separately. Only HR and Top Management can add
-            or delete.
-          </p>
-        </div>
-        {isAdmin && (
-          <Button
-            type="button"
-            size="default"
-            className="shrink-0 gap-2 gradient-modernize-blue text-white shadow-md hover:shadow-lg"
-            onClick={openAdd}
-          >
-            <Plus className="h-4 w-4" />
-            Add Claim Type
-          </Button>
-        )}
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <div className="space-y-10">
-          <ClaimTypeSection
-            title="Standard expenses"
-            icon={ShoppingBag}
-            iconClassName="bg-primary/15 text-primary"
-            types={standardTypes}
-            isAdmin={isAdmin}
-            onSelectSubclaims={onSelectSubclaims}
-            onDelete={setDeleteTarget}
-          />
-          <ClaimTypeSection
-            title="Transport & mileage"
-            icon={MapPin}
-            iconClassName="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-            types={transportTypes}
-            isAdmin={isAdmin}
-            onSelectSubclaims={onSelectSubclaims}
-            onDelete={setDeleteTarget}
-          />
-          {claimTypes.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No claim types yet. Add one to get started.
-            </p>
-          )}
-        </div>
-      )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Add Claim Type</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Claim Name</Label>
-              <Input
-                value={form.label}
-                onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
-                placeholder="e.g. Transport Subsidy"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Description (optional)</Label>
-              <Input
-                value={form.description}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, description: e.target.value }))
-                }
-                placeholder="Brief description"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Category</Label>
-              <Select
-                value={form.category}
-                onValueChange={(v) =>
-                  setForm((p) => ({
-                    ...p,
-                    category: v as ClaimTypeFormCategory,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard expenses</SelectItem>
-                  <SelectItem value="transport">Transport & mileage</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Chooses which section this type appears under (stored in the claim
-                type key).
+    <>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Claim types
+              </h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Manage main claim types (Receipt, Mileage, etc.). Standard expenses and
+                transport types are grouped separately. Only HR and Top Management can add
+                or delete.
               </p>
             </div>
-            <div>
-              <Label className="text-xs">Icon</Label>
-              <Select
-                value={form.icon}
-                onValueChange={(v) => setForm((p) => ({ ...p, icon: v }))}
+            {isAdmin && (
+              <Button
+                type="button"
+                size="default"
+                className="shrink-0 gap-2 gradient-modernize-blue text-white shadow-md hover:shadow-lg hidden md:flex"
+                onClick={openAdd}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLAIM_TYPE_ICONS.map((icon) => (
-                    <SelectItem key={icon} value={icon}>
-                      {icon}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Color</Label>
-              <div
-                className={cn(
-                  "mt-1 flex h-10 items-center gap-3 rounded-md border border-input bg-muted/40 px-3 text-sm",
-                )}
-                aria-readonly
-              >
-                <span
-                  className={cn(
-                    "h-8 w-8 shrink-0 rounded-lg",
-                    typeColorMap[colorForCategory(form.category)] ??
-                      "bg-muted",
-                  )}
-                  aria-hidden
-                />
-                <span className="font-mono text-xs text-foreground">
-                  {colorForCategory(form.category)}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Set automatically from category (standard → stat-blue, transport →
-                stat-green).
-              </p>
-            </div>
+                <Plus className="h-4 w-4" />
+                Add Claim Type
+              </Button>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={isSaving || !form.label.trim()}
-            >
-              {isSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Add
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete claim type</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete &quot;{deleteTarget?.label}&quot;? This
-            cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteTarget(null)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <ClaimTypeSection
+                title="Standard expenses"
+                icon={ShoppingBag}
+                iconClassName="bg-primary/15 text-primary"
+                types={standardTypes}
+                isAdmin={isAdmin}
+                onSelectSubclaims={onSelectSubclaims}
+                onDelete={setDeleteTarget}
+              />
+              <ClaimTypeSection
+                title="Transport & mileage"
+                icon={MapPin}
+                iconClassName="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                types={transportTypes}
+                isAdmin={isAdmin}
+                onSelectSubclaims={onSelectSubclaims}
+                onDelete={setDeleteTarget}
+              />
+              {claimTypes.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No claim types yet. Add one to get started.
+                </p>
+              )}
+            </div>
+          )}
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Add Claim Type</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Claim Name</Label>
+                  <Input
+                    value={form.label}
+                    onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
+                    placeholder="e.g. Transport Subsidy"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Description (optional)</Label>
+                  <Input
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, description: e.target.value }))
+                    }
+                    placeholder="Brief description"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) =>
+                      setForm((p) => ({
+                        ...p,
+                        category: v as ClaimTypeFormCategory,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard expenses</SelectItem>
+                      <SelectItem value="transport">Transport & mileage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Chooses which section this type appears under (stored in the claim
+                    type key).
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs">Icon</Label>
+                  <Select
+                    value={form.icon}
+                    onValueChange={(v) => setForm((p) => ({ ...p, icon: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLAIM_TYPE_ICONS.map((icon) => (
+                        <SelectItem key={icon} value={icon}>
+                          {icon}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Color</Label>
+                  <div
+                    className={cn(
+                      "mt-1 flex h-10 items-center gap-3 rounded-md border border-input bg-muted/40 px-3 text-sm",
+                    )}
+                    aria-readonly
+                  >
+                    <span
+                      className={cn(
+                        "h-8 w-8 shrink-0 rounded-lg",
+                        typeColorMap[colorForCategory(form.category)] ??
+                          "bg-muted",
+                      )}
+                      aria-hidden
+                    />
+                    <span className="font-mono text-xs text-foreground">
+                      {colorForCategory(form.category)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Set automatically from category (standard → stat-blue, transport →
+                    stat-green).
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={isSaving || !form.label.trim()}
+                >
+                  {isSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  Add
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+          >
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Delete claim type</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete &quot;{deleteTarget?.label}&quot;? This
+                cannot be undone.
+              </p>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mobile floating button */}
+      {isAdmin && (
+        <Button
+          onClick={openAdd}
+          className="fixed bottom-6 right-6 md:hidden z-40 gap-2 rounded-full shadow-xl h-12 px-5 bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+        >
+          <Plus className="h-5 w-5" />
+          <span className="text-sm font-semibold">Add Type</span>
+        </Button>
+      )}
+    </>
   );
 }

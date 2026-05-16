@@ -36,6 +36,7 @@ import {
 import { buildClaimDetailHrefFromOrgAll } from "@/features/claims/lib/claimUrlParams";
 import { StatusBadge } from "@/features/attendance";
 import { CLAIM_FILTERS } from "@/features/claims/data";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const statusLabel: Record<string, string> = {
   draft: "Draft",
@@ -155,13 +156,10 @@ export function ClaimApprovalView() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">All Claims</h1>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Review submitted claims and process approvals. Updates appear as staff submit or move
-          claims through the workflow.
-        </p>
-      </div>
+      <PageHeader
+        title="All Claims"
+        subtitle="Review submitted claims and process approvals. Updates appear as staff submit or move claims through the workflow."
+      />
 
       <AnimatePresence mode="wait">
         <motion.div

@@ -6,6 +6,7 @@ import { OnboardingAdminView } from "@/features/onboarding/components/Onboarding
 import { useAuth } from "@/shared/hooks/useAuth";
 import { canSeeOnboardingAdmin } from "@/shared/lib/role-utils";
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function OnboardingPage() {
   const { user } = useAuth();
@@ -15,10 +16,10 @@ export default function OnboardingPage() {
   if (!allowed) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Onboarding</h1>
-          <p className="text-muted-foreground">Admin queue for new joiners</p>
-        </div>
+        <PageHeader
+          title="Onboarding"
+          subtitle="Admin queue for new joiners"
+        />
         <div className="rounded-lg border border-border bg-card p-6">
           <p className="text-muted-foreground">
             You do not have access to onboarding administration. Top Management can review and
@@ -34,12 +35,10 @@ export default function OnboardingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Onboarding</h1>
-        <p className="text-muted-foreground">
-          Review pending accounts, assign role and department, or reject with a reason.
-        </p>
-      </div>
+      <PageHeader
+        title="Onboarding"
+        subtitle="Review pending accounts, assign role and department, or reject with a reason."
+      />
       <OnboardingAdminView />
     </div>
   );

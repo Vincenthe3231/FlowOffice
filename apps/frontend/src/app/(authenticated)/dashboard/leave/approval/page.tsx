@@ -1,12 +1,13 @@
 import { LeaveApprovalQueue } from "@/features/leave/components/LeaveApprovalQueue"
+import { PageHeader } from "@/components/shared/PageHeader"
 
 export default function LeaveApprovalPage() {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Leave Approval Queue</h1>
-        <p className="text-sm text-muted-foreground">Review and action pending leave requests.</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Leave Approval Queue"
+        subtitle="Review and action pending leave requests."
+      />
       <LeaveApprovalQueue />
     </div>
   )

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +17,10 @@ const employees = [
 export default function WorkModePage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Work Mode Configuration</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configure on-site and WFH modes.</p>
-      </div>
+      <PageHeader
+        title="Work Mode Configuration"
+        subtitle="Configure on-site and WFH modes."
+      />
       <Card className="premium-shadow border-0">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Global Work Mode</CardTitle>

@@ -93,6 +93,24 @@ class ClaimService
 
             $this->logStatus($claim->id, null, $status, $user->id);
 
+            if ($status !== Claim::STATUS_DRAFT) {
+                $steps = $this->chainResolver->buildSteps($user);
+                foreach ($steps as $step) {
+                    $approval = ClaimApproval::create([
+                        'claim_id' => $claim->id,
+                        'level' => $step['level'],
+                        'step_kind' => $step['step_kind'],
+                        'status' => ClaimApproval::STATUS_PENDING,
+                        'eligible_approver_ids' => $step['eligible_approver_ids'],
+                    ]);
+                    if (! empty($step['eligible_approver_ids'])) {
+                        $approval->eligibleApprovers()->sync($step['eligible_approver_ids']);
+                    }
+                }
+                $claim->update(['status' => Claim::STATUS_PENDING_L1, 'current_level' => 1]);
+                $this->logStatus($claim->id, $status, Claim::STATUS_PENDING_L1, $user->id);
+            }
+
             return $claim->load(['category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments']);
         });
     }
@@ -173,17 +191,20 @@ class ClaimService
             $steps = $this->chainResolver->buildSteps($user);
 
             foreach ($steps as $step) {
-                ClaimApproval::create([
+                $approval = ClaimApproval::create([
                     'claim_id' => $claim->id,
                     'level' => $step['level'],
                     'step_kind' => $step['step_kind'],
                     'status' => ClaimApproval::STATUS_PENDING,
                     'eligible_approver_ids' => $step['eligible_approver_ids'],
                 ]);
+                if (! empty($step['eligible_approver_ids'])) {
+                    $approval->eligibleApprovers()->sync($step['eligible_approver_ids']);
+                }
             }
 
             $from = $claim->status;
-            $claim->update(['status' => Claim::STATUS_PENDING_L1]);
+            $claim->update(['status' => Claim::STATUS_PENDING_L1, 'current_level' => 1]);
             $this->logStatus($claim->id, $from, Claim::STATUS_PENDING_L1, $user->id);
 
             return $claim->fresh([
@@ -215,7 +236,7 @@ class ClaimService
         }
 
         $totalLevels = $claim->claimApprovals->count();
-        $currentLevel = $level ?? $this->chainResolver->currentLevelFromStatus($claim->status);
+        $currentLevel = $level ?? $claim->current_level;
         if ($currentLevel === null) {
             throw new \InvalidArgumentException('Claim is not in a pending approval state.');
         }
@@ -246,6 +267,7 @@ class ClaimService
             if ($currentLevel >= $totalLevels) {
                 $claim->update([
                     'status' => Claim::STATUS_APPROVED,
+                    'current_level' => null,
                     'approved_by' => $approver->id,
                     'approved_at' => now(),
                     'rejected_reason' => null,
@@ -261,6 +283,7 @@ class ClaimService
                 }
                 $claim->update([
                     'status' => $next,
+                    'current_level' => $currentLevel + 1,
                     'approved_by' => null,
                     'approved_at' => null,
                     'rejected_reason' => null,
@@ -319,7 +342,7 @@ class ClaimService
             throw new \InvalidArgumentException('Claim has no approval pipeline rows.');
         }
 
-        $currentLevel = $level ?? $this->chainResolver->currentLevelFromStatus($claim->status);
+        $currentLevel = $level ?? $claim->current_level;
         if ($currentLevel === null) {
             throw new \InvalidArgumentException('Claim is not in a pending approval state.');
         }
@@ -348,6 +371,7 @@ class ClaimService
 
             $claim->update([
                 'status' => Claim::STATUS_REJECTED,
+                'current_level' => null,
                 'rejected_reason' => $reason,
                 'approved_by' => null,
                 'approved_at' => null,
@@ -440,14 +464,17 @@ class ClaimService
             $outer->where('claims.user_id', $requestingUser->id);
 
             if ($requestingUser->hasRole('top_management')) {
-                $outer->orWhere(fn (Builder $q) => $this->scopeClaimAtPendingPipelineStep($q, ClaimApproval::STEP_TOP_MANAGEMENT));
+                $outer->orWhereRaw('1 = 1');
+
+                return;
             }
 
             if ($this->chainResolver->isFinanceDepartmentHod($requestingUser)) {
                 $outer->orWhere(fn (Builder $q) => $this->scopeClaimAtPendingPipelineStep($q, ClaimApproval::STEP_FINANCE_HOD));
             }
 
-            if ($requestingUser->hasRole('hod') && $this->chainResolver->isHrDepartment($requestingUser->department)) {
+            if ($requestingUser->hasRole('hr_admin') ||
+                ($requestingUser->hasRole('hod') && $this->chainResolver->isHrDepartment($requestingUser->department))) {
                 $outer->orWhere(fn (Builder $q) => $this->scopeClaimAtPendingPipelineStep($q, ClaimApproval::STEP_HR_HOD));
             }
 
@@ -455,6 +482,10 @@ class ClaimService
                 $deptId = (int) $requestingUser->department_id;
                 $outer->orWhere(fn (Builder $q) => $this->scopeClaimAtPendingPipelineStep($q, ClaimApproval::STEP_DEPT_HOD, $deptId));
             }
+
+            $outer->orWhereHas('claimApprovals', function (Builder $q) use ($requestingUser): void {
+                $q->where('claim_approvals.approver_id', $requestingUser->id);
+            });
         });
     }
 
@@ -469,20 +500,11 @@ class ClaimService
             $query->whereHas('user', fn (Builder $uq) => $uq->where('department_id', $submitterDepartmentId));
         }
 
-        $query->whereIn('claims.status', Claim::pendingPipelineStatuses())
+        $query->whereNotNull('claims.current_level')
             ->whereHas('claimApprovals', function (Builder $q) use ($stepKind): void {
                 $q->where('claim_approvals.status', ClaimApproval::STATUS_PENDING)
                     ->where('claim_approvals.step_kind', $stepKind)
-                    ->whereRaw(
-                        'claim_approvals.level = (CASE claims.status WHEN ? THEN 1 WHEN ? THEN 1 WHEN ? THEN 2 WHEN ? THEN 3 WHEN ? THEN 4 ELSE 0 END)',
-                        [
-                            Claim::STATUS_PENDING,
-                            Claim::STATUS_PENDING_L1,
-                            Claim::STATUS_PENDING_L2,
-                            Claim::STATUS_PENDING_L3,
-                            Claim::STATUS_PENDING_L4,
-                        ]
-                    );
+                    ->whereColumn('claim_approvals.level', 'claims.current_level');
             });
     }
 
@@ -491,6 +513,11 @@ class ClaimService
         $approver->loadMissing('roles', 'department');
         $claim->loadMissing('user.department');
 
+        if ($row->eligibleApprovers()->where('users.id', $approver->id)->exists()) {
+            return true;
+        }
+
+        // Legacy fallback: JSON column for rows created before pivot migration
         $legacy = $row->eligible_approver_ids ?? [];
         if (is_array($legacy) && $legacy !== [] && in_array($approver->id, $legacy, true)) {
             return true;
@@ -502,8 +529,8 @@ class ClaimService
                 && $claim->user !== null
                 && $claim->user->department_id !== null
                 && (int) $claim->user->department_id === (int) $approver->department_id,
-            ClaimApproval::STEP_HR_HOD => $approver->hasRole('hod')
-                && $this->chainResolver->isHrDepartment($approver->department),
+            ClaimApproval::STEP_HR_HOD => $approver->hasRole('hr_admin')
+                || ($approver->hasRole('hod') && $this->chainResolver->isHrDepartment($approver->department)),
             ClaimApproval::STEP_FINANCE_HOD => $this->chainResolver->isFinanceDepartmentHod($approver),
             ClaimApproval::STEP_TOP_MANAGEMENT => $approver->hasRole('top_management'),
             default => false,

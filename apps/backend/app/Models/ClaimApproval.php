@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ClaimApproval extends Model
 {
@@ -54,5 +55,13 @@ class ClaimApproval extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    /**
+     * @return BelongsToMany<User, $this>
+     */
+    public function eligibleApprovers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'claim_approval_eligible_approvers');
     }
 }

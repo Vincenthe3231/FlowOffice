@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { LeaveApprovalTimeline } from "@/features/leave/components/LeaveApprovalTimeline"
 import { useLeaveById, useCancelLeaveRequest } from "@/features/leave/hooks/useLeave"
 import { LEAVE_DAY_TYPE_LABELS } from "@/features/leave/data"
+import { getStatusColorConfig } from "@/shared/lib/status-colors-utils"
 import { extractError } from "@/shared/lib/api-client/response-handler"
+import { cn } from "@/lib/utils"
 import { useState } from "react"
 import {
   AlertDialog,
@@ -95,9 +97,18 @@ export function LeaveDetailView({ leaveId }: LeaveDetailViewProps) {
               <p className="text-sm text-muted-foreground">{leave.submittedByDisplay}</p>
             )}
           </div>
-          <Badge variant={statusVariant(leave.status)} className="w-fit capitalize">
-            {leave.status}
-          </Badge>
+          {(() => {
+            const colorConfig = getStatusColorConfig(leave.status)
+            return (
+              <span className={cn(
+                "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold capitalize w-fit",
+                colorConfig.text,
+                colorConfig.bg
+              )}>
+                {leave.status}
+              </span>
+            )
+          })()}
         </div>
 
         <div className="grid gap-0 sm:grid-cols-2 sm:gap-x-8">

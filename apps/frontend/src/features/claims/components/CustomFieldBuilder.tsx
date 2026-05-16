@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker";
 import {
   Select,
   SelectContent,
@@ -199,15 +200,15 @@ export function CustomFieldBuilder({
                   %
                 </span>
               </div>
+            ) : field.type === "date" ? (
+              <ScrollDatePicker
+                value={field.value ? new Date(field.value) : undefined}
+                onChange={(date) => onUpdate(field.id, date ? date.toISOString().split('T')[0] : "")}
+                placeholder={`Select ${field.label.toLowerCase()}`}
+              />
             ) : (
               <Input
-                type={
-                  field.type === "number"
-                    ? "number"
-                    : field.type === "date"
-                      ? "date"
-                      : "text"
-                }
+                type={field.type === "number" ? "number" : "text"}
                 value={field.value}
                 onChange={(e) => onUpdate(field.id, e.target.value)}
                 className="h-9 text-sm"

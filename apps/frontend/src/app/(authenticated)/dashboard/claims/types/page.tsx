@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ClaimTypeManager } from "@/features/claims/components/ClaimTypeManager";
 import { ClaimTypesTopManagementGate } from "@/features/claims/components/ClaimTypesTopManagementGate";
 import { SubclaimTypesView } from "@/features/claims/components/SubclaimTypesView";
@@ -21,12 +22,10 @@ function ManageClaimTypesPageContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Manage Claim Types</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Create and edit claim categories, rates, and subclaim types.
-        </p>
-      </div>
+      <PageHeader
+        title="Manage Claim Types"
+        subtitle="Create and edit claim categories, rates, and subclaim types."
+      />
       <ClaimTypeManager onSelectSubclaims={setSelectedClaimTypeId} />
     </div>
   );

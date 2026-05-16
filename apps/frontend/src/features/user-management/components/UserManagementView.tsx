@@ -37,6 +37,8 @@ import {
   getAdminUserDisplayName,
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
+import { getStatusColorConfig } from '@/shared/lib/status-colors-utils'
+import { cn } from '@/lib/utils'
 import type { ProfileRole } from '@/shared/lib/api-client/profile'
 import {
   ROLE_TOP_MANAGEMENT,
@@ -327,9 +329,18 @@ export function UserManagementView() {
                       {formatAdminUserDepartmentLabel(row)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(row.status)}>
-                        {row.status}
-                      </Badge>
+                      {(() => {
+                        const colorConfig = getStatusColorConfig(row.status)
+                        return (
+                          <span className={cn(
+                            "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold",
+                            colorConfig.text,
+                            colorConfig.bg
+                          )}>
+                            {row.status}
+                          </span>
+                        )
+                      })()}
                     </TableCell>
                   </TableRow>
                 )

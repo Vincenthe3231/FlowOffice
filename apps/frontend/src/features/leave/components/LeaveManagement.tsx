@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Plus, ArrowRight, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { Card, CardContent } from "@/components/ui/card"
 import { LeaveBalanceGrid } from "@/features/leave/components/LeaveBalanceGrid"
 import { LeaveStatCards } from "@/features/leave/components/LeaveStatCards"
@@ -86,15 +87,10 @@ export function LeaveManagement() {
   if (isTopMgmt) {
     return (
       <div className="space-y-8">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <div className="relative">
-            <h1 className="text-2xl font-bold text-white">Leave Overview</h1>
-            <p className="text-sm text-white/80 mt-1">
-              Monitor and approve leave requests across your organisation
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Leave Overview"
+          subtitle="Monitor and approve leave requests across your organisation"
+        />
 
         <LeaveOrgOverview allLeaves={allLeaves} isLoading={allLeavesLoading} />
       </div>
@@ -104,26 +100,19 @@ export function LeaveManagement() {
   // ── Staff + HOD + HR Admin: personal leave view ───────────────────────────
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="relative flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Leave Management</h1>
-            <p className="text-sm text-white/80 mt-1">
-              {canApprove
-                ? "Submit and track your leave requests"
-                : "Submit and track your leave requests"}
-            </p>
-          </div>
+      <PageHeader
+        title="Leave Management"
+        subtitle="Submit and track your leave requests"
+        action={
           <Button
             onClick={() => router.push("/dashboard/leave/new")}
-            className="gap-1.5 hidden md:flex bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-sm"
+            className="gap-1.5 hidden md:flex"
           >
             <Plus className="h-4 w-4" />
             Request Leave
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Balance — critical info first (3-second rule) */}
       <LeaveBalanceGrid balances={balances} isLoading={balancesLoading} />

@@ -37,7 +37,11 @@ class ClaimController extends Controller
 
     public function store(StoreClaimRequest $request): JsonResponse
     {
-        $claim = $this->claimService->store($request->user(), $request->validated());
+        try {
+            $claim = $this->claimService->store($request->user(), $request->validated());
+        } catch (ApprovalChainUnresolvedException $e) {
+            return $this->error('APPROVAL_CHAIN_UNRESOLVABLE', $e->getMessage(), 422);
+        }
 
         // Option A: attachments sent in the same request as claim creation (no draft step)
         $files = $request->file('attachments');

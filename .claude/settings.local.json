@@ -3,7 +3,12 @@
     "allow": [
       "Bash(pnpm build *)",
       "Bash(php artisan *)",
-      "Bash(php -m)"
+      "Bash(php -m)",
+      "Bash(python3 \"C:\\\\projects\\\\FlowOffice\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"analytics dashboard enterprise HR SaaS management\" --design-system -p \"FlowOffice Analytics\")",
+      "Bash(python3 \"C:\\\\projects\\\\FlowOffice\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"filter bar select dropdown tabs compact\" --domain ux -n 5)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm run *)",
+      "Bash(curl -s http://localhost:3000/api/auth/me)"
     ]
   }
 }

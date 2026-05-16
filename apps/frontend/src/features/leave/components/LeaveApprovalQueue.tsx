@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Loader2, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -17,6 +18,8 @@ import { ApproveLeaveDialog } from "@/features/leave/components/ApproveLeaveDial
 import { RejectLeaveDialog } from "@/features/leave/components/RejectLeaveDialog"
 import { useAllLeavesForApproval, useApproveRejectLeave } from "@/features/leave/hooks/useLeave"
 import { LEAVE_DAY_TYPE_LABELS } from "@/features/leave/data"
+import { getStatusColorConfig } from "@/shared/lib/status-colors-utils"
+import { cn } from "@/lib/utils"
 import type { LeaveRequest } from "@/features/leave/types"
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -62,19 +65,21 @@ export function LeaveApprovalQueue() {
     leave.approvals.some((a) => a.status === "pending")
 
   return (
-    <div className="space-y-3">
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by employee or type…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-8"
-        />
-      </div>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="space-y-4">
+          <div className="relative max-w-xs">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by employee or type…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
 
-      <div className="rounded-lg border border-border">
-        <Table>
+          <div className="rounded-lg border border-border">
+            <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
@@ -114,9 +119,18 @@ export function LeaveApprovalQueue() {
                     {leave.totalDays}d
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(leave.status)} className="capitalize">
-                      {leave.status}
-                    </Badge>
+                    {(() => {
+                      const colorConfig = getStatusColorConfig(leave.status)
+                      return (
+                        <span className={cn(
+                          "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold capitalize",
+                          colorConfig.text,
+                          colorConfig.bg
+                        )}>
+                          {leave.status}
+                        </span>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     {canAct(leave) && (
@@ -147,22 +161,24 @@ export function LeaveApprovalQueue() {
             )}
           </TableBody>
         </Table>
-      </div>
+          </div>
 
-      <ApproveLeaveDialog
+          <ApproveLeaveDialog
         leaveRequest={approveTarget}
         open={approveTarget != null}
         onOpenChange={(o) => { if (!o) setApproveTarget(null) }}
         isPending={approveReject.isPending}
         onApprove={handleApprove}
       />
-      <RejectLeaveDialog
-        leaveRequest={rejectTarget}
-        open={rejectTarget != null}
-        onOpenChange={(o) => { if (!o) setRejectTarget(null) }}
-        isPending={approveReject.isPending}
-        onReject={handleReject}
-      />
-    </div>
+          <RejectLeaveDialog
+            leaveRequest={rejectTarget}
+            open={rejectTarget != null}
+            onOpenChange={(o) => { if (!o) setRejectTarget(null) }}
+            isPending={approveReject.isPending}
+            onReject={handleReject}
+          />
+        </div>
+      </CardContent>
+    </Card>
   )
 }

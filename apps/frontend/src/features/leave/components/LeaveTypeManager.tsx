@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Pencil, Trash2, Loader2, Plus, Gift } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,15 +65,19 @@ export function LeaveTypeManager() {
 
   if (isLoading) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <Card>
+        <CardContent className="flex h-32 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <Card>
+      <CardContent className="pt-6">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">Leave Types</h2>
           <p className="text-sm text-muted-foreground">
@@ -174,36 +179,38 @@ export function LeaveTypeManager() {
         </div>
       )}
 
-      <LeaveTypeFormDialog
-        open={formOpen}
-        onOpenChange={(o) => { setFormOpen(o); if (!o) setEditTarget(undefined) }}
-        initialValues={editTarget}
-        onSave={handleSave}
-        isPending={createMutation.isPending || updateMutation.isPending}
-      />
+          <LeaveTypeFormDialog
+            open={formOpen}
+            onOpenChange={(o) => { setFormOpen(o); if (!o) setEditTarget(undefined) }}
+            initialValues={editTarget}
+            onSave={handleSave}
+            isPending={createMutation.isPending || updateMutation.isPending}
+          />
 
-      <AlertDialog open={deleteTarget != null} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete leave type?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deleting &quot;{deleteTarget?.name}&quot; may affect existing leave records. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={deleteTarget != null} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete leave type?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Deleting &quot;{deleteTarget?.name}&quot; may affect existing leave records. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleteMutation.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleDelete}
+                >
+                  {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-      <OilGrantDialog open={oilGrantOpen} onOpenChange={setOilGrantOpen} />
-    </div>
+          <OilGrantDialog open={oilGrantOpen} onOpenChange={setOilGrantOpen} />
+        </div>
+      </CardContent>
+    </Card>
   )
 }

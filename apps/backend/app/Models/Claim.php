@@ -78,6 +78,7 @@ class Claim extends Model
         'rejected_reason',
         'paid_at',
         'metadata',
+        'current_level',
     ];
 
     protected $casts = [
@@ -86,6 +87,7 @@ class Claim extends Model
         'approved_at' => 'datetime',
         'paid_at' => 'datetime',
         'metadata' => 'array',
+        'current_level' => 'integer',
     ];
 
     public function user()

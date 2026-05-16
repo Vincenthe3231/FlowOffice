@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,6 +48,7 @@ import {
   RadialBar,
 } from "recharts";
 import { ROLE_TOP_MANAGEMENT, ROLE_HR_ADMIN, ROLE_HOD } from "@/shared/constants/roles";
+import { CHART_COLORS, CHART_GRID, CHART_AXIS } from "@/shared/constants/chart-colors";
 
 type Role = typeof ROLE_TOP_MANAGEMENT | typeof ROLE_HR_ADMIN | typeof ROLE_HOD;
 type Period = "daily" | "weekly" | "monthly" | "annually";
@@ -143,21 +145,21 @@ function AttendanceChart({ data, subtitle }: { data: typeof weeklyChartData; sub
         <AreaChart data={data}>
           <defs>
             <linearGradient id="gradPresent" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(230, 70%, 55%)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(230, 70%, 55%)" stopOpacity={0} />
+              <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="gradWfh" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(270, 60%, 55%)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(270, 60%, 55%)" stopOpacity={0} />
+              <stop offset="5%" stopColor={CHART_COLORS.purple} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={CHART_COLORS.purple} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 90%)" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="hsl(220, 10%, 50%)" />
-          <YAxis tick={{ fontSize: 12 }} stroke="hsl(220, 10%, 50%)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke={CHART_AXIS} />
+          <YAxis tick={{ fontSize: 12 }} stroke={CHART_AXIS} />
           <RechartsTooltip content={<ChartTooltipRenderer />} />
-          <Area type="monotone" dataKey="present" stroke="hsl(230, 70%, 55%)" fill="url(#gradPresent)" strokeWidth={2} name="Present" />
-          <Area type="monotone" dataKey="wfh" stroke="hsl(270, 60%, 55%)" fill="url(#gradWfh)" strokeWidth={2} name="WFH" />
-          <Area type="monotone" dataKey="late" stroke="hsl(340, 65%, 55%)" fill="hsl(340, 65%, 55%)" fillOpacity={0.1} strokeWidth={2} name="Late" />
+          <Area type="monotone" dataKey="present" stroke={CHART_COLORS.primary} fill="url(#gradPresent)" strokeWidth={2} name="Present" />
+          <Area type="monotone" dataKey="wfh" stroke={CHART_COLORS.purple} fill="url(#gradWfh)" strokeWidth={2} name="WFH" />
+          <Area type="monotone" dataKey="late" stroke={CHART_COLORS.pink} fill={CHART_COLORS.pink} fillOpacity={0.1} strokeWidth={2} name="Late" />
         </AreaChart>
       </ResponsiveContainer>
     </>
@@ -219,14 +221,14 @@ function TopManagementDashboard({ period, setPeriod }: { period: Period; setPeri
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={departmentAttendanceBreakdown} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 90%)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 50%)" />
-                <YAxis type="category" dataKey="department" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 50%)" width={80} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} stroke={CHART_AXIS} />
+                <YAxis type="category" dataKey="department" tick={{ fontSize: 11 }} stroke={CHART_AXIS} width={80} />
                 <RechartsTooltip content={<ChartTooltipRenderer />} />
-                <Bar dataKey="present" stackId="a" fill="hsl(145, 60%, 40%)" radius={[0, 0, 0, 0]} name="Present" />
-                <Bar dataKey="late" stackId="a" fill="hsl(38, 92%, 50%)" name="Late" />
-                <Bar dataKey="wfh" stackId="a" fill="hsl(340, 65%, 65%)" name="WFH" />
-                <Bar dataKey="absent" stackId="a" fill="hsl(0, 72%, 51%)" radius={[0, 4, 4, 0]} name="Absent" />
+                <Bar dataKey="present" stackId="a" fill={CHART_COLORS.success} radius={[0, 0, 0, 0]} name="Present" />
+                <Bar dataKey="late" stackId="a" fill={CHART_COLORS.warning} name="Late" />
+                <Bar dataKey="wfh" stackId="a" fill={CHART_COLORS.pink} name="WFH" />
+                <Bar dataKey="absent" stackId="a" fill={CHART_COLORS.danger} radius={[0, 4, 4, 0]} name="Absent" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -368,9 +370,9 @@ function TopManagementDashboard({ period, setPeriod }: { period: Period; setPeri
 // ───────── Admin / HR Dashboard ─────────
 function HRDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Period) => void }) {
   const hrRadialData = [
-    { name: "Attendance", value: 94.2, fill: "hsl(145, 60%, 40%)" },
-    { name: "Late %", value: 4.8, fill: "hsl(38, 92%, 50%)" },
-    { name: "WFH Rate", value: 12.9, fill: "hsl(340, 65%, 55%)" },
+    { name: "Attendance", value: 94.2, fill: CHART_COLORS.success },
+    { name: "Late %", value: 4.8, fill: CHART_COLORS.warning },
+    { name: "WFH Rate", value: 12.9, fill: CHART_COLORS.pink },
   ];
   const priorityColors: Record<string, string> = {
     high: "from-red-400 to-rose-500",
@@ -387,7 +389,7 @@ function HRDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Per
               <div className="w-20 h-20">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ value: item.value, fill: item.fill }]}>
-                    <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "hsl(220, 20%, 95%)" }} />
+                    <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "hsl(var(--muted))" }} />
                     <RechartsTooltip content={<RadialTooltipRenderer metricName={item.name} />} />
                   </RadialBarChart>
                 </ResponsiveContainer>
@@ -426,9 +428,9 @@ function HRDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Per
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={monthlyTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 90%)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 50%)" />
-                <YAxis domain={[80, 100]} tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 50%)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke={CHART_AXIS} />
+                <YAxis domain={[80, 100]} tick={{ fontSize: 11 }} stroke={CHART_AXIS} />
                 <RechartsTooltip content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   return (
@@ -438,7 +440,7 @@ function HRDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Per
                     </div>
                   );
                 }} />
-                <Bar dataKey="rate" fill="hsl(230, 70%, 55%)" radius={[4, 4, 0, 0]} name="Rate" />
+                <Bar dataKey="rate" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} name="Rate" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -505,8 +507,8 @@ function HODDashboard({ period, setPeriod }: { period: Period; setPeriod: (p: Pe
           <CardContent className="flex flex-col items-center">
             <div className="w-40 h-40">
               <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ value: deptRate, fill: "hsl(145, 60%, 40%)" }]}>
-                  <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "hsl(220, 20%, 95%)" }} />
+                <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ value: deptRate, fill: CHART_COLORS.success }]}>
+                  <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "hsl(var(--muted))" }} />
                   <RechartsTooltip content={<RadialTooltipRenderer metricName="Engineering Attendance" />} />
                 </RadialBarChart>
               </ResponsiveContainer>
@@ -577,22 +579,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Welcome back, {roleLabels[role]}. Here&apos;s today&apos;s overview.</p>
-        </div>
-        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-          <SelectTrigger className="w-44 h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ROLE_TOP_MANAGEMENT}>Top Management</SelectItem>
-            <SelectItem value={ROLE_HR_ADMIN}>Admin / HR</SelectItem>
-            <SelectItem value={ROLE_HOD}>HOD</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        subtitle={`Welcome back, ${roleLabels[role]}. Here's today's overview.`}
+        action={
+          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ROLE_TOP_MANAGEMENT}>Top Management</SelectItem>
+              <SelectItem value={ROLE_HR_ADMIN}>Admin / HR</SelectItem>
+              <SelectItem value={ROLE_HOD}>HOD</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
       {role === ROLE_TOP_MANAGEMENT && <TopManagementDashboard period={period} setPeriod={setPeriod} />}
       {role === ROLE_HR_ADMIN && <HRDashboard period={period} setPeriod={setPeriod} />}
       {role === ROLE_HOD && <HODDashboard period={period} setPeriod={setPeriod} />}

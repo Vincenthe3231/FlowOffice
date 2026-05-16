@@ -16,41 +16,14 @@ import {
   formatPipelineTimestamp,
 } from "@/features/claims/components/ApprovalTimeline";
 import type { Claim, ClaimApproval } from "@/features/claims/types";
+import { getStatusColorConfig, type StatusColorConfig } from "@/shared/lib/status-colors-utils";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_STATUS_COLOR = {
+const DEFAULT_STATUS_COLOR: StatusColorConfig = {
   bg: "bg-muted",
   text: "text-muted-foreground",
   dot: "bg-muted-foreground",
 } as const;
-
-const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  Pending: {
-    bg: "bg-amber-500/15 dark:bg-amber-500/20",
-    text: "text-amber-800 dark:text-amber-200",
-    dot: "bg-amber-500",
-  },
-  Approved: {
-    bg: "bg-emerald-500/15 dark:bg-emerald-500/20",
-    text: "text-emerald-800 dark:text-emerald-200",
-    dot: "bg-emerald-500",
-  },
-  Rejected: {
-    bg: "bg-rose-500/15 dark:bg-rose-500/20",
-    text: "text-rose-800 dark:text-rose-200",
-    dot: "bg-rose-500",
-  },
-  Paid: {
-    bg: "bg-blue-500/15 dark:bg-blue-500/20",
-    text: "text-blue-800 dark:text-blue-200",
-    dot: "bg-blue-500",
-  },
-  Draft: {
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    dot: "bg-muted-foreground",
-  },
-};
 
 export interface ClaimDetailViewProps {
   claim: Claim;
@@ -70,7 +43,7 @@ export function ClaimDetailView({
 }: ClaimDetailViewProps) {
   const amountStr = claim.amount.toFixed(2);
   const [amountInt, amountDec] = amountStr.split(".");
-  const sc = statusColors[claim.status] ?? DEFAULT_STATUS_COLOR;
+  const sc = getStatusColorConfig(claim.status) ?? DEFAULT_STATUS_COLOR;
   const claimIndex = String(claim.id).slice(0, 8).toUpperCase();
   const attachments = claim.attachments ?? [];
   const hasAttachments = attachments.length > 0;

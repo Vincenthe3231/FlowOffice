@@ -119,7 +119,12 @@ class RolesAndPermissionsSeeder extends Seeder
         $topManagementUser->syncRoles($topManagement);
         $topManagementUser->forceFill(['status' => 'active'])->save();
 
-        // Finance demo login; assign department / roles in onboarding as needed.
+        // Resolve department IDs for assignment (seeded by DepartmentSeeder)
+        $deptIt = \App\Models\Department::where('short_code', 'IT')->value('id');
+        $deptHr = \App\Models\Department::where('short_code', 'HR')->value('id');
+        $deptFa = \App\Models\Department::where('short_code', 'FA')->value('id');
+
+        // Finance HOD — must have hod role + Finance & Account department for approval chain
         $financeUser = User::firstOrCreate(
             ['email' => 'finance@gmail.com'],
             [
@@ -127,14 +132,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Finance',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptFa,
             ]
         );
         if (empty($financeUser->uuid)) {
             $financeUser->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
-        $financeUser->syncRoles($staff);
-        $financeUser->forceFill(['status' => 'active'])->save();
+        $financeUser->syncRoles($hod);
+        $financeUser->forceFill(['status' => 'active', 'department_id' => $deptFa])->save();
 
+        // HR Admin — hr_admin role + Human Resource department
         $hrUser = User::firstOrCreate(
             ['email' => 'hr@gmail.com'],
             [
@@ -142,14 +149,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'HR',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptHr,
             ]
         );
         if (empty($hrUser->uuid)) {
             $hrUser->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
         $hrUser->syncRoles($hrAdmin);
-        $hrUser->forceFill(['status' => 'active'])->save();
+        $hrUser->forceFill(['status' => 'active', 'department_id' => $deptHr])->save();
 
+        // HOD — hod role + Software & IT department (demo department for staff)
         $hodUser = User::firstOrCreate(
             ['email' => 'hod@gmail.com'],
             [
@@ -157,15 +166,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'HOD',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptIt,
             ]
         );
         if (empty($hodUser->uuid)) {
             $hodUser->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
         $hodUser->syncRoles($hod);
-        $hodUser->forceFill(['status' => 'active'])->save();
+        $hodUser->forceFill(['status' => 'active', 'department_id' => $deptIt])->save();
 
-        // Staff demo users
+        // Staff demo users — same department as HOD so approval chain resolves
         $staff1 = User::firstOrCreate(
             ['email' => 'alice@gmail.com'],
             [
@@ -173,13 +183,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Alice Johnson',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptIt,
             ]
         );
         if (empty($staff1->uuid)) {
             $staff1->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
         $staff1->syncRoles($staff);
-        $staff1->forceFill(['status' => 'active'])->save();
+        $staff1->forceFill(['status' => 'active', 'department_id' => $deptIt])->save();
 
         $staff2 = User::firstOrCreate(
             ['email' => 'bob@gmail.com'],
@@ -188,13 +199,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Bob Smith',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptIt,
             ]
         );
         if (empty($staff2->uuid)) {
             $staff2->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
         $staff2->syncRoles($staff);
-        $staff2->forceFill(['status' => 'active'])->save();
+        $staff2->forceFill(['status' => 'active', 'department_id' => $deptIt])->save();
 
         $staff3 = User::firstOrCreate(
             ['email' => 'carol@gmail.com'],
@@ -203,13 +215,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Carol Davis',
                 'password' => Hash::make('password'),
                 'status' => 'active',
+                'department_id' => $deptIt,
             ]
         );
         if (empty($staff3->uuid)) {
             $staff3->forceFill(['uuid' => (string) Str::uuid()])->save();
         }
         $staff3->syncRoles($staff);
-        $staff3->forceFill(['status' => 'active'])->save();
+        $staff3->forceFill(['status' => 'active', 'department_id' => $deptIt])->save();
 
         // Ensure users who have web guard roles also have the same roles for sanctum (API)
         $sanctumRolesByName = Role::where('guard_name', $guardName)->get()->keyBy('name');

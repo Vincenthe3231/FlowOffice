@@ -23,6 +23,8 @@ import {
 } from "recharts"
 import type { LeaveRequest } from "@/features/leave/types"
 import { LEAVE_BALANCE_COLORS, LEAVE_DAY_TYPE_LABELS } from "@/features/leave/data"
+import { getStatusColorConfig } from "@/shared/lib/status-colors-utils"
+import { cn } from "@/lib/utils"
 
 interface LeaveOrgOverviewProps {
   allLeaves: LeaveRequest[]
@@ -243,9 +245,18 @@ export function LeaveOrgOverview({ allLeaves, isLoading }: LeaveOrgOverviewProps
                             </span>
                           </TableCell>
                           <TableCell className="py-2">
-                            <Badge variant={statusVariant(leave.status)} className="capitalize text-xs">
-                              {leave.status}
-                            </Badge>
+                            {(() => {
+                              const colorConfig = getStatusColorConfig(leave.status)
+                              return (
+                                <span className={cn(
+                                  "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold capitalize",
+                                  colorConfig.text,
+                                  colorConfig.bg
+                                )}>
+                                  {leave.status}
+                                </span>
+                              )
+                            })()}
                           </TableCell>
                         </TableRow>
                       ))}

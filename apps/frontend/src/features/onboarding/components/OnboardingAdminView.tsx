@@ -42,6 +42,8 @@ import {
   onboardingRoleSchema,
   rejectOnboardingFormSchema,
 } from "@/features/onboarding/schemas/onboarding.schemas";
+import { getStatusColorConfig } from "@/shared/lib/status-colors-utils";
+import { cn } from "@/lib/utils";
 
 function firstOnboardingRoleFromOptions(
   options: { value: string }[]
@@ -192,7 +194,18 @@ export function OnboardingAdminView() {
                     </TableCell>
                     <TableCell>{u?.email ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
+                      {(() => {
+                        const colorConfig = getStatusColorConfig(row.status)
+                        return (
+                          <span className={cn(
+                            "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold",
+                            colorConfig.text,
+                            colorConfig.bg
+                          )}>
+                            {row.status}
+                          </span>
+                        )
+                      })()}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {row.createdAt

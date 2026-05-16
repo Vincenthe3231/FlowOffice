@@ -118,8 +118,7 @@ class ClaimApprovalChainResolver
             return false;
         }
 
-        return $dept->short_code === 'HR'
-            || $dept->name === 'Human Resource';
+        return $dept->type === Department::TYPE_HR;
     }
 
     /**
@@ -157,17 +156,18 @@ class ClaimApprovalChainResolver
      */
     private function hrDepartmentHodIds(): array
     {
-        $dept = Department::query()
-            ->where(function ($q): void {
-                $q->where('short_code', 'HR')->orWhere('name', 'Human Resource');
+        $dept = Department::hr()->first();
+
+        $hodIds = $dept !== null ? $this->departmentHodIds($dept->id) : [];
+
+        $hrAdminIds = User::query()
+            ->whereHas('roles', function ($q): void {
+                $q->where('name', 'hr_admin')->where('guard_name', 'sanctum');
             })
-            ->first();
+            ->pluck('id')
+            ->all();
 
-        if ($dept === null) {
-            return [];
-        }
-
-        return $this->departmentHodIds($dept->id);
+        return array_values(array_unique(array_merge($hodIds, $hrAdminIds)));
     }
 
     /**
@@ -175,11 +175,7 @@ class ClaimApprovalChainResolver
      */
     private function financeDepartmentHodIds(): array
     {
-        $dept = Department::query()
-            ->where(function ($q): void {
-                $q->where('short_code', 'FA')->orWhere('name', 'Finance & Account');
-            })
-            ->first();
+        $dept = Department::finance()->first();
 
         if ($dept === null) {
             return [];
@@ -209,8 +205,7 @@ class ClaimApprovalChainResolver
             return false;
         }
 
-        return $dept->short_code === 'FA'
-            || $dept->name === 'Finance & Account';
+        return $dept->type === Department::TYPE_FINANCE;
     }
 
     /**

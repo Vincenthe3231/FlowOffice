@@ -1,4 +1,5 @@
 import type { Claim, ClaimCategory, ClaimFilter, ClaimMonthlySpend } from "@/features/claims/types";
+import { CHART_COLORS } from "@/shared/constants/chart-colors";
 
 export const CLAIM_FILTERS: ClaimFilter[] = [
   "All",
@@ -10,11 +11,11 @@ export const CLAIM_FILTERS: ClaimFilter[] = [
 ];
 
 export const CLAIM_PIE_COLORS = [
-  "hsl(30, 80%, 50%)",
-  "hsl(215, 80%, 55%)",
-  "hsl(270, 60%, 55%)",
-  "hsl(145, 60%, 40%)",
-  "hsl(340, 65%, 55%)",
+  CHART_COLORS.orange,
+  CHART_COLORS.primary,
+  CHART_COLORS.purple,
+  CHART_COLORS.success,
+  CHART_COLORS.pink,
 ];
 
 export const claimCategories: ClaimCategory[] = [

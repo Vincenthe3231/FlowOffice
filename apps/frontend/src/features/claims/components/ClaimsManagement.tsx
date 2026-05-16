@@ -21,6 +21,7 @@ import { ClaimsTable } from "@/features/claims/components/ClaimsTable";
 import { MonthlySpendChart } from "@/features/claims/components/MonthlySpendChart";
 import type { Claim, ClaimFilter } from "@/features/claims/types";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 import { canRejectClaimFromMyClaimsList } from "@/shared/lib/role-utils";
@@ -63,26 +64,19 @@ export function ClaimsManagement({
     <div className="space-y-6">
       {isHub ? (
         <>
-          <div className="relative overflow-hidden rounded-2xl gradient-modernize-blue p-6 shadow-xl">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="relative flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-white">
-                  Claims Management
-                </h1>
-                <p className="text-sm text-white/80 mt-1">
-                  Submit, track, and manage expense claims
-                </p>
-              </div>
+          <PageHeader
+            title="Claims Management"
+            subtitle="Submit, track, and manage expense claims"
+            action={
               <Button
                 onClick={() => router.push("/dashboard/claims/new")}
-                className="gap-1.5 hidden md:flex bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-sm"
+                className="gap-1.5 hidden md:flex"
               >
                 <Plus className="h-4 w-4" />
                 Submit New Claim
               </Button>
-            </div>
-          </div>
+            }
+          />
 
           <ClaimsStatCards
             totalAmount={totalAmount}

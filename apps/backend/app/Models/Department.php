@@ -7,9 +7,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Department extends Model
 {
+    public const TYPE_FINANCE = 'finance';
+
+    public const TYPE_HR = 'hr';
+
+    public const TYPE_GENERAL = 'general';
+
     protected $fillable = [
         'name',
         'short_code',
+        'type',
         'color_scheme',
         'status',
     ];
@@ -30,6 +37,16 @@ class Department extends Model
     public function scopeActive($query)
     {
         return $query->where('status', true);
+    }
+
+    public function scopeFinance($query)
+    {
+        return $query->where('type', self::TYPE_FINANCE);
+    }
+
+    public function scopeHr($query)
+    {
+        return $query->where('type', self::TYPE_HR);
     }
 
     /**

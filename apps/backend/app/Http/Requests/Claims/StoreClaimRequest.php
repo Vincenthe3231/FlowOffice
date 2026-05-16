@@ -4,6 +4,7 @@ namespace App\Http\Requests\Claims;
 
 use App\Http\Requests\Claims\Concerns\SyncsClaimTypeFromCatalog;
 use App\Models\Claim;
+use App\Models\ClaimType;
 use App\Modules\Claims\Rules\MileageAmountMatchesCalculation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,17 +20,10 @@ class StoreClaimRequest extends FormRequest
 
     public function rules(): array
     {
-        $claimTypes = [
-            Claim::TYPE_RECEIPT,
-            Claim::TYPE_MILEAGE,
-            Claim::TYPE_BUSINESS_TRAVEL,
-            Claim::TYPE_MISCELLANEOUS,
-            Claim::TYPE_OFFICE,
-            Claim::TYPE_OUTSTATION,
-            Claim::TYPE_RENOVATION,
-            Claim::TYPE_SPECIAL_MILEAGE,
-            Claim::TYPE_TRANSPORTATION,
-        ];
+        $claimTypes = ClaimType::query()
+            ->where('is_active', true)
+            ->pluck('key')
+            ->toArray();
 
         $rules = [
             'claim_type_id' => ['required', 'integer', 'exists:claim_types,id'],
@@ -128,21 +122,18 @@ class StoreClaimRequest extends FormRequest
             }
         }
 
-        // Build metadata for storage from frontend customFields (claim.customFields or claim.metadata.fields)
-        $claim = $this->input('claim');
-        if (is_array($claim)) {
-            $customFields = $claim['customFields'] ?? $claim['custom_fields'] ?? null;
-            if (is_array($customFields)) {
-                $fields = [];
-                foreach ($customFields as $f) {
-                    $fields[] = [
-                        'label' => $f['label'] ?? '',
-                        'type' => $f['type'] ?? 'text',
-                        'value' => $f['value'] ?? null,
-                    ];
-                }
-                $this->merge(['metadata' => ['fields' => $fields]]);
+        // Build metadata for storage from frontend customFields (already merged at root level as custom_fields)
+        $customFields = $this->input('custom_fields') ?? $this->input('customFields');
+        if (is_array($customFields)) {
+            $fields = [];
+            foreach ($customFields as $f) {
+                $fields[] = [
+                    'label' => $f['label'] ?? '',
+                    'type' => $f['type'] ?? 'text',
+                    'value' => $f['value'] ?? null,
+                ];
             }
+            $this->merge(['metadata' => ['fields' => $fields]]);
         }
 
         // Submit flow: frontend may send status "pending_l1" etc.; backend only accepts draft|pending

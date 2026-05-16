@@ -26,6 +26,7 @@ import {
 import { useMyLeaves, useCancelLeaveRequest } from "@/features/leave/hooks/useLeave"
 import { LEAVE_FILTERS, LEAVE_DAY_TYPE_LABELS } from "@/features/leave/data"
 import type { LeaveFilter, LeaveRequest } from "@/features/leave/types"
+import { getStatusColorConfig } from "@/shared/lib/status-colors-utils"
 import { cn } from "@/lib/utils"
 
 const FILTER_ICONS: Record<LeaveFilter, React.ComponentType<{ className?: string }>> = {
@@ -35,16 +36,6 @@ const FILTER_ICONS: Record<LeaveFilter, React.ComponentType<{ className?: string
   Rejected: XCircle,
   Cancelled: Trash2,
   Draft: FileText,
-}
-
-function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "approved": return "default"
-    case "pending": return "secondary"
-    case "rejected":
-    case "cancelled": return "destructive"
-    default: return "outline"
-  }
 }
 
 interface MyLeavesTableProps {
@@ -143,9 +134,18 @@ export function MyLeavesTable({ initialFilter = "All" }: MyLeavesTableProps) {
                     {leave.totalDays} day{leave.totalDays !== 1 ? "s" : ""}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(leave.status)} className="capitalize">
-                      {leave.status}
-                    </Badge>
+                    {(() => {
+                      const colorConfig = getStatusColorConfig(leave.status)
+                      return (
+                        <span className={cn(
+                          "inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold capitalize",
+                          colorConfig.text,
+                          colorConfig.bg
+                        )}>
+                          {leave.status}
+                        </span>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {leave.status === "pending" && (
