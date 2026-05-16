@@ -127,6 +127,9 @@ function normalizeLeaveStatus(s: string): LeaveRequest['status'] {
   const map: Record<string, LeaveRequest['status']> = {
     draft: 'draft',
     pending: 'pending',
+    pending_l1: 'pending',
+    pending_l2: 'pending',
+    pending_l3: 'pending',
     approved: 'approved',
     rejected: 'rejected',
     cancelled: 'cancelled',

@@ -3,11 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker"
 import { LeaveTypePickCard } from "@/features/leave/components/LeaveTypePickCard"
 import { LeaveAttachmentZone } from "@/features/leave/components/LeaveAttachmentZone"
 import { LeaveApprovalTimeline } from "@/features/leave/components/LeaveApprovalTimeline"
@@ -162,9 +164,17 @@ export function LeaveRequestWizard() {
         </p>
       </div>
 
-      {currentStep === 1 && (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold">Select leave type</h2>
+      <AnimatePresence mode="wait">
+        {currentStep === 1 && (
+          <motion.div
+            key="step-1"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-3"
+          >
+            <h2 className="text-base font-semibold">Select leave type</h2>
           {typesLoading ? (
             <div className="flex h-20 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -182,34 +192,36 @@ export function LeaveRequestWizard() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {currentStep === 2 && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold">Select dates</h2>
+          </motion.div>
+        )}
+        {currentStep === 2 && (
+          <motion.div
+            key="step-2"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            <h2 className="text-base font-semibold">Select dates</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="start-date">Start date</Label>
-              <Input
-                id="start-date"
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setDates(e.target.value, endDate || e.target.value)
-                }}
+              <Label>Start date</Label>
+              <ScrollDatePicker
+                value={startDate ? new Date(startDate) : undefined}
+                onChange={(d) => setDates(d.toISOString().split('T')[0], endDate || d.toISOString().split('T')[0])}
+                placeholder="Pick start date"
+                className="w-full focus-visible:ring-primary/40"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="end-date">End date</Label>
-              <Input
-                id="end-date"
-                type="date"
-                value={endDate}
-                min={startDate}
-                onChange={(e) => setDates(startDate, e.target.value)}
-                disabled={dayType !== "full"}
+              <Label>End date</Label>
+              <ScrollDatePicker
+                value={endDate ? new Date(endDate) : undefined}
+                onChange={(d) => setDates(startDate, d.toISOString().split('T')[0])}
+                placeholder="Pick end date"
+                className="w-full focus-visible:ring-primary/40"
               />
             </div>
           </div>
@@ -248,12 +260,18 @@ export function LeaveRequestWizard() {
               </span>
             </p>
           )}
-        </div>
-      )}
-
-      {currentStep === 3 && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold">Reason & documents</h2>
+          </motion.div>
+        )}
+        {currentStep === 3 && (
+          <motion.div
+            key="step-3"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            <h2 className="text-base font-semibold">Reason & documents</h2>
           <div className="space-y-1.5">
             <Label htmlFor="leave-reason">
               Reason <span className="text-destructive">*</span>
@@ -273,12 +291,18 @@ export function LeaveRequestWizard() {
             required={selectedType?.requiresAttachment ?? false}
             error={attachmentError}
           />
-        </div>
-      )}
-
-      {currentStep === 4 && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold">Review & submit</h2>
+          </motion.div>
+        )}
+        {currentStep === 4 && (
+          <motion.div
+            key="step-4"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            <h2 className="text-base font-semibold">Review & submit</h2>
           <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Leave type</span>
@@ -315,8 +339,9 @@ export function LeaveRequestWizard() {
               variant="horizontal"
             />
           )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center justify-between pt-2">
         <Button

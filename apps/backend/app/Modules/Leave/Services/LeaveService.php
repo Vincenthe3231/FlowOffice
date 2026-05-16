@@ -29,7 +29,12 @@ class LeaveService implements LeaveServiceInterface
             ->orderByDesc('created_at');
 
         if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+            $pendingGroup = [Leave::STATUS_PENDING, Leave::STATUS_PENDING_L1, Leave::STATUS_PENDING_L2, Leave::STATUS_PENDING_L3];
+            if ($filters['status'] === Leave::STATUS_PENDING) {
+                $query->whereIn('status', $pendingGroup);
+            } else {
+                $query->where('status', $filters['status']);
+            }
         }
         if (! empty($filters['leave_type_id'])) {
             $query->where('leave_type_id', $filters['leave_type_id']);
@@ -177,7 +182,12 @@ class LeaveService implements LeaveServiceInterface
             ->orderByDesc('created_at');
 
         if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+            $pendingGroup = [Leave::STATUS_PENDING, Leave::STATUS_PENDING_L1, Leave::STATUS_PENDING_L2, Leave::STATUS_PENDING_L3];
+            if ($filters['status'] === Leave::STATUS_PENDING) {
+                $query->whereIn('status', $pendingGroup);
+            } else {
+                $query->where('status', $filters['status']);
+            }
         }
 
         return $query->paginate($perPage);
@@ -241,6 +251,7 @@ class LeaveService implements LeaveServiceInterface
         $types = LeaveType::all();
         $balances = LeaveBalance::where('user_id', $userId)
             ->where('year', $year)
+            ->with('leaveType')
             ->get()
             ->keyBy('leave_type_id');
 
