@@ -48,6 +48,7 @@ const transformResponse = (response: AxiosResponse): AxiosResponse => {
  */
 export const laravelApi = axios.create({
   baseURL: BASE_URL,
+  adapter: 'xhr',
   withCredentials: true,
   headers: {
     Accept: 'application/json',
