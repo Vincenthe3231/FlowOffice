@@ -5,6 +5,7 @@ namespace App\Modules\Leave\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Leave\StoreLeaveTypeRequest;
 use App\Http\Requests\Leave\UpdateLeaveTypeRequest;
+use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,19 @@ class LeaveTypeController extends Controller
 
     public function update(UpdateLeaveTypeRequest $request, LeaveType $leaveType): JsonResponse
     {
-        $leaveType->update($request->validated());
+        $validated = $request->validated();
+        $oldQuota = $leaveType->annual_quota;
+
+        $leaveType->update($validated);
+
+        // Always propagate annual_quota to existing balances for current + future years.
+        // Idempotent: if balances already match, the UPDATE is a no-op.
+        // Past years are intentionally excluded (year >= now) to preserve historical records.
+        if (array_key_exists('annual_quota', $validated)) {
+            LeaveBalance::where('leave_type_id', $leaveType->id)
+                ->where('year', '>=', now()->year)
+                ->update(['annual_quota' => $validated['annual_quota']]);
+        }
 
         return $this->success($leaveType, 'Leave type updated.');
     }

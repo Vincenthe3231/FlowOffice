@@ -178,7 +178,7 @@ class LeaveService implements LeaveServiceInterface
         $perPage = $perPage >= 1 && $perPage <= 200 ? $perPage : 15;
 
         $query = Leave::query()
-            ->with(['leaveType', 'attachments', 'user:id,name,email'])
+            ->with(['leaveType', 'attachments', 'user:id,name,email', 'leaveApprovals'])
             ->orderByDesc('created_at');
 
         if (! empty($filters['status'])) {

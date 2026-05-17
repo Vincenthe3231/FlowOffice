@@ -91,6 +91,56 @@ NEXT_PUBLIC_AUTH_STORE_SECRET=...                  # 32+ char key for encrypted 
 - Reusable UI primitives → `src/components/ui/...`
 - App-specific shared components → `src/components/shared/...`
 
+## TanStack Query Cache Invalidation
+
+When an action (e.g., approve/reject a claim) mutates server state, invalidate **all related query keys together** to keep the UI consistent. Example:
+
+```typescript
+const approveReject = useMutation({
+  mutationFn: (payload) => approveRejectClaimApi(payload),
+  onSuccess: () => {
+    // Invalidate all claim-related queries in bulk
+    queryClient.invalidateQueries({ queryKey: ["claims"] });
+    queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["claim-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+    queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claim(claimId) });
+  },
+});
+```
+
+Invalidating only one key leaves other views stale. Always batch invalidations for related data.
+
+## Permission Gating: Approval Buttons
+
+Approval buttons ("Approve", "Reject") should only show to the user eligible for the **current pending step**. Check before rendering:
+
+```typescript
+function isEligibleForCurrentStep(
+  claim: ClaimWithApprovalsApi,
+  currentUserId: number | undefined,
+): boolean {
+  if (!currentUserId) return false;
+  const approvals = mapApprovals(claim.claimApprovals ?? []);
+  const pendingStep = approvals.find((r) => r.status === "pending");
+  if (!pendingStep) return false;
+  return pendingStep.eligibleApprovers?.some(
+    (a) => String(a.id) === String(currentUserId)
+  ) ?? false;
+}
+
+// In JSX:
+{isPending(claim.status) && isEligibleForCurrentStep(claim, profile?.id) && (
+  <button onClick={...}>Approve</button>
+)}
+```
+
+Other users see the claim in read-only mode. Backend enforces the same check; this gating is UX only.
+
+**Detail page vs list page:** `ClaimApprovalView` (list) uses `claim.claimApprovals` from `useAllClaimsForApproval()`. The detail page (`ClaimDetailPageClient`) uses a separate `useClaimApprovals(claimId)` hook (fetches `/claims/{id}/approvals`) and must independently compute eligibility from `approvalsToShow` before rendering approve/reject buttons.
+
+**Leave balance field:** `LeaveBalanceApi.entitled` maps backend field `annual_quota` via `LeaveBalanceResource`. Frontend always reads `entitled`; backend always returns `entitled`.
+
 ## Definition of Done
 
 - Code follows the `src/features` pattern

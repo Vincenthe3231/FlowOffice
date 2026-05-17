@@ -54,3 +54,19 @@ Role slugs: `top_management`, `hr_admin`, `hod`, `staff`
 
 - **Frontend**: pnpm 8+ (required), Node 18+
 - **Backend**: Composer 2+, PHP 8.2+
+
+## Data Propagation & Consistency Gotchas
+
+### Leave Quota Denormalization
+`leave_balances.annual_quota` is snapshotted from `leave_types.annual_quota` at row creation. When editing a leave type's quota, **all employee balances for current + future years are always bulk-updated** — even if the value is unchanged (idempotent, safe). Past years are excluded (`year >= now()->year`) to preserve historical records. See `LeaveTypeController::update()` for pattern.
+
+### Claim Approval Eligibility
+Approval buttons ("Approve", "Reject") should only show to the current approval step's designated approver(s). Frontend checks `approvalStep.eligibleApprovers` array against current user's ID before rendering buttons. If user is not in eligible list, the claim is read-only (buttons hidden). Backend enforces this via policy + `ClaimService::isEligibleApproverForStep()`.
+
+Multi-step pipeline tracks `claims.current_level` (1-based int) + `claim_approvals` rows per level. Querying claims for approval UI must eager-load `.with('claimApprovals')` to include eligibility data for permission gating.
+
+### Leave Balance Field Contract
+`LeaveBalanceResource` returns field `entitled` (not `annual_quota`) which maps the `leave_balances.annual_quota` column. Frontend `LeaveBalanceApi` type and `mapLeaveBalance()` read `entitled`. Do NOT rename this field without updating both sides.
+
+### Leave Approval Eager-Load Requirement
+`LeaveService::allLeaves()` MUST eager-load `leaveApprovals` for the approval queue UI to work. `LeaveResource` uses `$this->when($this->relationLoaded('leaveApprovals'), ...)` — if the relation isn't loaded, `leave_approvals` is omitted from the response, frontend `canAct()` gets `approvals: []`, and Approve/Reject buttons never render.

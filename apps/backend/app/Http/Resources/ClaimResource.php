@@ -85,6 +85,7 @@ class ClaimResource extends JsonResource
                 $this->relationLoaded('claimApprovals'),
                 fn () => ClaimApprovalResourceCollection::make($this->claimApprovals),
             ),
+            'current_level' => $this->current_level,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

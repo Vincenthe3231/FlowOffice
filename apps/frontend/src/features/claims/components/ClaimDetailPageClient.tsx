@@ -120,6 +120,17 @@ export function ClaimDetailPageClient({
   const approvalsToShow: ClaimApproval[] =
     approvalsLoading ? [] : (approvals ?? []);
 
+  const isEligibleForStep = useMemo(() => {
+    if (!user?.id) return false;
+    const pendingStep = approvalsToShow.find((a) => a.status === "pending");
+    if (!pendingStep) return false;
+    return (
+      pendingStep.eligibleApprovers?.some(
+        (a) => String(a.id) === String(user.id),
+      ) ?? false
+    );
+  }, [approvalsToShow, user?.id]);
+
   const backHref = fromOrgAll ? "/dashboard/claims/all" : "/dashboard/claims";
 
   if (isLoading) {
@@ -163,7 +174,7 @@ export function ClaimDetailPageClient({
       : claim;
 
   const headerTrailingActions =
-    showRejectUi && fromOrgAll ? (
+    showRejectUi && fromOrgAll && isEligibleForStep ? (
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <ClaimDetailOrgApproveButton
           claim={claimForOrgActions}
@@ -171,8 +182,6 @@ export function ClaimDetailPageClient({
         />
         <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
       </div>
-    ) : showRejectUi ? (
-      <ClaimDetailRejectControls claim={claim} approvalsToShow={approvalsToShow} />
     ) : null;
 
   return (

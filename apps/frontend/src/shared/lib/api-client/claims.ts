@@ -204,6 +204,8 @@ export interface ClaimWithApprovalsApi extends ClaimApiResponse {
   claimantName?: string | null
   submitter?: ClaimSubmitterUserApi | null
   creator?: ClaimSubmitterUserApi | null
+  /** Current approval pipeline level (1-based). Populated from `claims.current_level`. */
+  currentLevel?: number | null
 }
 
 function trimmedNonEmpty(value: unknown): string | null {

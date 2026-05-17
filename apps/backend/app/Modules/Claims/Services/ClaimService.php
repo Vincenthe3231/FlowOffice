@@ -437,7 +437,7 @@ class ClaimService
         $perPage = $perPage >= 1 && $perPage <= 100 ? $perPage : 15;
 
         $query = Claim::query()
-            ->with(['category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments', 'user:id,name,email'])
+            ->with(['category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments', 'user:id,name,email', 'claimApprovals'])
             ->orderByDesc('created_at');
 
         $this->applyStatusFilter($query, $filters['status'] ?? null);

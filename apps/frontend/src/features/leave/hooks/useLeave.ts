@@ -225,6 +225,7 @@ export function useUpdateLeaveType() {
     onSuccess: (updated: LeaveType) => {
       void qc.invalidateQueries({ queryKey: LEAVE_QUERY_KEYS.leaveTypes() })
       void qc.invalidateQueries({ queryKey: LEAVE_QUERY_KEYS.leaveType(updated.id) })
+      void qc.invalidateQueries({ queryKey: LEAVE_QUERY_KEYS.myBalance() })
       toast.success("Leave type updated")
     },
     onError: (err) => {

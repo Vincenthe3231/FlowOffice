@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAllClaimsForApproval, useApproveRejectClaim } from "@/features/claims/hooks/useClaims";
+import { useProfile } from "@/features/profile/hooks/useProfile";
 import { ApprovalTimeline } from "@/features/claims/components/ApprovalTimeline";
 import { RejectClaimDialog } from "@/features/claims/components/RejectClaimDialog";
 import { Check, Eye, Car, FileText } from "lucide-react";
@@ -96,8 +97,27 @@ function dateDisplay(claim: ClaimWithApprovalsApi): string {
   return "—";
 }
 
+/**
+ * Returns true if `currentUserId` is an eligible approver for the current pending step.
+ * Used to gate Approve/Reject buttons — only the designated approver(s) for the active
+ * step should see actionable buttons; others see the claim in read-only mode.
+ */
+function isEligibleForCurrentStep(
+  claim: ClaimWithApprovalsApi,
+  currentUserId: number | string | undefined,
+): boolean {
+  if (!currentUserId) return false;
+  const approvals = mapApprovals(claim.claimApprovals ?? []);
+  const pendingStep = approvals.find((r) => r.status === "pending");
+  if (!pendingStep) return false;
+  const eligible = pendingStep.eligibleApprovers;
+  if (!eligible?.length) return false;
+  return eligible.some((a) => String(a.id) === String(currentUserId));
+}
+
 export function ClaimApprovalView() {
   const router = useRouter();
+  const { profile } = useProfile();
   const { data: claims, isLoading } = useAllClaimsForApproval();
   const approveReject = useApproveRejectClaim();
   const [approveTarget, setApproveTarget] = useState<ClaimWithApprovalsApi | null>(null);
@@ -121,6 +141,7 @@ export function ClaimApprovalView() {
     const rows = mapApprovals(approveTarget.claimApprovals ?? []);
     const pending = rows.find((r) => r.status === "pending");
     const currentLevel =
+      approveTarget.currentLevel ??
       pending?.level ??
       (String(approveTarget.status) === "pending_l1"
         ? 1
@@ -309,7 +330,7 @@ export function ClaimApprovalView() {
                               >
                                 <Eye className="h-3 w-3" /> View
                               </Button>
-                              {isPending(String(claim.status)) && (
+                              {isPending(String(claim.status)) && isEligibleForCurrentStep(claim, profile?.id) && (
                                 <>
                                   <Button
                                     type="button"
@@ -457,6 +478,7 @@ export function ClaimApprovalView() {
           const rows = mapApprovals(c.claimApprovals ?? []);
           const pending = rows.find((r) => r.status === "pending");
           const level =
+            c.currentLevel ??
             pending?.level ??
             (String(c.status) === "pending_l1"
               ? 1

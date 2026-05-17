@@ -302,7 +302,7 @@ export function useApproveRejectClaim() {
       queryClient.invalidateQueries({ queryKey: ["claims"] });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["claim-approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["all-claims-approval"] });
+      queryClient.invalidateQueries({ queryKey: ["all-claims-approval"], exact: false });
       queryClient.invalidateQueries({ queryKey: CLAIM_QUERY_KEYS.claim(variables.claimId) });
       void queryClient.invalidateQueries({
         queryKey: IN_APP_NOTIFICATION_QUERY_KEYS.list(),

@@ -102,3 +102,59 @@ SUPABASE_URL, SUPABASE_KEY, SUPABASE_SECRET
 ### Module API Routes
 
 Each module has its own `api.php` (e.g. `app/Modules/Claims/api.php`) registered by its ServiceProvider. Top-level shared routes are in `routes/api.php`.
+
+## Data Consistency Patterns
+
+### Bulk Updates: Leave Quota Propagation
+When a parent model's denormalized field changes, sync all child snapshots. Example: updating `leave_types.annual_quota` must bulk-update all `leave_balances.annual_quota` for current + future years:
+
+```php
+public function update(UpdateLeaveTypeRequest $request, LeaveType $leaveType): JsonResponse
+{
+    $validated = $request->validated();
+    $oldQuota = $leaveType->annual_quota;
+
+    $leaveType->update($validated);
+
+    // Propagate to all existing balances
+    if (array_key_exists('annual_quota', $validated) && (int) $validated['annual_quota'] !== (int) $oldQuota) {
+        LeaveBalance::where('leave_type_id', $leaveType->id)
+            ->where('year', '>=', now()->year)
+            ->update(['annual_quota' => $validated['annual_quota']]);
+    }
+
+    return $this->success($leaveType);
+}
+```
+
+Cast comparisons to avoid false positives from type coercion. Use `where('year', '>=', now()->year)` to cover current + pre-seeded future years.
+
+### Claim Approval Pipeline Data Model
+Multi-step approvals track state in:
+- `claims.current_level` — which approval level is active (1-based int, nullable)
+- `claim_approvals` — one row per level with `level`, `step_kind`, `status`, `eligible_approver_ids`
+- `claim_approval_eligible_approvers` — pivot backfilled from JSON; use this when querying
+
+When fetching claims for approval UI, eager-load approvals + eligible approvers:
+
+```php
+// In ClaimService::allClaims()
+$query = Claim::query()
+    ->with(['category', 'user:id,name,email', 'claimApprovals'])
+    ->orderByDesc('created_at');
+```
+
+Backend response includes `ClaimApprovalResourceCollection` which transforms `eligible_approver_ids` JSON into structured `eligible_approvers[]` array with user names. Frontend uses this to gate Approve/Reject buttons.
+
+### Leave Approval Eager-Load Requirement
+`LeaveService::allLeaves()` must include `leaveApprovals` in the `with()` call. `LeaveResource` conditionally includes `leave_approvals` only when the relation is loaded (`relationLoaded()`). Missing this causes the frontend approval queue to receive empty `approvals` arrays and hide action buttons. See `pendingApprovals()` in the same service for the correct pattern.
+
+### LeaveBalanceResource Field Name
+`LeaveBalanceResource` returns `entitled` (not `annual_quota`) to match the frontend `LeaveBalanceApi` type. The underlying column is `leave_balances.annual_quota`.
+
+## Definition of Done
+
+- Code follows the module pattern
+- `composer run lint` passes (Pint)
+- Tests added for new authorization/business logic
+- Bulk updates use `.where(...)->update()`, not loops
