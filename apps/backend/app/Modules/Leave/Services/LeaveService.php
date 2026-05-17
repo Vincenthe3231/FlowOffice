@@ -73,6 +73,23 @@ class LeaveService implements LeaveServiceInterface
                 ]);
             }
 
+            activity('leave')
+                ->event('submitted')
+                ->performedOn($leave)
+                ->causedBy($user)
+                ->withProperties([
+                    'attributes' => [
+                        'status' => Leave::STATUS_PENDING_L1,
+                        'leave_type' => $leaveType->name,
+                        'start_date' => $data['start_date'],
+                        'end_date' => $data['end_date'],
+                        'duration' => $leave->durationDays(),
+                    ],
+                    'module' => 'leave',
+                    'ip' => request()->ip(),
+                ])
+                ->log("Leave submitted: {$leaveType->name} ({$data['start_date']} – {$data['end_date']})");
+
             return $leave->load(['leaveType', 'attachments', 'leaveApprovals']);
         });
     }
@@ -126,15 +143,41 @@ class LeaveService implements LeaveServiceInterface
                 'decided_at' => now(),
             ]);
 
+            $fromStatus = $leave->status;
+
             if ($currentLevel >= $totalLevels) {
                 $duration = $leave->durationDays();
                 $leave->update(['status' => Leave::STATUS_APPROVED]);
 
                 $this->adjustBalance($leave->user_id, $leave->leave_type_id, 'pending', -$duration);
                 $this->adjustBalance($leave->user_id, $leave->leave_type_id, 'used', $duration);
+
+                activity('leave')
+                    ->event('approved')
+                    ->performedOn($leave)
+                    ->causedBy($approver)
+                    ->withProperties([
+                        'old' => ['status' => $fromStatus],
+                        'attributes' => ['status' => Leave::STATUS_APPROVED, 'level' => $currentLevel],
+                        'module' => 'leave',
+                        'ip' => request()->ip(),
+                    ])
+                    ->log("Leave approved: {$leave->leaveType?->name}");
             } else {
                 $next = $this->chainResolver->pendingStatusForLevel($currentLevel + 1);
                 $leave->update(['status' => $next]);
+
+                activity('leave')
+                    ->event('approved')
+                    ->performedOn($leave)
+                    ->causedBy($approver)
+                    ->withProperties([
+                        'old' => ['status' => $fromStatus],
+                        'attributes' => ['status' => $next, 'level' => $currentLevel],
+                        'module' => 'leave',
+                        'ip' => request()->ip(),
+                    ])
+                    ->log("Leave approved at level {$currentLevel}: {$leave->leaveType?->name}");
             }
 
             return $leave->fresh(['leaveType', 'attachments', 'leaveApprovals.approver']);
@@ -156,6 +199,7 @@ class LeaveService implements LeaveServiceInterface
         }
 
         return DB::transaction(function () use ($rejector, $leave, $reason, $row) {
+            $fromStatus = $leave->status;
             $duration = $leave->durationDays();
             $row->update([
                 'status' => LeaveApproval::STATUS_REJECTED,
@@ -167,6 +211,18 @@ class LeaveService implements LeaveServiceInterface
             $leave->update(['status' => Leave::STATUS_REJECTED]);
 
             $this->adjustBalance($leave->user_id, $leave->leave_type_id, 'pending', -$duration);
+
+            activity('leave')
+                ->event('rejected')
+                ->performedOn($leave)
+                ->causedBy($rejector)
+                ->withProperties([
+                    'old' => ['status' => $fromStatus],
+                    'attributes' => ['status' => Leave::STATUS_REJECTED, 'reason' => $reason],
+                    'module' => 'leave',
+                    'ip' => request()->ip(),
+                ])
+                ->log("Leave rejected: {$leave->leaveType?->name}");
 
             return $leave->fresh(['leaveType', 'attachments', 'leaveApprovals.approver']);
         });

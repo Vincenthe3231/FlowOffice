@@ -8,7 +8,8 @@
       "Bash(python3 \"C:\\\\projects\\\\FlowOffice\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"filter bar select dropdown tabs compact\" --domain ux -n 5)",
       "Bash(pnpm lint *)",
       "Bash(pnpm run *)",
-      "Bash(curl -s http://localhost:3000/api/auth/me)"
+      "Bash(curl -s http://localhost:3000/api/auth/me)",
+      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\FlowOffice\\\\apps\\\\backend\\\\app\\\\Http\\\\Resources\\\\\" -Filter \"*.php\" | Select-Object Name)"
     ]
   }
 }

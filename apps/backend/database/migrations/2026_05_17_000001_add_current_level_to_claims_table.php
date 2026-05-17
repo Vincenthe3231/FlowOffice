@@ -9,14 +9,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('claims', function (Blueprint $table) {
-            $table->smallInteger('current_level')->nullable()->after('status');
-        });
+        if (!Schema::hasColumn('claims', 'current_level')) {
+            Schema::table('claims', function (Blueprint $table) {
+                $table->smallInteger('current_level')->nullable()->after('status');
+            });
 
-        DB::statement("UPDATE claims SET current_level = 1 WHERE status IN ('pending', 'pending_l1')");
-        DB::statement("UPDATE claims SET current_level = 2 WHERE status = 'pending_l2'");
-        DB::statement("UPDATE claims SET current_level = 3 WHERE status = 'pending_l3'");
-        DB::statement("UPDATE claims SET current_level = 4 WHERE status = 'pending_l4'");
+            DB::statement("UPDATE claims SET current_level = 1 WHERE status IN ('pending', 'pending_l1')");
+            DB::statement("UPDATE claims SET current_level = 2 WHERE status = 'pending_l2'");
+            DB::statement("UPDATE claims SET current_level = 3 WHERE status = 'pending_l3'");
+            DB::statement("UPDATE claims SET current_level = 4 WHERE status = 'pending_l4'");
+        }
     }
 
     public function down(): void

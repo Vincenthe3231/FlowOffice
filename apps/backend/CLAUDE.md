@@ -15,6 +15,9 @@ composer run test
 php artisan test --filter=TestName
 php artisan test tests/Feature/SomeTest.php
 
+# Run migrations (always cd into apps/backend first — artisan must run from that directory)
+cd apps/backend; php artisan migrate
+
 # Format changed files
 vendor/bin/pint --dirty
 

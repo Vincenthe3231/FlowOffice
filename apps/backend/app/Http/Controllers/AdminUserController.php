@@ -8,6 +8,7 @@ use App\Services\AdminUserDirectoryService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -84,9 +85,22 @@ class AdminUserController extends Controller
             ['department_id' => ['nullable', 'integer', 'exists:departments,id']],
         )->validate();
 
+        $oldDepartmentId = $user->department_id;
         $user->department_id = $validated['department_id'];
         $user->save();
         $user->load(['roles', 'department']);
+
+        activity('user_management')
+            ->event('department_changed')
+            ->performedOn($user)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'old' => ['department_id' => $oldDepartmentId],
+                'attributes' => ['department_id' => $validated['department_id']],
+                'module' => 'user_management',
+                'ip' => request()->ip(),
+            ])
+            ->log("User department changed: {$user->name}");
 
         return $this->success(
             AdminUserManagementResource::make($user)->resolve(),
@@ -126,8 +140,21 @@ class AdminUserController extends Controller
             }
         }
 
+        $oldRole = $user->roles->first()?->name;
         $user->syncRoles([$newRole]);
         $user->load(['roles', 'department']);
+
+        activity('user_management')
+            ->event('role_changed')
+            ->performedOn($user)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'old' => ['role' => $oldRole],
+                'attributes' => ['role' => $newRole],
+                'module' => 'user_management',
+                'ip' => request()->ip(),
+            ])
+            ->log("User role changed: {$user->name} ({$oldRole} → {$newRole})");
 
         return $this->success(
             AdminUserManagementResource::make($user)->resolve(),

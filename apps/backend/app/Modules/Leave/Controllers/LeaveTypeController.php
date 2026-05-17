@@ -9,6 +9,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LeaveTypeController extends Controller
 {
@@ -30,13 +31,24 @@ class LeaveTypeController extends Controller
     {
         $leaveType = LeaveType::create($request->validated());
 
+        activity('leave_type')
+            ->causedBy($request->user())
+            ->performedOn($leaveType)
+            ->withProperties([
+                'attributes' => $leaveType->toArray(),
+                'module' => 'leave_type',
+                'ip' => $request->ip(),
+            ])
+            ->event('created')
+            ->log('Leave type created: ' . $leaveType->name);
+
         return $this->success($leaveType, 'Leave type created.', 201);
     }
 
     public function update(UpdateLeaveTypeRequest $request, LeaveType $leaveType): JsonResponse
     {
         $validated = $request->validated();
-        $oldQuota = $leaveType->annual_quota;
+        $oldAttributes = $leaveType->only(array_keys($validated));
 
         $leaveType->update($validated);
 
@@ -49,12 +61,35 @@ class LeaveTypeController extends Controller
                 ->update(['annual_quota' => $validated['annual_quota']]);
         }
 
+        activity('leave_type')
+            ->causedBy($request->user())
+            ->performedOn($leaveType)
+            ->withProperties([
+                'old' => $oldAttributes,
+                'attributes' => $leaveType->only(array_keys($validated)),
+                'module' => 'leave_type',
+                'ip' => $request->ip(),
+            ])
+            ->event('updated')
+            ->log('Leave type updated: ' . $leaveType->name);
+
         return $this->success($leaveType, 'Leave type updated.');
     }
 
-    public function destroy(LeaveType $leaveType): JsonResponse
+    public function destroy(Request $request, LeaveType $leaveType): JsonResponse
     {
+        $snapshot = $leaveType->toArray();
         $leaveType->delete();
+
+        activity('leave_type')
+            ->causedBy($request->user())
+            ->withProperties([
+                'old' => $snapshot,
+                'module' => 'leave_type',
+                'ip' => $request->ip(),
+            ])
+            ->event('deleted')
+            ->log('Leave type deleted: ' . $snapshot['name']);
 
         return $this->success(null, 'Leave type deleted.');
     }

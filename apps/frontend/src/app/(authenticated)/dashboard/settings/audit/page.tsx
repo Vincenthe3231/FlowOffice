@@ -1,13 +1,34 @@
 "use client";
 
+import { useState } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollText } from "lucide-react";
-import { auditTrail } from "@/features/attendance/data/mockData";
+import { useAuditTrail } from "@/features/audit/hooks/useAuditTrail";
+import { AuditFiltersBar } from "@/features/audit/components/AuditFiltersBar";
+import { AuditTable } from "@/features/audit/components/AuditTable";
+import type { AuditFilter } from "@/features/audit/types";
 
 export default function AuditTrailPage() {
+  const [filters, setFilters] = useState<AuditFilter>({});
+  const [page, setPage] = useState(1);
+
+  const { data, isFetching } = useAuditTrail(filters, page);
+
+  const entries = data?.entries ?? [];
+  const meta = data?.meta;
+
+  function handleFiltersChange(next: AuditFilter) {
+    setFilters(next);
+    setPage(1);
+  }
+
+  function handleReset() {
+    setFilters({});
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Audit Trail" subtitle="Historical log of system changes and actions." />
@@ -19,30 +40,38 @@ export default function AuditTrailPage() {
             <CardTitle className="text-base font-semibold">Activity Log</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-semibold text-muted-foreground">Timestamp</TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground">User</TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground">Action</TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground">Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {auditTrail.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="text-sm text-muted-foreground font-mono text-xs">{entry.timestamp}</TableCell>
-                  <TableCell>
-                    <Badge variant={entry.user === "System" ? "secondary" : "outline"} className="text-[10px]">{entry.user}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">{entry.action}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[300px] truncate">{entry.details}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="p-4 pb-0">
+          <AuditFiltersBar filters={filters} onChange={handleFiltersChange} onReset={handleReset} />
         </CardContent>
+        <CardContent className="p-0">
+          <AuditTable entries={entries} isLoading={isFetching && entries.length === 0} />
+        </CardContent>
+
+        {meta && meta.lastPage > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <p className="text-sm text-muted-foreground">
+              {meta.total} entries · Page {meta.currentPage} of {meta.lastPage}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={meta.currentPage <= 1 || isFetching}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={meta.currentPage >= meta.lastPage || isFetching}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

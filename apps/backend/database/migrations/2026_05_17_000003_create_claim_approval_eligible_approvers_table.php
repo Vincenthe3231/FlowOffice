@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('claim_approval_eligible_approvers')) {
+            return;
+        }
+
         Schema::create('claim_approval_eligible_approvers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('claim_approval_id')->constrained('claim_approvals')->cascadeOnDelete();

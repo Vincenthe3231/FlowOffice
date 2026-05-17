@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeaveType extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -22,10 +23,10 @@ class LeaveType extends Model
     ];
 
     protected $casts = [
-        'annual_quota' => 'integer',
+        'annual_quota' => 'integer:nullable',
         'requires_attachment' => 'boolean',
         'approval_chain' => 'array',
-        'duration_threshold' => 'integer',
+        'duration_threshold' => 'integer:nullable',
     ];
 
     public function leaves(): HasMany

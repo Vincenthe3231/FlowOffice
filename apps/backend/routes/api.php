@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Auth\LarkAuthController;
@@ -91,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/admin/analytics/attendance', [AnalyticsController::class, 'attendance']);
             Route::get('/admin/analytics/leave', [AnalyticsController::class, 'leave']);
             Route::get('/admin/analytics/claims', [AnalyticsController::class, 'claims']);
+            Route::get('/admin/audit', [ActivityController::class, 'index']);
         });
 
         // Onboarding (Top Management only)

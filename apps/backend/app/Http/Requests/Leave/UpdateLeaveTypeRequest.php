@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Leave;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateLeaveTypeRequest extends FormRequest
 {
@@ -17,9 +18,9 @@ class UpdateLeaveTypeRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'string', 'max:100'],
-            'key' => ['sometimes', 'string', 'max:50', 'unique:leave_types,key,'.$leaveTypeId],
+            'key' => ['sometimes', 'string', 'max:50', Rule::unique('leave_types', 'key')->ignore($leaveTypeId)->whereNull('deleted_at')],
             'description' => ['nullable', 'string', 'max:500'],
-            'annual_quota' => ['sometimes', 'integer', 'min:0', 'max:365'],
+            'annual_quota' => ['nullable', 'integer', 'min:0', 'max:365'],
             'requires_attachment' => ['sometimes', 'boolean'],
             'approval_chain' => ['sometimes', 'array', 'min:1'],
             'approval_chain.*.level' => ['required_with:approval_chain', 'integer', 'min:1'],

@@ -109,6 +109,17 @@ class ClaimService
                 }
                 $claim->update(['status' => Claim::STATUS_PENDING_L1, 'current_level' => 1]);
                 $this->logStatus($claim->id, $status, Claim::STATUS_PENDING_L1, $user->id);
+
+                activity('claims')
+                    ->event('submitted')
+                    ->performedOn($claim)
+                    ->causedBy($user)
+                    ->withProperties([
+                        'attributes' => ['status' => Claim::STATUS_PENDING_L1, 'title' => $claim->title, 'amount' => $claim->amount],
+                        'module' => 'claims',
+                        'ip' => request()->ip(),
+                    ])
+                    ->log("Claim submitted: {$claim->title}");
             }
 
             return $claim->load(['category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments']);
@@ -207,6 +218,18 @@ class ClaimService
             $claim->update(['status' => Claim::STATUS_PENDING_L1, 'current_level' => 1]);
             $this->logStatus($claim->id, $from, Claim::STATUS_PENDING_L1, $user->id);
 
+            activity('claims')
+                ->event('submitted')
+                ->performedOn($claim)
+                ->causedBy($user)
+                ->withProperties([
+                    'old' => ['status' => $from],
+                    'attributes' => ['status' => Claim::STATUS_PENDING_L1, 'title' => $claim->title, 'amount' => $claim->amount],
+                    'module' => 'claims',
+                    'ip' => request()->ip(),
+                ])
+                ->log("Claim submitted: {$claim->title}");
+
             return $claim->fresh([
                 'category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments', 'claimApprovals',
             ]);
@@ -276,6 +299,18 @@ class ClaimService
                 if ($claim->category_id !== null) {
                     ClaimCategory::where('id', $claim->category_id)->increment('spent', $claim->amount);
                 }
+
+                activity('claims')
+                    ->event('approved')
+                    ->performedOn($claim)
+                    ->causedBy($approver)
+                    ->withProperties([
+                        'old' => ['status' => $fromStatus],
+                        'attributes' => ['status' => Claim::STATUS_APPROVED, 'level' => $currentLevel, 'amount' => $claim->amount],
+                        'module' => 'claims',
+                        'ip' => request()->ip(),
+                    ])
+                    ->log("Claim approved: {$claim->title}");
             } else {
                 $next = $this->chainResolver->pendingStatusForLevel($currentLevel + 1);
                 if (! ValidClaimStatusTransition::allowed($fromStatus, $next)) {
@@ -289,6 +324,18 @@ class ClaimService
                     'rejected_reason' => null,
                 ]);
                 $this->logStatus($claim->id, $fromStatus, $next, $approver->id);
+
+                activity('claims')
+                    ->event('approved')
+                    ->performedOn($claim)
+                    ->causedBy($approver)
+                    ->withProperties([
+                        'old' => ['status' => $fromStatus],
+                        'attributes' => ['status' => $next, 'level' => $currentLevel],
+                        'module' => 'claims',
+                        'ip' => request()->ip(),
+                    ])
+                    ->log("Claim approved at level {$currentLevel}: {$claim->title}");
             }
 
             return $claim->fresh([
@@ -378,6 +425,18 @@ class ClaimService
             ]);
             $this->logStatus($claim->id, $from, Claim::STATUS_REJECTED, $rejector->id, $reason);
 
+            activity('claims')
+                ->event('rejected')
+                ->performedOn($claim)
+                ->causedBy($rejector)
+                ->withProperties([
+                    'old' => ['status' => $from],
+                    'attributes' => ['status' => Claim::STATUS_REJECTED, 'level' => $currentLevel, 'reason' => $reason],
+                    'module' => 'claims',
+                    'ip' => request()->ip(),
+                ])
+                ->log("Claim rejected: {$claim->title}");
+
             $claimId = $claim->id;
             DB::afterCommit(function () use ($claimId, $rejector, $currentLevel, $reason): void {
                 $this->rejectionNotifications->notifyOnRejection(
@@ -421,11 +480,24 @@ class ClaimService
         }
 
         return DB::transaction(function () use ($user, $claim) {
+            $fromStatus = $claim->status;
             $claim->update([
                 'status' => Claim::STATUS_PAID,
                 'paid_at' => now(),
             ]);
-            $this->logStatus($claim->id, $claim->getOriginal('status'), Claim::STATUS_PAID, $user->id);
+            $this->logStatus($claim->id, $fromStatus, Claim::STATUS_PAID, $user->id);
+
+            activity('claims')
+                ->event('paid')
+                ->performedOn($claim)
+                ->causedBy($user)
+                ->withProperties([
+                    'old' => ['status' => $fromStatus],
+                    'attributes' => ['status' => Claim::STATUS_PAID, 'amount' => $claim->amount],
+                    'module' => 'claims',
+                    'ip' => request()->ip(),
+                ])
+                ->log("Claim marked paid: {$claim->title}");
 
             return $claim->fresh(['category', 'claimType', 'subclaimType', 'mileageDetail', 'attachments']);
         });
