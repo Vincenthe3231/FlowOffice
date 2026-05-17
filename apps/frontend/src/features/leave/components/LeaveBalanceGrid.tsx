@@ -11,9 +11,9 @@ interface LeaveBalanceGridProps {
 }
 
 function BalanceCard({ balance, color }: { balance: LeaveBalance; color: string }) {
-  const usedPct =
+  const unavailablePct =
     balance.entitled > 0
-      ? Math.min(100, Math.round((balance.used / balance.entitled) * 100))
+      ? Math.min(100, Math.round(((balance.used + balance.pending) / balance.entitled) * 100))
       : 0
 
   return (
@@ -37,7 +37,7 @@ function BalanceCard({ balance, color }: { balance: LeaveBalance; color: string 
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${usedPct}%`, backgroundColor: color }}
+                  style={{ width: `${unavailablePct}%`, backgroundColor: color }}
                 />
               </div>
 

@@ -35,7 +35,7 @@ class ClaimStatsController extends Controller
         $user = $request->user();
         $query = Claim::where('user_id', $user->id);
         $totalAmount = (float) (clone $query)->sum('amount');
-        $pendingCount = (clone $query)->where('status', Claim::STATUS_PENDING)->count();
+        $pendingCount = (clone $query)->whereIn('status', Claim::pendingPipelineStatuses())->count();
         $approvedCount = (clone $query)->where('status', Claim::STATUS_APPROVED)->count();
         $totalClaims = (clone $query)->count();
 
@@ -52,12 +52,14 @@ class ClaimStatsController extends Controller
             ->map(fn ($v) => (float) $v)
             ->all();
 
+        $sparkline = array_values($monthlySpend);
+
         return $this->success([
             'totalAmount' => round($totalAmount, 2),
             'pendingCount' => $pendingCount,
             'approvedCount' => $approvedCount,
             'totalClaims' => $totalClaims,
-            'monthlySpend' => $monthlySpend,
+            'sparkline' => $sparkline,
         ]);
     }
 
