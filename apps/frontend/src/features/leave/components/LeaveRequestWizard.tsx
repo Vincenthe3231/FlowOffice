@@ -6,7 +6,6 @@ import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollDatePicker } from "@/components/ui/ScrollDatePicker"
@@ -76,6 +75,8 @@ export function LeaveRequestWizard() {
     [leaveTypes, selectedLeaveTypeId]
   )
 
+  const isEmergency = selectedType?.key === "emergency"
+
   const totalDays = useMemo(
     () => calcTotalDays(startDate, endDate, dayType),
     [startDate, endDate, dayType]
@@ -94,10 +95,13 @@ export function LeaveRequestWizard() {
   function validateStep(step: number): string | null {
     if (step === 1 && !selectedLeaveTypeId) return "Please select a leave type."
     if (step === 2) {
-      if (!startDate || !endDate) return "Please select start and end dates."
-      if (new Date(endDate) < new Date(startDate)) return "End date must be on or after start date."
-      if ((dayType === "am" || dayType === "pm") && startDate !== endDate) {
-        return "Half-day leave must start and end on the same day."
+      if (!startDate) return "Please select a start date."
+      if (!isEmergency) {
+        if (!endDate) return "Please select an end date."
+        if (new Date(endDate) < new Date(startDate)) return "End date must be on or after start date."
+        if ((dayType === "am" || dayType === "pm") && startDate !== endDate) {
+          return "Half-day leave must start and end on the same day."
+        }
       }
     }
     if (step === 3) {
@@ -205,60 +209,82 @@ export function LeaveRequestWizard() {
           >
             <h2 className="text-base font-semibold">Select dates</h2>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Start date</Label>
-              <ScrollDatePicker
-                value={startDate ? new Date(startDate) : undefined}
-                onChange={(d) => setDates(d.toISOString().split('T')[0], endDate || d.toISOString().split('T')[0])}
-                placeholder="Pick start date"
-                className="w-full focus-visible:ring-primary/40"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>End date</Label>
-              <ScrollDatePicker
-                value={endDate ? new Date(endDate) : undefined}
-                onChange={(d) => setDates(startDate, d.toISOString().split('T')[0])}
-                placeholder="Pick end date"
-                className="w-full focus-visible:ring-primary/40"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Day type</Label>
-            <RadioGroup
-              value={dayType}
-              onValueChange={(v) => {
-                const d = v as LeaveDayType
-                setDayType(d)
-                if (d !== "full") setDates(startDate, startDate)
-              }}
-              className="flex gap-4"
-            >
-              {[
-                { value: "full", label: "Full day" },
-                { value: "am", label: "AM only" },
-                { value: "pm", label: "PM only" },
-              ].map((opt) => (
-                <div key={opt.value} className="flex items-center gap-2">
-                  <RadioGroupItem value={opt.value} id={`daytype-${opt.value}`} />
-                  <Label htmlFor={`daytype-${opt.value}`} className="cursor-pointer font-normal">
-                    {opt.label}
-                  </Label>
+          {isEmergency ? (
+            <>
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-sm text-amber-800 dark:text-amber-300">
+                Emergency leave is submitted for the start date. End date can be updated after you return.
+              </div>
+              <div className="space-y-1.5">
+                <Label>Start date</Label>
+                <ScrollDatePicker
+                  value={startDate ? new Date(startDate) : undefined}
+                  onChange={(d) => {
+                    const iso = d.toISOString().split('T')[0]
+                    setDates(iso, iso)
+                  }}
+                  placeholder="Pick date"
+                  className="w-full focus-visible:ring-primary/40"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Start date</Label>
+                  <ScrollDatePicker
+                    value={startDate ? new Date(startDate) : undefined}
+                    onChange={(d) => setDates(d.toISOString().split('T')[0], endDate || d.toISOString().split('T')[0])}
+                    placeholder="Pick start date"
+                    className="w-full focus-visible:ring-primary/40"
+                  />
                 </div>
-              ))}
-            </RadioGroup>
-          </div>
+                <div className="space-y-1.5">
+                  <Label>End date</Label>
+                  <ScrollDatePicker
+                    value={endDate ? new Date(endDate) : undefined}
+                    onChange={(d) => setDates(startDate, d.toISOString().split('T')[0])}
+                    placeholder="Pick end date"
+                    className="w-full focus-visible:ring-primary/40"
+                  />
+                </div>
+              </div>
 
-          {totalDays > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Total:{" "}
-              <span className="font-semibold text-foreground">
-                {totalDays} day{totalDays !== 1 ? "s" : ""}
-              </span>
-            </p>
+              <div className="space-y-1.5">
+                <Label>Day type</Label>
+                <RadioGroup
+                  value={dayType}
+                  onValueChange={(v) => {
+                    const d = v as LeaveDayType
+                    setDayType(d)
+                    if (d !== "full") setDates(startDate, startDate)
+                  }}
+                  className="flex gap-4"
+                >
+                  {[
+                    { value: "full", label: "Full day" },
+                    { value: "am", label: "AM only" },
+                    { value: "pm", label: "PM only" },
+                  ].map((opt) => (
+                    <div key={opt.value} className="flex items-center gap-2">
+                      <RadioGroupItem value={opt.value} id={`daytype-${opt.value}`} />
+                      <Label htmlFor={`daytype-${opt.value}`} className="cursor-pointer font-normal">
+                        {opt.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {totalDays > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Total:{" "}
+                  <span className="font-semibold text-foreground">
+                    {totalDays} day{totalDays !== 1 ? "s" : ""}
+                  </span>
+                </p>
+              )}
+            </>
           )}
           </motion.div>
         )}
@@ -284,13 +310,15 @@ export function LeaveRequestWizard() {
               rows={3}
             />
           </div>
-          <LeaveAttachmentZone
-            files={attachmentFiles}
-            onAdd={addAttachmentFile}
-            onRemove={removeAttachmentFile}
-            required={selectedType?.requiresAttachment ?? false}
-            error={attachmentError}
-          />
+          {!isEmergency && (
+            <LeaveAttachmentZone
+              files={attachmentFiles}
+              onAdd={addAttachmentFile}
+              onRemove={removeAttachmentFile}
+              required={selectedType?.requiresAttachment ?? false}
+              error={attachmentError}
+            />
+          )}
           </motion.div>
         )}
         {currentStep === 4 && (

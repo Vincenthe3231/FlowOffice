@@ -59,8 +59,16 @@ app/Modules/
 │   └── ValueObjects/  # UserId, DateRange, Money
 ├── Attendance/        # AttendanceServiceProvider, Services/, Rules/, Controllers/, Events/, Adapters/
 ├── Leave/             # Same flat structure
-└── Claims/            # Same flat structure
+├── Claims/            # Same flat structure
+├── Overtime/          # OvertimeService, OvertimeApprovalChainResolver, Resources/
+└── Shift/             # ShiftService, Resources/
 ```
+
+**Background Jobs** live in `app/Jobs/` (queued via Laravel queues):
+- `CheckEmergencyLeaveSla` — fires when emergency leave SLA deadline approaches
+- `CheckOvertimeSla` — fires when urgent overtime request SLA deadline approaches
+
+Overtime urgent requests set `metadata.sla_deadline` (ISO 8601, +2h from submission) on the `overtime_requests` row when `is_urgent = true`.
 
 **Eloquent models are in `app/Models/`** (not inside modules) — this is the current practice, not a violation of modularity.
 
@@ -94,6 +102,7 @@ All controllers use the `App\Traits\ApiResponse` trait:
 - `check.account_locked` — brute-force lockout
 - `check.top_management` — restricts write operations to `top_management` role
 - `role:top_management|hr_admin|hod` — Spatie role gate
+- `demo.mode` — when `APP_DEMO_MODE=true`, blocks all POST/PUT/PATCH/DELETE except `/api/auth/login` and `/api/auth/logout`; returns `{ error: "DEMO_MODE", status: 403 }`
 
 ### Supabase
 

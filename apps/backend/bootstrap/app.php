@@ -25,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         // Spatie Permission (Laravel 12 does not auto-register these)
+        $middleware->append(\App\Http\Middleware\DemoMode::class);
+
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

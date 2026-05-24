@@ -8,10 +8,8 @@ import {
   getRolesFromMeJson,
   isNonGrantedAllowedPath,
 } from '@/shared/lib/middleware-me'
-import { featuresConfig, FeatureKey } from '@/config/features.config'
-
-/** Roles that may access privileged approval/admin routes. */
-const APPROVER_ROLES_SET = new Set(['top_management', 'super_admin', 'hr_admin', 'hod'])
+import { featuresConfig, FEATURE_ROUTE_MAP } from '@/config/features.config'
+import { APPROVER_ROLE_SLUGS } from '@/shared/constants/roles'
 
 /** Routes that require an approver role — staff are redirected away. */
 const APPROVER_ONLY_PREFIXES = ['/dashboard/leave/approval']
@@ -26,20 +24,10 @@ function hasApproverRole(body: unknown): boolean {
   const role = getRoleFromMeJson(body)
   const roles = getRolesFromMeJson(body)
   return (
-    (role != null && APPROVER_ROLES_SET.has(role)) ||
-    roles.some((r) => APPROVER_ROLES_SET.has(r))
+    (role != null && APPROVER_ROLE_SLUGS.has(role)) ||
+    roles.some((r) => APPROVER_ROLE_SLUGS.has(r))
   )
 }
-
-const FEATURE_ROUTE_MAP: Array<[string, FeatureKey]> = [
-  ['/dashboard/attendance', 'attendance'],
-  ['/dashboard/log', 'attendance'],
-  ['/dashboard/claims', 'claims'],
-  ['/dashboard/leave', 'leave'],
-  ['/dashboard/onboarding', 'onboarding'],
-  ['/dashboard/overtime', 'overtime'],
-  ['/dashboard/reports', 'reports'],
-]
 
 function isDisabledFeatureRoute(pathname: string): boolean {
   for (const [prefix, feature] of FEATURE_ROUTE_MAP) {

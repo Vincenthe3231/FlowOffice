@@ -10,8 +10,11 @@ class ClaimAttachmentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $url = Storage::disk($this->disk)->exists($this->path)
-            ? Storage::disk($this->disk)->url($this->path)
+        $disk = Storage::disk($this->disk);
+        $url = $disk->exists($this->path)
+            ? ($this->disk === 'local'
+                ? $disk->url($this->path)
+                : $disk->temporaryUrl($this->path, now()->addHour()))
             : null;
 
         return [

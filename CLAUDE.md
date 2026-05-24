@@ -6,6 +6,8 @@
 apps/
   frontend/   → Next.js 16 (React 19, TypeScript, TanStack Query, Zustand)
   backend/    → Laravel 12 (PHP 8.2+, Sanctum, Spatie Permission, Supabase PostgreSQL)
+              → Modules: Attendance, Leave, Claims, Overtime, Shift (+ Shared/)
+              → Jobs: CheckEmergencyLeaveSla, CheckOvertimeSla (queue-based SLA enforcement)
 ```
 
 The frontend is a **pnpm workspace member**. The backend is PHP — it lives in the monorepo for co-location but is **not** a pnpm workspace member.

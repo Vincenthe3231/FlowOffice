@@ -8,6 +8,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Modules\Shared\Contracts\LeaveServiceInterface;
+use App\Modules\Shared\Events\EmergencyLeaveSubmitted;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -47,15 +48,25 @@ class LeaveService implements LeaveServiceInterface
     {
         $leaveType = LeaveType::findOrFail($data['leave_type_id']);
 
-        return DB::transaction(function () use ($user, $data, $leaveType) {
+        $isEmergency = $leaveType->key === 'emergency';
+
+        return DB::transaction(function () use ($user, $data, $leaveType, $isEmergency) {
+            // For emergency leave, store an SLA deadline in metadata (1-hour SLA)
+            $metadata = null;
+            if ($isEmergency) {
+                $slaDeadline = now()->addHour()->toIso8601String();
+                $metadata = ['sla_deadline' => $slaDeadline];
+            }
+
             $leave = Leave::create([
                 'user_id' => $user->id,
                 'leave_type_id' => $data['leave_type_id'],
                 'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'],
-                'day_type' => $data['day_type'],
+                'end_date' => $data['end_date'] ?? $data['start_date'],
+                'day_type' => $data['day_type'] ?? 'full',
                 'reason' => $data['reason'],
                 'status' => Leave::STATUS_PENDING_L1,
+                'metadata' => $metadata,
             ]);
 
             $duration = $leave->durationDays();
@@ -73,22 +84,44 @@ class LeaveService implements LeaveServiceInterface
                 ]);
             }
 
+            $eventName = $isEmergency ? 'emergency_submitted' : 'submitted';
+            $logMessage = $isEmergency
+                ? "Emergency leave submitted: {$leaveType->name} ({$data['start_date']})"
+                : "Leave submitted: {$leaveType->name} ({$data['start_date']} – {$data['end_date']})";
+
+            $activityProps = [
+                'attributes' => [
+                    'status' => Leave::STATUS_PENDING_L1,
+                    'leave_type' => $leaveType->name,
+                    'start_date' => $data['start_date'],
+                    'end_date' => $data['end_date'] ?? $data['start_date'],
+                    'duration' => $duration,
+                    'is_emergency' => $isEmergency,
+                ],
+                'module' => 'leave',
+                'ip' => request()->ip(),
+            ];
+
+            if ($isEmergency && $metadata) {
+                $activityProps['attributes']['sla_deadline'] = $metadata['sla_deadline'];
+            }
+
             activity('leave')
-                ->event('submitted')
+                ->event($eventName)
                 ->performedOn($leave)
                 ->causedBy($user)
-                ->withProperties([
-                    'attributes' => [
-                        'status' => Leave::STATUS_PENDING_L1,
-                        'leave_type' => $leaveType->name,
-                        'start_date' => $data['start_date'],
-                        'end_date' => $data['end_date'],
-                        'duration' => $leave->durationDays(),
-                    ],
-                    'module' => 'leave',
-                    'ip' => request()->ip(),
-                ])
-                ->log("Leave submitted: {$leaveType->name} ({$data['start_date']} – {$data['end_date']})");
+                ->withProperties($activityProps)
+                ->log($logMessage);
+
+            // Fire domain event so HR listeners can send read-only notifications
+            if ($isEmergency && $metadata) {
+                EmergencyLeaveSubmitted::dispatch(
+                    $leave->id,
+                    $user->id,
+                    $data['start_date'],
+                    $metadata['sla_deadline']
+                );
+            }
 
             return $leave->load(['leaveType', 'attachments', 'leaveApprovals']);
         });

@@ -68,6 +68,7 @@ import { ROLE_HR_ADMIN } from "@/shared/constants/roles";
 import { ClaimsSidebarSection } from "@/components/layout/ClaimsSidebarSection";
 import { LeaveSidebarSection } from "@/components/layout/LeaveSidebarSection";
 import { featuresConfig } from "@/config/features.config";
+import { DemoModeBanner } from "@/components/shared/DemoModeBanner";
 
 const mainNavAll = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -267,6 +268,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <DemoModeBanner />
       <Sidebar collapsible="icon" className="hidden border-r border-sidebar-border lg:flex">
         <SidebarHeader className="p-4 pb-2">
           <div className="flex items-center gap-2.5">

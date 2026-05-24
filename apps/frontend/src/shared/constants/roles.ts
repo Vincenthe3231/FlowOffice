@@ -23,3 +23,14 @@ export function isTopManagementSlug(role: string | undefined | null): boolean {
   if (role == null || String(role).trim() === "") return false
   return (TOP_MANAGEMENT_SLUGS as readonly string[]).includes(String(role).trim())
 }
+
+/**
+ * Roles that may access privileged approval/admin routes.
+ * Used by proxy middleware to gate approver-only paths.
+ */
+export const APPROVER_ROLE_SLUGS = new Set([
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+  ROLE_HR_ADMIN,
+  ROLE_HOD,
+] as const)

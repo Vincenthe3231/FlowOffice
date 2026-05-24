@@ -9,7 +9,11 @@
       "Bash(pnpm lint *)",
       "Bash(pnpm run *)",
       "Bash(curl -s http://localhost:3000/api/auth/me)",
-      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\FlowOffice\\\\apps\\\\backend\\\\app\\\\Http\\\\Resources\\\\\" -Filter \"*.php\" | Select-Object Name)"
+      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\FlowOffice\\\\apps\\\\backend\\\\app\\\\Http\\\\Resources\\\\\" -Filter \"*.php\" | Select-Object Name)",
+      "Bash(Get-ChildItem \"C:\\\\projects\\\\FlowOffice\\\\apps\\\\backend\\\\app\\\\Modules\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "PowerShell(cd C:\\\\projects\\\\FlowOffice\\\\apps\\\\frontend; pnpm lint 2>&1 | ForEach-Object { $_ } | Select-String -Pattern \"ShiftManagement\" -CaseSensitive:$false -A 10)",
+      "mcp__b4a1307c-2d45-4a73-bb6c-b4e511b3e5b8__list_projects"
     ]
   }
 }

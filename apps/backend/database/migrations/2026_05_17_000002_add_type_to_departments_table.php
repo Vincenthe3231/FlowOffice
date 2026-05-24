@@ -16,7 +16,9 @@ return new class extends Migration
                 $table->string('type')->default('general')->after('short_code');
             });
 
+            DB::statement("ALTER TABLE departments ALTER COLUMN type DROP DEFAULT");
             DB::statement("ALTER TABLE departments ALTER COLUMN type TYPE department_type USING type::department_type");
+            DB::statement("ALTER TABLE departments ALTER COLUMN type SET DEFAULT 'general'");
 
             DB::statement("UPDATE departments SET type = 'finance' WHERE short_code = 'FA'");
             DB::statement("UPDATE departments SET type = 'hr' WHERE short_code = 'HR'");

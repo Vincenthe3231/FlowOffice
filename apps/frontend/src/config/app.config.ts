@@ -30,7 +30,7 @@ export const appConfig = {
   description:
     process.env.NEXT_PUBLIC_APP_DESCRIPTION ??
     "FlowOffice - HR Management System",
-  logoPath: process.env.NEXT_PUBLIC_APP_LOGO_PATH ?? "/images/logos/Lark.png",
+  logoPath: process.env.NEXT_PUBLIC_APP_LOGO_PATH ?? "/images/logos/flowoffice-icon.svg",
   supportUrl: process.env.NEXT_PUBLIC_SUPPORT_URL ?? "",
   cookieNames: {
     auth: process.env.AUTH_COOKIE_NAME ?? "fo_auth_token",

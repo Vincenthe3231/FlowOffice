@@ -20,6 +20,25 @@ import { keysToCamel, keysToSnake } from './transform'
 // Same-origin; auth cookies are sent via withCredentials
 const BASE_URL = ''
 
+/**
+ * ⚠️  TRANSFORM CONTRACT — READ BEFORE MODIFYING
+ *
+ * All API data crosses a snake_case ↔ camelCase boundary at this interceptor layer.
+ * - Outgoing requests: camelCase → snake_case (via keysToSnake)
+ * - Incoming responses: snake_case → camelCase (via keysToCamel)
+ *
+ * Every feature's API client, hooks, and types assume this transform runs automatically.
+ * Changing or removing it will break ALL API interactions across Claims, Leave, Attendance, etc.
+ *
+ * Known edge cases:
+ * - Acronyms: "apiURL" → "api_u_r_l" (not "api_url"). Avoid consecutive uppercase in keys.
+ * - FormData: passed through as-is (no transform). Content-Type header is deleted so Axios sets multipart boundary.
+ * - Nested objects and arrays: recursively transformed.
+ * - Non-plain objects (Date, File, etc.): passed through as-is.
+ *
+ * If you add a new API field with acronyms (e.g., "htmlURL"), use camelCase ("htmlUrl") instead.
+ */
+
 /** Transform outgoing request data to snake_case; FormData: leave body as-is and drop Content-Type so Axios sets multipart boundary */
 const transformRequest = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   if (config.data instanceof FormData) {
