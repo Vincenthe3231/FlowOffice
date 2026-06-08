@@ -25,6 +25,10 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Install dependencies at build time so container starts fast
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --no-progress --no-scripts --no-autoloader
+
 EXPOSE 8000
 
-CMD ["sh", "-c", "composer install --no-interaction --no-progress && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+CMD ["sh", "-c", "if [ ! -d vendor ]; then composer install --no-interaction --no-progress; fi && composer dump-autoload --optimize && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]

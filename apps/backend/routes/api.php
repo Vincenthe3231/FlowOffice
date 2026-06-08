@@ -13,6 +13,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReverseGeocodeController;
 use Illuminate\Support\Facades\Route;
 
+// Health check — unauthenticated, used by Docker healthcheck
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
+
 // Public auth routes
 Route::post('/auth/lark/callback', [LarkAuthController::class, 'callback'])
     ->middleware('throttle:30,1');

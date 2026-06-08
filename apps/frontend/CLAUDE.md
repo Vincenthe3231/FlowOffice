@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server (webpack mode) at localhost:3000
-pnpm dev:turbo    # Start dev server (turbopack mode)
+pnpm dev          # Start dev server (turbopack mode) at localhost:3000
+pnpm dev:webpack  # Start dev server (webpack mode, fallback)
 pnpm build        # Production build
 pnpm lint         # Run ESLint
 pnpm format       # Prettier format all ts/tsx/md/json

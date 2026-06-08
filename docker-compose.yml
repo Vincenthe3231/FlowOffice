@@ -34,12 +34,18 @@ services:
     volumes:
       - ./apps/backend:/var/www/html
     env_file:
-      - ./apps/backend/.env
+      - ./apps/backend/.env.dev
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   frontend:
     image: node:20-alpine
@@ -51,11 +57,10 @@ services:
       - frontend_node_modules:/app/node_modules
       - frontend_next:/app/.next
       - pnpm_store:/root/.local/share/pnpm/store
-    env_file:
-      - ./apps/frontend/.env.local
-    command: sh -c "corepack enable && corepack prepare pnpm@latest --activate && pnpm install --no-frozen-lockfile && pnpm dev"
+    command: sh -c "corepack enable && corepack prepare pnpm@latest --activate && pnpm install --no-frozen-lockfile && cp .env.dev .env.local && pnpm dev"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   queue:
     build:
