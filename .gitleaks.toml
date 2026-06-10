@@ -1,0 +1,14 @@
+[extend]
+useDefault = true
+
+# Allow placeholder/example JWT tokens in documentation files
+[[allowlist]]
+description = "Example JWT tokens in documentation and .env.example templates"
+paths = [
+  "docs/.*\\.md",
+  "Overview\\.md",
+  "Belive-FO-Implementation-Plan\\.md",
+  "\\.env\\.example",
+  "apps/frontend/\\.env\\.example",
+  "apps/backend/\\.env\\.example",
+]

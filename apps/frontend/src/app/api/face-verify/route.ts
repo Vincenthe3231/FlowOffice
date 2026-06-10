@@ -7,10 +7,8 @@ const LARAVEL_API_URL =
   process.env.NEXT_PUBLIC_LARAVEL_API_URL ||
   'http://localhost:8000'
 
-const HUMAN_API_BASE =
-  process.env.HUMAN_API_URL ||
-  process.env.NEXT_PUBLIC_HUMAN_API_URL ||
-  'https://human-api-blond.vercel.app'
+const FACE_VERIFY_ENABLED = process.env.FACE_VERIFY_ENABLED === 'true'
+const HUMAN_API_BASE = process.env.HUMAN_API_URL || process.env.NEXT_PUBLIC_HUMAN_API_URL || ''
 
 function buildCookieHeader(request: NextRequest): string | undefined {
   const parts = request.cookies
@@ -53,6 +51,20 @@ async function getCurrentUserId(request: NextRequest): Promise<number | null> {
 }
 
 export async function POST(request: NextRequest) {
+  if (!FACE_VERIFY_ENABLED) {
+    return NextResponse.json(
+      { humanFace: false, match: false, debug: { status: 'disabled', message: 'Face verification is not enabled. Set FACE_VERIFY_ENABLED=true and configure HUMAN_API_URL.', requestId: '', timestamp: new Date().toISOString() } },
+      { status: 501 }
+    )
+  }
+
+  if (!HUMAN_API_BASE) {
+    return NextResponse.json(
+      { humanFace: false, match: false, debug: { status: 'error', message: 'HUMAN_API_URL is not configured.', requestId: '', timestamp: new Date().toISOString() } },
+      { status: 503 }
+    )
+  }
+
   if (request.headers.get('content-type')?.includes('application/json') !== true) {
     return NextResponse.json(
       { humanFace: false, match: false, debug: { status: 'error', message: 'Content-Type must be application/json', requestId: '', timestamp: new Date().toISOString() } },

@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
         $this->call(DepartmentSeeder::class);
         $this->call(RolesAndPermissionsSeeder::class);
         $this->call(EmergencyLeaveTypeSeeder::class);
+        $this->call(OrganizationSettingsSeeder::class);
+        $this->call(FirstRunAdminSeeder::class);
 
         if (env('SEED_DEMO_DATA', false)) {
             $this->call(DemoSeeder::class);

@@ -2,6 +2,12 @@ import { laravelApi } from './axios'
 import { API_ROUTES } from './constants'
 import { extractData } from './response-handler'
 import { keysToSnake } from './transform'
+import {
+  ROLE_HOD,
+  ROLE_HR_ADMIN,
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
+} from '@/shared/constants/roles'
 import type {
   Claim,
   ClaimApproval,
@@ -157,7 +163,7 @@ export interface ClaimApprovalApi {
 const CLAIM_APPROVAL_STEP_KINDS = new Set([
   'dept_hod',
   'hr_hod',
-  'top_management',
+  ROLE_TOP_MANAGEMENT,
   'finance_hod',
 ])
 
@@ -572,10 +578,10 @@ export async function fetchClaimApprovals(claimId: number): Promise<ClaimApprova
 
 /** Roles allowed to call Laravel `GET /api/claims/all` (org-wide). */
 const CLAIMS_ALL_VIEWER_ROLES = new Set([
-  'hod',
-  'hr_admin',
-  'top_management',
-  'super_admin',
+  ROLE_HOD,
+  ROLE_HR_ADMIN,
+  ROLE_TOP_MANAGEMENT,
+  ROLE_SUPER_ADMIN_LEGACY,
 ])
 
 /**

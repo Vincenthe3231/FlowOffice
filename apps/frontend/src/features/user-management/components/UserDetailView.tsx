@@ -28,6 +28,7 @@ import {
   getAdminUserLastLoginIso,
 } from '@/shared/lib/api-client/admin-users'
 import { extractError } from '@/shared/lib/api-client/response-handler'
+import { ROLE_STAFF } from '@/shared/constants/roles'
 import { isTopManagement } from '@/shared/lib/role-utils'
 import {
   ROLE_TOP_MANAGEMENT,
@@ -141,7 +142,7 @@ export function UserDetailView({ userUuid }: { userUuid: string }) {
   const [deptEditorOpen, setDeptEditorOpen] = useState(false)
   const [selectedDeptId, setSelectedDeptId] = useState<string>('')
   const [roleEditorOpen, setRoleEditorOpen] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<AdminUserDirectoryRole>('staff')
+  const [selectedRole, setSelectedRole] = useState<AdminUserDirectoryRole>(ROLE_STAFF)
 
   const currentDeptId = useMemo(() => {
     const id = data?.department?.id
