@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, LocateFixed, Route } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,7 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
   const draft = useClaimDraftStore();
   const updateFormField = useClaimDraftStore((s) => s.updateFormField);
   const { data: mapsConfig, isLoading: mapsConfigLoading, isError: mapsConfigError } = useMapsConfig();
+  const queryClient = useQueryClient();
 
   /** Callback ref state so map init runs after the container mounts (step 4 is conditionally rendered). */
   const [mapHost, setMapHost] = useState<HTMLDivElement | null>(null);
@@ -467,7 +469,13 @@ export function RouteStepMap({ mileageRate }: RouteStepMapProps) {
           markersRef.current.from.setPosition(point);
         }
 
-        const locationName = await reverseGeocode(lat, lng);
+        const roundedLat = Math.round(lat * 10000) / 10000;
+        const roundedLng = Math.round(lng * 10000) / 10000;
+        const locationName = await queryClient.fetchQuery({
+          queryKey: ["reverseGeocode", roundedLat, roundedLng],
+          queryFn: () => reverseGeocode(lat, lng),
+          staleTime: 5 * 60 * 1000,
+        });
         if (locationName) {
           setFromLocation(locationName);
           updateFormField("fromLocation", locationName);

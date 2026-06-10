@@ -1,3 +1,18 @@
+# Single-stage build (NOT multi-stage).
+# Multi-stage uses multiple FROM blocks to separate a heavy build environment from a lean
+# runtime image — e.g. FROM node:20 AS builder ... FROM node:20-alpine AS runtime COPY --from=builder.
+# This file has one FROM. The vendor/ speed trick is done via a named Docker volume in
+# docker-compose.yml, not via a second build stage.
+#
+# How the vendor/ trick works:
+#   1. BUILD TIME  — composer install bakes vendor/ into the image layer (no app code needed,
+#                    only composer.json + composer.lock are copied).
+#   2. RUNTIME     — docker-compose bind-mounts ./apps/backend over /var/www/html for hot reload,
+#                    which would normally wipe the image's vendor/. A named volume mounted at
+#                    /var/www/html/vendor overlays on top, preserving the image's vendor/ contents.
+#   3. FIRST START — named volume is empty; Docker seeds it from the image layer automatically.
+#                    CMD detects missing autoload_classmap.php and runs dump-autoload once.
+#   4. RESTARTS    — named volume already has vendor/ + autoload; CMD skips dump-autoload entirely.
 FROM php:8.4-cli
 
 WORKDIR /var/www/html
@@ -23,12 +38,21 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     exif \
     pcntl
 
+# Raise PHP upload limits — default upload_max_filesize=2M rejects 5M photos.
+# conf.d/*.ini is read by the CLI SAPI that `php artisan serve` uses.
+COPY docker/php.ini /usr/local/etc/php/conf.d/zz-flowoffice.ini
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install dependencies at build time so container starts fast
+# Bake vendor/ into the image layer at build time.
+# --no-scripts: skips post-install hooks (package:discover) — app files not present yet.
+# --no-autoloader: skips classmap generation — done on first container start instead,
+#                  after app files are bind-mounted and all classes are available.
 COPY composer.json composer.lock ./
 RUN composer install --no-interaction --no-progress --no-scripts --no-autoloader
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "if [ ! -d vendor ]; then composer install --no-interaction --no-progress; fi && composer dump-autoload --optimize && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+# Skip dump-autoload on restarts: autoload_classmap.php already exists in the named volume.
+# On first start (volume empty, seeded from image): classmap missing → generate once.
+CMD ["sh", "-c", "[ -f vendor/composer/autoload_classmap.php ] || composer dump-autoload --optimize && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]

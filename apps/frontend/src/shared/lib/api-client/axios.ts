@@ -32,23 +32,24 @@ const BASE_URL = ''
  *
  * Known edge cases:
  * - Acronyms: "apiURL" → "api_u_r_l" (not "api_url"). Avoid consecutive uppercase in keys.
- * - FormData: passed through as-is (no transform). Content-Type header is deleted so Axios sets multipart boundary.
+ * - FormData: passed through as-is (no transform, no Content-Type set). The instance has no default Content-Type, so axios/browser sets multipart/form-data with boundary automatically. Do NOT add a default Content-Type to the instance — axios 1.x formDataToJSON() fires whenever Content-Type contains "application/json", serializing the file to JSON.
  * - Nested objects and arrays: recursively transformed.
  * - Non-plain objects (Date, File, etc.): passed through as-is.
  *
  * If you add a new API field with acronyms (e.g., "htmlURL"), use camelCase ("htmlUrl") instead.
  */
 
-/** Transform outgoing request data to snake_case; FormData: leave body as-is and drop Content-Type so Axios sets multipart boundary */
+/** Transform outgoing request data to snake_case; FormData: leave body as-is (no Content-Type set → axios sets multipart+boundary automatically) */
 const transformRequest = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   if (config.data instanceof FormData) {
-    if (config.headers && typeof config.headers === 'object' && !Array.isArray(config.headers)) {
-      delete (config.headers as Record<string, unknown>)['Content-Type']
-    }
+    // Do NOT set Content-Type — browser/XHR sets multipart/form-data with boundary.
+    // Instance default has no Content-Type (see axios.create below), so no delete needed.
     return config
   }
   if (config.data && typeof config.data === 'object') {
     config.data = keysToSnake(config.data)
+    // Explicitly set JSON content type only for object payloads.
+    config.headers.set('Content-Type', 'application/json')
   }
   return config
 }
@@ -70,8 +71,9 @@ export const laravelApi = axios.create({
   withCredentials: true,
   headers: {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
+    // No Content-Type default: JSON requests get it in the interceptor;
+    // FormData requests get multipart+boundary set automatically by the browser.
   },
 })
 

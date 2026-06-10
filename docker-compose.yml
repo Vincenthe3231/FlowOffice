@@ -32,7 +32,14 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      # Bind mount: live app code for hot reload. Overwrites /var/www/html including vendor/.
       - ./apps/backend:/var/www/html
+      # Named volume overlay: mounts ON TOP of the bind mount at the vendor/ subdirectory,
+      # restoring the vendor/ that was baked into the image at build time.
+      # On first start Docker auto-seeds this volume from the image layer (one-time only).
+      # Subsequent restarts reuse the persisted volume — no composer dump-autoload needed.
+      # To reset (e.g. after adding a package): docker volume rm flowoffice_backend_vendor
+      - backend_vendor:/var/www/html/vendor
     env_file:
       - ./apps/backend/.env.dev
     depends_on:
@@ -54,6 +61,8 @@ services:
       - "3000:3000"
     volumes:
       - ./apps/frontend:/app
+      # Same named volume overlay pattern as backend_vendor:
+      # node_modules baked into image layer, preserved across restarts.
       - frontend_node_modules:/app/node_modules
       - frontend_next:/app/.next
       - pnpm_store:/root/.local/share/pnpm/store
@@ -67,7 +76,9 @@ services:
       context: ./apps/backend
       dockerfile: Dockerfile.dev
     volumes:
+      # Same vendor overlay as backend service — shares the same named volume.
       - ./apps/backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
     env_file:
       - ./apps/backend/.env
     command: sh -c "php artisan queue:work --sleep=3 --tries=3"
@@ -82,3 +93,4 @@ volumes:
   frontend_node_modules:
   frontend_next:
   pnpm_store:
+  backend_vendor:

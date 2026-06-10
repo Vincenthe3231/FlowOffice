@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\UploadedFileValid;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -90,7 +92,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'face_photo' => ['required', 'file', 'image', 'max:5120'], // 5 MB
+            'face_photo' => ['required', new UploadedFileValid, 'image', 'max:5120'], // 5 MB
             'position' => ['required', 'string', 'in:front,left,right'],
         ]);
 
@@ -106,29 +108,35 @@ class ProfileController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
         $storage = Storage::disk($disk);
 
-        // Delete previous file for this position if it exists (cleanup orphaned files)
-        $oldUrl = $user->$column;
-        if ($oldUrl) {
-            $baseUrl = rtrim($storage->url(''), '/');
-            $oldPath = $baseUrl !== '' ? str_replace($baseUrl.'/', '', $oldUrl) : $oldUrl;
+        // Delete previous file for this position if it exists (cleanup orphaned files).
+        // Tolerates both stored object paths (new) and legacy full URLs (transition).
+        $oldPath = $this->storagePath($user->$column, $storage);
+        if ($oldPath) {
             $storage->delete($oldPath);
         }
 
-        // Fixed filename per position → overwrites in place for same extension
-        $path = $file->storeAs($directory, "face_{$position}.{$extension}", $disk);
+        // Versioned filename (uuid) → new object path per upload → signed URL changes →
+        // automatic browser/CDN cache-bust on update (ADR-001).
+        // Explicit ContentType required: Supabase S3 bucket rejects uploads without it (415).
+        // CacheControl lets the browser cache the bytes (private; signed URL is per-user).
+        $path = $file->storeAs($directory, "face_{$position}_".Str::uuid().".{$extension}", [
+            'disk' => $disk,
+            'ContentType' => $file->getMimeType(),
+            'CacheControl' => 'private, max-age=604800, immutable',
+        ]);
 
         if (! $path) {
             throw ValidationException::withMessages([
-                'face_photo' => ['Failed to store face photo.'],
+                'face_photo' => ['FILE_STORAGE_FAILED: Could not save the photo. Please try again.'],
             ]);
         }
 
-        $url = $storage->url($path);
-        $user->$column = $url;
+        // Store the object PATH (private); signed URLs are generated on read.
+        $user->$column = $path;
         $user->save();
 
         return response()->json([
-            'data' => $url,
+            'data' => $this->signedUrl($path),
         ]);
     }
 
@@ -141,7 +149,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'avatar' => ['required', 'file', 'image', 'max:5120'],
+            'avatar' => ['required', new UploadedFileValid, 'image', 'max:5120'],
         ]);
 
         $file = $request->file('avatar');
@@ -153,26 +161,79 @@ class ProfileController extends Controller
         /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
         $storage = Storage::disk($disk);
 
-        $oldUrl = $user->avatar_url;
-        if ($oldUrl) {
-            $baseUrl = rtrim($storage->url(''), '/');
-            $oldPath = $baseUrl !== '' ? str_replace($baseUrl.'/', '', $oldUrl) : $oldUrl;
+        // Tolerates both stored object paths (new) and legacy full URLs (transition).
+        $oldPath = $this->storagePath($user->avatar_url, $storage);
+        if ($oldPath) {
             $storage->delete($oldPath);
         }
 
-        $path = $file->storeAs($directory, $filename, $disk);
+        $path = $file->storeAs($directory, $filename, [
+            'disk' => $disk,
+            'ContentType' => $file->getMimeType(),
+            'CacheControl' => 'private, max-age=604800, immutable',
+        ]);
 
         if (! $path) {
             throw ValidationException::withMessages([
-                'avatar' => ['Failed to store avatar.'],
+                'avatar' => ['FILE_STORAGE_FAILED: Could not save the avatar. Please try again.'],
             ]);
         }
 
-        $url = $storage->url($path);
-        $user->avatar_url = $url;
+        // Store the object PATH (private); signed URLs are generated on read.
+        $user->avatar_url = $path;
         $user->save();
 
-        return response()->json(['data' => ['url' => $url]]);
+        return response()->json(['data' => ['url' => $this->signedUrl($path)]]);
+    }
+
+    /**
+     * Generate a memoized, short-lived signed URL for a private storage object (ADR-001).
+     *
+     * The URL is cached (per disk + path) for ~6 days, just under the 7-day signature TTL,
+     * so repeated /me calls return the SAME URL string → the browser serves the bytes from
+     * disk cache (zero egress) instead of re-fetching. A new upload uses a new uuid path →
+     * new cache key → fresh signed URL → automatic cache-bust.
+     *
+     * Legacy rows that still hold a full public URL are passed through unchanged during the
+     * transition to path-based storage.
+     */
+    private function signedUrl(?string $stored): ?string
+    {
+        if ($stored === null || $stored === '') {
+            return null;
+        }
+
+        // Legacy value: already a full URL (pre-ADR-001). Pass through.
+        if (Str::startsWith($stored, 'http')) {
+            return $stored;
+        }
+
+        $disk = config('filesystems.default');
+
+        return Cache::remember(
+            "profile_signed_url:{$disk}:{$stored}",
+            now()->addDays(6),
+            fn () => Storage::disk($disk)->temporaryUrl($stored, now()->addDays(7)),
+        );
+    }
+
+    /**
+     * Resolve the storage object path from a stored value, tolerating both new path-based
+     * values and legacy full URLs. Returns null for empty values.
+     */
+    private function storagePath(?string $stored, \Illuminate\Filesystem\FilesystemAdapter $storage): ?string
+    {
+        if ($stored === null || $stored === '') {
+            return null;
+        }
+
+        if (! Str::startsWith($stored, 'http')) {
+            return $stored;
+        }
+
+        $baseUrl = rtrim($storage->url(''), '/');
+
+        return $baseUrl !== '' ? str_replace($baseUrl.'/', '', $stored) : $stored;
     }
 
     /**
@@ -192,10 +253,10 @@ class ProfileController extends Controller
             'department' => $this->departmentDisplayString($user),
             // snake_case: BFF/client may map to employeeId (e.g. keysToCamel). Prefer HR sync; else Lark open_id (ou_*).
             'employee_id' => $this->resolveEmployeeId($user),
-            'avatarUrl' => $user->avatar_url ?? null,
-            'faceFrontUrl' => $user->face_front_url ?? null,
-            'faceLeftUrl' => $user->face_left_url ?? null,
-            'faceRightUrl' => $user->face_right_url ?? null,
+            'avatarUrl' => $this->signedUrl($user->avatar_url),
+            'faceFrontUrl' => $this->signedUrl($user->face_front_url),
+            'faceLeftUrl' => $this->signedUrl($user->face_left_url),
+            'faceRightUrl' => $this->signedUrl($user->face_right_url),
             'officeId' => null,
             'managerId' => null,
             'createdAt' => optional($user->created_at)->toIso8601String(),

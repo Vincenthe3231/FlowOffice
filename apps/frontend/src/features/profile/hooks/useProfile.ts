@@ -9,6 +9,7 @@ import {
   uploadFacePhoto as uploadFacePhotoApi,
   type FacePosition,
 } from "@/shared/lib/api-client/profile";
+import { extractError } from "@/shared/lib/api-client/response-handler";
 
 export function useProfile() {
   const { toast } = useToast();
@@ -41,8 +42,11 @@ export function useProfile() {
       await updateProfile.mutateAsync({ avatarUrl: url });
       return url;
     },
-    onError: (error: Error) => {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    onError: (error: unknown) => {
+      const apiErr = extractError(error);
+      const raw = apiErr.fields?.avatar?.[0] ?? apiErr.message;
+      const display = raw.includes(": ") ? raw.split(": ").slice(1).join(": ") : raw;
+      toast({ title: "Upload failed", description: display, variant: "destructive" });
     },
   });
 
@@ -58,8 +62,11 @@ export function useProfile() {
     onSuccess: () => {
       toast({ title: "Face photo uploaded", description: "Your photo has been saved." });
     },
-    onError: (error: Error) => {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    onError: (error: unknown) => {
+      const apiErr = extractError(error);
+      const raw = apiErr.fields?.face_photo?.[0] ?? apiErr.message;
+      const display = raw.includes(": ") ? raw.split(": ").slice(1).join(": ") : raw;
+      toast({ title: "Upload failed", description: display, variant: "destructive" });
     },
   });
 

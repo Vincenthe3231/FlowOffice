@@ -91,9 +91,10 @@ async function handleRequest(request: NextRequest, method: string) {
   let requiresDuplex = false
   if (method !== 'GET' && method !== 'HEAD') {
     if (isMultipart) {
-      // For file uploads, stream the raw body and preserve original headers
-      body = request.body as any
-      requiresDuplex = true
+      // Buffer the full body — streaming request.body (ReadableStream) in Next.js App Router
+      // delivers 0 bytes to the downstream fetch (stream consumed/locked before handler runs),
+      // causing PHP UPLOAD_ERR_PARTIAL → Laravel "failed to upload" validation error.
+      body = await request.arrayBuffer()
     } else if (isJson) {
       // For JSON requests, read and forward as text, and ensure Content-Type
       try {

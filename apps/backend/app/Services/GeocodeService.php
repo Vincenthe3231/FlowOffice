@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class GeocodeService
@@ -19,6 +20,14 @@ class GeocodeService
      */
     public function geocode(string $address): ?array
     {
+        $key = 'geocode:' . md5(strtolower(trim($address)));
+
+        if (Cache::has($key)) {
+            $cached = Cache::get($key);
+
+            return $cached === '__null__' ? null : $cached;
+        }
+
         $response = Http::withHeaders(['User-Agent' => self::USER_AGENT])
             ->get(self::SEARCH_URL, [
                 'q' => $address,
@@ -27,6 +36,8 @@ class GeocodeService
             ]);
 
         if (! $response->successful()) {
+            Cache::put($key, '__null__', 86400);
+
             return null;
         }
 
@@ -34,13 +45,19 @@ class GeocodeService
         $first = $results[0] ?? null;
 
         if (! $first || ! isset($first['lat'], $first['lon'])) {
+            Cache::put($key, '__null__', 86400);
+
             return null;
         }
 
-        return [
+        $coords = [
             'lat' => (float) $first['lat'],
             'lng' => (float) $first['lon'],
         ];
+
+        Cache::put($key, $coords, 86400);
+
+        return $coords;
     }
 
     /**
@@ -51,6 +68,14 @@ class GeocodeService
      */
     public function reverseGeocode(float $lat, float $lng): ?string
     {
+        $cacheKey = 'rev_geocode:' . round($lat, 4) . '_' . round($lng, 4);
+
+        if (Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
+
+            return $cached === '__null__' ? null : $cached;
+        }
+
         $response = Http::withHeaders(['User-Agent' => self::USER_AGENT])
             ->get(self::REVERSE_URL, [
                 'lat' => $lat,
@@ -59,11 +84,15 @@ class GeocodeService
             ]);
 
         if (! $response->successful()) {
+            Cache::put($cacheKey, '__null__', 86400);
+
             return null;
         }
 
         $body = $response->json();
         if (! $body || isset($body['error'])) {
+            Cache::put($cacheKey, '__null__', 86400);
+
             return null;
         }
 
@@ -79,7 +108,10 @@ class GeocodeService
         }
 
         if ($parts !== []) {
-            return implode(', ', array_slice($parts, 0, 4));
+            $result = implode(', ', array_slice($parts, 0, 4));
+            Cache::put($cacheKey, $result, 86400);
+
+            return $result;
         }
 
         // Fallback: first 3 parts of display_name
@@ -87,6 +119,9 @@ class GeocodeService
         $fallbackParts = array_map('trim', explode(',', $displayName));
         $fallback = implode(', ', array_slice($fallbackParts, 0, 3));
 
-        return $fallback !== '' ? $fallback : null;
+        $result = $fallback !== '' ? $fallback : null;
+        Cache::put($cacheKey, $result ?? '__null__', 86400);
+
+        return $result;
     }
 }

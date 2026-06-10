@@ -9,25 +9,10 @@ import {
   isNonGrantedAllowedPath,
 } from '@/shared/lib/middleware-me'
 import { featuresConfig, FEATURE_ROUTE_MAP } from '@/config/features.config'
-import { APPROVER_ROLE_SLUGS } from '@/shared/constants/roles'
-
-/** Routes that require an approver role — staff are redirected away. */
-const APPROVER_ONLY_PREFIXES = ['/dashboard/leave/approval']
-
-function isApproverOnlyPath(pathname: string): boolean {
-  return APPROVER_ONLY_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + '/')
-  )
-}
-
-function hasApproverRole(body: unknown): boolean {
-  const role = getRoleFromMeJson(body)
-  const roles = getRolesFromMeJson(body)
-  return (
-    (role != null && APPROVER_ROLE_SLUGS.has(role)) ||
-    roles.some((r) => APPROVER_ROLE_SLUGS.has(r))
-  )
-}
+import {
+  requiredTierForPath,
+  isAuthorizedForTier,
+} from '@/config/route-guards.config'
 
 function isDisabledFeatureRoute(pathname: string): boolean {
   for (const [prefix, feature] of FEATURE_ROUTE_MAP) {
@@ -121,9 +106,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Role-based route guard: approver-only paths redirect non-approvers
-  if (isApproverOnlyPath(pathname) && !hasApproverRole(body)) {
-    return NextResponse.redirect(new URL('/dashboard/leave', request.url))
+  // Centralized role-based route guard (declarative tiers; see route-guards.config.ts).
+  // UX / defense-in-depth only — Laravel policies remain the real security boundary.
+  const requiredTier = requiredTierForPath(pathname)
+  if (requiredTier) {
+    const role = getRoleFromMeJson(body)
+    const roles = getRolesFromMeJson(body)
+    if (!isAuthorizedForTier(requiredTier, role, roles)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return NextResponse.next()

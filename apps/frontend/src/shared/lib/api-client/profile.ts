@@ -90,9 +90,7 @@ export async function uploadAvatar(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('avatar', file)
 
-  const response = await laravelApi.post(`${PROXY}/profile/avatar`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const response = await laravelApi.post(`${PROXY}/profile/avatar`, formData)
   return extractData<string>(response)
 }
 
@@ -103,9 +101,7 @@ export async function uploadFacePhoto(file: File, position: FacePosition): Promi
   formData.append('face_photo', file)
   formData.append('position', position)
 
-  const response = await laravelApi.post(`${PROXY}/profile/face-photo`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const response = await laravelApi.post(`${PROXY}/profile/face-photo`, formData)
   return extractData<string>(response)
 }
 

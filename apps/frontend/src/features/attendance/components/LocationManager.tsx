@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ const emptyForm: OfficeFormData = {
 };
 
 export function LocationManager() {
+  const queryClient = useQueryClient();
   const { offices, isLoading, addOffice, updateOffice, toggleActive } = useOfficeManagement();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -71,7 +73,11 @@ export function LocationManager() {
       return;
     }
     setGeocodeStatus("loading");
-    geocodeAddress(address)
+    queryClient.fetchQuery({
+      queryKey: ["geocode", address.trim().toLowerCase()],
+      queryFn: () => geocodeAddress(address),
+      staleTime: 24 * 60 * 60 * 1000,
+    })
       .then((result) => {
         if (result) {
           setForm((prev) => ({ ...prev, latitude: result.lat, longitude: result.lng }));
